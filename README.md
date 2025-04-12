@@ -1,6 +1,6 @@
-# TypeScript Express.js Backend
+# BRK Backend
 
-A clean architecture TypeScript-based Node.js backend using Express.js.
+TypeScript-based Node.js backend with Express using clean architecture
 
 ## Project Structure
 
@@ -18,28 +18,65 @@ src/
 └── utils/           # Utility functions
 ```
 
-## Installation
+## Database Setup
 
-1. Clone the repository
-2. Install dependencies:
+This project uses TypeORM with PostgreSQL. You can set up the database in two ways:
 
-```bash
-npm install
-```
+### Using Docker Compose (Recommended)
 
-3. Copy the example environment file:
+1. Make sure Docker and Docker Compose are installed on your system
+2. Run the following command to start PostgreSQL and PgAdmin:
 
 ```bash
-cp .env.example .env
+docker-compose up -d
 ```
 
-4. Edit the `.env` file with your configuration
+This will start:
+- PostgreSQL database on port 5432 (or the port specified in your .env file)
+- PgAdmin web interface available at http://localhost:5050 (or the port specified in your .env file)
+
+To stop the containers:
+
+```bash
+docker-compose down
+```
+
+To stop the containers and remove the volumes (this will delete all data):
+
+```bash
+docker-compose down -v
+```
+
+### Manual Setup
+
+1. Make sure PostgreSQL is installed and running on your system
+2. Create a database named `brk_competition` (or configure environment variables for your database)
+3. Configure database connection details in `.env` file
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_DATABASE=brk_competition
+DB_SSL=false
+```
+
+## Migration Commands
+
+The following commands are available for database migrations:
+
+- `npm run migration:create -- src/migrations/MigrationName` - Create a new migration file
+- `npm run migration:generate -- src/migrations/MigrationName` - Generate a migration from entity changes
+- `npm run migration:run` - Run pending migrations
+- `npm run migration:revert` - Revert the most recent migration
 
 ## Development
 
 To run the application in development mode:
 
 ```bash
+npm install
 npm run dev
 ```
 

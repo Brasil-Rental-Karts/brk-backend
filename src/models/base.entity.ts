@@ -1,11 +1,12 @@
-export abstract class BaseEntity {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
+import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-  constructor(id: string) {
-    this.id = id;
-    this.createdAt = new Date();
-    this.updatedAt = new Date();
-  }
+export abstract class BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 } 
