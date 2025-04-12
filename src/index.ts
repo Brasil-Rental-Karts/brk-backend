@@ -2,16 +2,26 @@ import 'reflect-metadata';
 import { App } from './app';
 import config from './config/config';
 import { HealthController } from './controllers/health.controller';
+import { AuthController } from './controllers/auth.controller';
 import { AppDataSource } from './config/database.config';
+import { User } from './models/user.entity';
+import { AuthService } from './services/auth.service';
 
 // Initialize database connection
 AppDataSource.initialize()
   .then(() => {
     console.log('Database connection established');
     
+    // Initialize repositories
+    const userRepository = AppDataSource.getRepository(User);
+    
+    // Initialize services
+    const authService = new AuthService(userRepository);
+    
     // Initialize controllers
     const controllers = [
       new HealthController(),
+      new AuthController(authService),
       // Add more controllers here as they are created
     ];
 

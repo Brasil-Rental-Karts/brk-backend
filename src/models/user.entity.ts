@@ -4,6 +4,13 @@ import { Pilot } from './pilot.entity';
 import { Organizer } from './organizer.entity';
 import { Administrator } from './administrator.entity';
 
+export enum UserRole {
+  MEMBER = 'Member',
+  PILOT = 'Pilot',
+  ORGANIZER = 'Organizer',
+  ADMINISTRATOR = 'Administrator'
+}
+
 @Entity('Users')
 export class User extends BaseEntity {
   @Column({ length: 100, nullable: false })
@@ -14,6 +21,16 @@ export class User extends BaseEntity {
 
   @Column({ length: 20, nullable: true })
   phone: string = '';
+
+  @Column({ length: 100, nullable: false })
+  password: string = '';
+
+  @Column({ 
+    type: 'enum', 
+    enum: UserRole, 
+    default: UserRole.MEMBER 
+  })
+  role: UserRole = UserRole.MEMBER;
 
   @Column({ type: 'date', nullable: false })
   registrationDate: Date = new Date();

@@ -1,0 +1,233 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2023-09-15T12:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.4.0",
+  "resources": [
+    {
+      "_id": "req_root",
+      "parentId": "wrk_brk_backend",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}",
+      "name": "Root",
+      "description": "",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1631643600000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "wrk_brk_backend",
+      "parentId": null,
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "BRK Backend API",
+      "description": "API for the BRK backend application",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+    {
+      "_id": "req_register",
+      "parentId": "fld_auth",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/auth/register",
+      "name": "Register User",
+      "description": "Register a new user",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"Test User\",\n\t\"email\": \"test@example.com\",\n\t\"password\": \"password123\",\n\t\"phone\": \"+1234567890\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1631643600000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_auth",
+      "parentId": "wrk_brk_backend",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Authentication",
+      "description": "Authentication endpoints",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1631643600000,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_login",
+      "parentId": "fld_auth",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/auth/login",
+      "name": "Login",
+      "description": "Login with email and password to get tokens",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"email\": \"test@example.com\",\n\t\"password\": \"password123\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1631643500000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_refresh_token",
+      "parentId": "fld_auth",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/auth/refresh-token",
+      "name": "Refresh Token",
+      "description": "Refresh the access token using the refresh token",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"refreshToken\": \"{{ _.refreshToken }}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1631643400000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_logout",
+      "parentId": "fld_auth",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/auth/logout",
+      "name": "Logout",
+      "description": "Logout and invalidate the refresh token",
+      "method": "POST",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643300000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "env_base",
+      "parentId": "wrk_brk_backend",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Base Environment",
+      "data": {
+        "baseUrl": "http://localhost:3000",
+        "accessToken": "",
+        "refreshToken": ""
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "baseUrl",
+          "accessToken", 
+          "refreshToken"
+        ]
+      },
+      "color": null,
+      "isPrivate": false,
+      "metaSortKey": 1631643600000,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_development",
+      "parentId": "env_base",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Development",
+      "data": {
+        "baseUrl": "http://localhost:3000"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "baseUrl"
+        ]
+      },
+      "color": "#00ff00",
+      "isPrivate": false,
+      "metaSortKey": 1631643600000,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_production",
+      "parentId": "env_base",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Production",
+      "data": {
+        "baseUrl": "https://api.brkcompetition.com"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "baseUrl"
+        ]
+      },
+      "color": "#ff0000",
+      "isPrivate": false,
+      "metaSortKey": 1631643600000,
+      "_type": "environment"
+    }
+  ]
+} 

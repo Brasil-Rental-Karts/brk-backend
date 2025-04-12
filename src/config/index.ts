@@ -4,21 +4,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const config = {
-  port: process.env.PORT || 3000,
-  nodeEnv: process.env.NODE_ENV || 'development',
-  logLevel: process.env.LOG_LEVEL || 'info',
-  
-  // Database configuration
-  database: {
+  server: {
+    port: parseInt(process.env.PORT || '3000', 10),
+  },
+  db: {
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
+    port: parseInt(process.env.DB_PORT || '5432', 10),
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_DATABASE || 'brk_competition',
-    ssl: process.env.DB_SSL === 'true',
+    database: process.env.DB_DATABASE || 'brk-backend',
   },
-  
-  // JWT configuration
   jwt: {
     secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     accessTokenExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
