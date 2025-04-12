@@ -8,11 +8,11 @@
     "dev": "nodemon --watch \"src/**/*.ts\" --exec \"npx ts-node\" src/index.ts",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d ./typeorm.config.ts",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate",
-    "migration:run": "npm run typeorm -- migration:run",
-    "migration:revert": "npm run typeorm -- migration:revert"
+    "migration:generate": "npm run typeorm -- -d ./typeorm-migration.config.ts migration:generate ./src/migrations/initial",
+    "migration:run": "npm run typeorm -- -d ./typeorm-migration.config.ts migration:run",
+    "migration:revert": "npm run typeorm -- -d ./typeorm-migration.config.ts migration:revert"
   },
   "keywords": [
     "typescript",

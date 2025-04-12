@@ -18,9 +18,12 @@ export const dbConfig: DataSourceOptions = {
   // In development mode, retry connecting to database in case it's not ready yet
   // This is useful when starting with Docker Compose
   connectTimeoutMS: 10000,
-  synchronize: process.env.NODE_ENV === 'development', // Auto-create tables in development
+  // Only use synchronize in development, never in production
+  synchronize: process.env.NODE_ENV === 'development',
   logging: process.env.NODE_ENV === 'development',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  // Configure migrations
+  migrationsRun: process.env.NODE_ENV === 'production', // Auto-run migrations in production
 };
 
 // Create and export the data source
