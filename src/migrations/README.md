@@ -8,6 +8,21 @@ Each migration file consists of two methods:
 - `up()`: Contains the SQL commands to apply the migration
 - `down()`: Contains the SQL commands to revert the migration
 
+## Existing Migrations
+
+### Initial Migration (1744490423748-InitialMigration.ts)
+
+This is the initial migration that creates all the entity tables in the database:
+
+- Users, Pilots, Administrators, Organizers
+- Clubs, Championship, Season, Categories
+- Venues, Karting_Tracks, Fleet
+- Stages, Heats, Results
+- Penalties, Appeals
+- Many-to-many relationship tables (Club_Organizers, Season_Categories, Pilot_Categories, Track_Administrators)
+
+It sets up the entire database schema including foreign key relationships between tables.
+
 ## How to Apply Migrations in Production
 
 1. First, ensure your `.env` file is configured with the correct production database settings:

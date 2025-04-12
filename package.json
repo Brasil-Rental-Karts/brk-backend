@@ -9,10 +9,10 @@
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- -d ./typeorm-migration.config.ts migration:generate ./src/migrations/initial",
-    "migration:run": "npm run typeorm -- -d ./typeorm-migration.config.ts migration:run",
-    "migration:revert": "npm run typeorm -- -d ./typeorm-migration.config.ts migration:revert"
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm-migration.config.ts src/migrations/InitialMigration",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm-migration.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm-migration.config.ts",
+    "migration:show": "npm run typeorm -- migration:show -d typeorm-migration.config.ts"
   },
   "keywords": [
     "typescript",
