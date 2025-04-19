@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { BaseService } from './base.service';
-import { User } from '../models/user.entity';
+import { User, UserRole } from '../models/user.entity';
 import { UserRepository } from '../repositories/user.repository';
 import { HttpException } from '../middleware/error.middleware';
 
@@ -25,6 +25,11 @@ export class UserService extends BaseService<User> {
       userData.password = await bcrypt.hash(userData.password, 10);
     }
 
+    // Set registration date to current date if not provided
+    if (!userData.registrationDate) {
+      userData.registrationDate = new Date();
+    }
+
     return super.create(userData);
   }
 
@@ -43,5 +48,54 @@ export class UserService extends BaseService<User> {
     }
 
     return super.update(id, userData);
+  }
+
+  async changeUserRole(id: string, newRole: UserRole): Promise<User | null> {
+    const user = await this.findById(id);
+    if (!user) {
+      throw new HttpException(404, 'User not found');
+    }
+
+    user.role = newRole;
+    return this.update(id, user);
+  }
+
+  async activateAccount(id: string): Promise<User | null> {
+    return this.update(id, { active: true });
+  }
+
+  async deactivateAccount(id: string): Promise<User | null> {
+    return this.update(id, { active: false });
+  }
+
+  async getUserProfile(id: string): Promise<User | null> {
+    const user = await this.findById(id);
+    if (!user) {
+      throw new HttpException(404, 'User not found');
+    }
+    
+    // Create a copy of the user object without the password
+    const userWithoutPassword = { ...user };
+    if ('password' in userWithoutPassword) {
+      delete (userWithoutPassword as any).password;
+    }
+    
+    return userWithoutPassword as User;
+  }
+
+  async validateUserCredentials(email: string, password: string): Promise<User | null> {
+    const user = await this.findByEmail(email);
+    
+    if (!user) {
+      return null;
+    }
+    
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      return null;
+    }
+    
+    return user;
   }
 } 
