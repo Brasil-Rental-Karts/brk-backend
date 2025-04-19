@@ -7,7 +7,6 @@ export abstract class BaseController {
   constructor(path: string) {
     this.router = express.Router();
     this.path = path;
-    this.initializeRoutes();
   }
 
   abstract initializeRoutes(): void;

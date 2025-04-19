@@ -1,23 +1,18 @@
-import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User, UserRole } from '../models/user.entity';
 import { RegisterUserDto, LoginUserDto, TokenDto } from '../dtos/auth.dto';
+import { UserRepository } from '../repositories/user.repository';
 import config from '../config/config';
 
 export class AuthService {
-  private userRepository: Repository<User>;
   private refreshTokens: Map<string, string> = new Map(); // In-memory storage (use Redis in production)
 
-  constructor(userRepository: Repository<User>) {
-    this.userRepository = userRepository;
-  }
+  constructor(private userRepository: UserRepository) {}
 
   async register(registerUserDto: RegisterUserDto): Promise<User> {
     // Check if user with the same email already exists
-    const existingUser = await this.userRepository.findOne({ 
-      where: { email: registerUserDto.email } 
-    });
+    const existingUser = await this.userRepository.findByEmail(registerUserDto.email);
 
     if (existingUser) {
       throw new Error('User with this email already exists');
@@ -27,21 +22,17 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(registerUserDto.password, 10);
 
     // Create and save the new user
-    const user = this.userRepository.create({
+    return this.userRepository.create({
       ...registerUserDto,
       password: hashedPassword,
       role: UserRole.MEMBER,
       registrationDate: new Date()
     });
-
-    return this.userRepository.save(user);
   }
 
   async login(loginUserDto: LoginUserDto): Promise<TokenDto> {
     // Find the user
-    const user = await this.userRepository.findOne({ 
-      where: { email: loginUserDto.email } 
-    });
+    const user = await this.userRepository.findByEmail(loginUserDto.email);
 
     if (!user) {
       throw new Error('Invalid email or password');
@@ -75,7 +66,7 @@ export class AuthService {
     }
 
     // Find the user
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository.findById(userId);
 
     if (!user || !user.active) {
       throw new Error('User not found or inactive');
@@ -117,9 +108,11 @@ export class AuthService {
       { expiresIn: config.jwt.refreshTokenExpiry }
     );
 
-    return {
-      accessToken,
-      refreshToken
-    };
+    // Create and return a TokenDto instance instead of a plain object
+    const tokenDto = new TokenDto();
+    tokenDto.accessToken = accessToken;
+    tokenDto.refreshToken = refreshToken;
+    
+    return tokenDto;
   }
 } 

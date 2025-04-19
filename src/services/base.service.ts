@@ -1,3 +1,4 @@
+import { DeepPartial } from 'typeorm';
 import { BaseRepository } from '../repositories/base.repository';
 
 export abstract class BaseService<T> {
@@ -11,11 +12,11 @@ export abstract class BaseService<T> {
     return this.repository.findById(id);
   }
 
-  async create(item: T): Promise<T> {
+  async create(item: DeepPartial<T>): Promise<T> {
     return this.repository.create(item);
   }
 
-  async update(id: string, item: T): Promise<T | null> {
+  async update(id: string, item: DeepPartial<T>): Promise<T | null> {
     return this.repository.update(id, item);
   }
 

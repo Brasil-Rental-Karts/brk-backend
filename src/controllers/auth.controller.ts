@@ -5,6 +5,7 @@ import { RegisterUserDto, LoginUserDto, RefreshTokenDto } from '../dtos/auth.dto
 import { authMiddleware } from '../middleware/auth.middleware';
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
+import { validationMiddleware } from '../middleware/validator.middleware';
 
 export class AuthController extends BaseController {
   private authService: AuthService;
@@ -17,9 +18,9 @@ export class AuthController extends BaseController {
 
   initializeRoutes(): void {
     // Public routes
-    this.router.post('/register', this.register.bind(this));
-    this.router.post('/login', this.login.bind(this));
-    this.router.post('/refresh-token', this.refreshToken.bind(this));
+    this.router.post('/register', validationMiddleware(RegisterUserDto), this.register.bind(this));
+    this.router.post('/login', validationMiddleware(LoginUserDto), this.login.bind(this));
+    this.router.post('/refresh-token', validationMiddleware(RefreshTokenDto), this.refreshToken.bind(this));
     
     // Protected routes
     this.router.post('/logout', authMiddleware, this.logout.bind(this));
@@ -28,13 +29,6 @@ export class AuthController extends BaseController {
   private async register(req: Request, res: Response): Promise<void> {
     try {
       const registerUserDto: RegisterUserDto = req.body;
-      
-      // Validate request body
-      if (!registerUserDto.email || !registerUserDto.password || !registerUserDto.name) {
-        res.status(400).json({ message: 'Email, password, and name are required' });
-        return;
-      }
-
       const user = await this.authService.register(registerUserDto);
       
       res.status(201).json({
@@ -59,13 +53,6 @@ export class AuthController extends BaseController {
   private async login(req: Request, res: Response): Promise<void> {
     try {
       const loginUserDto: LoginUserDto = req.body;
-      
-      // Validate request body
-      if (!loginUserDto.email || !loginUserDto.password) {
-        res.status(400).json({ message: 'Email and password are required' });
-        return;
-      }
-
       const tokens = await this.authService.login(loginUserDto);
       
       res.status(200).json(tokens);
@@ -85,11 +72,6 @@ export class AuthController extends BaseController {
     try {
       const { refreshToken } = req.body as RefreshTokenDto;
       
-      if (!refreshToken) {
-        res.status(400).json({ message: 'Refresh token is required' });
-        return;
-      }
-
       try {
         // Use any type to work around typescript issues
         const jwtVerify: any = jwt.verify;

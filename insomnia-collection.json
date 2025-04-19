@@ -38,6 +38,18 @@
       "_type": "workspace"
     },
     {
+      "_id": "fld_auth",
+      "parentId": "wrk_brk_backend",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Authentication",
+      "description": "Authentication endpoints",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1631643600000,
+      "_type": "request_group"
+    },
+    {
       "_id": "req_register",
       "parentId": "fld_auth",
       "modified": 1631643600000,
@@ -67,18 +79,6 @@
       "settingRebuildPath": true,
       "settingFollowRedirects": "global",
       "_type": "request"
-    },
-    {
-      "_id": "fld_auth",
-      "parentId": "wrk_brk_backend",
-      "modified": 1631643600000,
-      "created": 1631643600000,
-      "name": "Authentication",
-      "description": "Authentication endpoints",
-      "environment": {},
-      "environmentPropertyOrder": null,
-      "metaSortKey": -1631643600000,
-      "_type": "request_group"
     },
     {
       "_id": "req_login",
@@ -168,6 +168,510 @@
       "settingFollowRedirects": "global",
       "_type": "request"
     },
+
+    {
+      "_id": "fld_users",
+      "parentId": "wrk_brk_backend",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Users",
+      "description": "User management endpoints",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1631643590000,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_users_list",
+      "parentId": "fld_users",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/users",
+      "name": "List Users",
+      "description": "Get all users (admin only)",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643600000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_detail",
+      "parentId": "fld_users",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/users/{% response 'body', 'req_users_list', '$.[0].id' %}",
+      "name": "Get User Detail",
+      "description": "Get details for a specific user",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643550000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_create",
+      "parentId": "fld_users",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/users",
+      "name": "Create User",
+      "description": "Create a new user (admin only)",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"New User\",\n\t\"email\": \"newuser@example.com\",\n\t\"password\": \"password123\",\n\t\"phone\": \"+1234567890\",\n\t\"role\": \"Member\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643500000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_update",
+      "parentId": "fld_users",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/users/{% response 'body', 'req_users_list', '$.[0].id' %}",
+      "name": "Update User",
+      "description": "Update an existing user",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"Updated User\",\n\t\"email\": \"updated@example.com\",\n\t\"phone\": \"+1987654321\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643450000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_delete",
+      "parentId": "fld_users",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/users/{% response 'body', 'req_users_list', '$.[0].id' %}",
+      "name": "Delete User",
+      "description": "Delete a user (admin only)",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643400000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+
+    {
+      "_id": "fld_championships",
+      "parentId": "wrk_brk_backend",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Championships",
+      "description": "Championship management endpoints",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1631643580000,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_championships_list",
+      "parentId": "fld_championships",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/championships",
+      "name": "List Championships",
+      "description": "Get all championships",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643600000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_championships_detail",
+      "parentId": "fld_championships",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/championships/{% response 'body', 'req_championships_list', '$.[0].id' %}",
+      "name": "Get Championship Detail",
+      "description": "Get details for a specific championship",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643550000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_championships_by_club",
+      "parentId": "fld_championships",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/championships/club/{% response 'body', 'req_clubs_list', '$.[0].id' %}",
+      "name": "Get Championships By Club",
+      "description": "Get championships for a specific club",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643525000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_championships_create",
+      "parentId": "fld_championships",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/championships",
+      "name": "Create Championship",
+      "description": "Create a new championship",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"New Championship\",\n\t\"description\": \"A description of the championship\",\n\t\"clubId\": \"{% response 'body', 'req_clubs_list', '$.[0].id' %}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643500000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_championships_update",
+      "parentId": "fld_championships",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/championships/{% response 'body', 'req_championships_list', '$.[0].id' %}",
+      "name": "Update Championship",
+      "description": "Update an existing championship",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"Updated Championship\",\n\t\"description\": \"Updated description\",\n\t\"clubId\": \"{% response 'body', 'req_clubs_list', '$.[0].id' %}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643450000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_championships_delete",
+      "parentId": "fld_championships",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/championships/{% response 'body', 'req_championships_list', '$.[0].id' %}",
+      "name": "Delete Championship",
+      "description": "Delete a championship",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643400000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+
+    {
+      "_id": "fld_clubs",
+      "parentId": "wrk_brk_backend",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "name": "Clubs",
+      "description": "Club management endpoints",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1631643570000,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_clubs_list",
+      "parentId": "fld_clubs",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/clubs",
+      "name": "List Clubs",
+      "description": "Get all clubs",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643600000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_clubs_detail",
+      "parentId": "fld_clubs",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/clubs/{% response 'body', 'req_clubs_list', '$.[0].id' %}",
+      "name": "Get Club Detail",
+      "description": "Get details for a specific club",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643550000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_clubs_create",
+      "parentId": "fld_clubs",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/clubs",
+      "name": "Create Club",
+      "description": "Create a new club",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"New Club\",\n\t\"description\": \"A description of the club\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643500000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_clubs_update",
+      "parentId": "fld_clubs",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/clubs/{% response 'body', 'req_clubs_list', '$.[0].id' %}",
+      "name": "Update Club",
+      "description": "Update an existing club",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"Updated Club\",\n\t\"description\": \"Updated description\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643450000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_clubs_delete",
+      "parentId": "fld_clubs",
+      "modified": 1631643600000,
+      "created": 1631643600000,
+      "url": "{{ _.baseUrl }}/clubs/{% response 'body', 'req_clubs_list', '$.[0].id' %}",
+      "name": "Delete Club",
+      "description": "Delete a club",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "metaSortKey": -1631643400000,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+
     {
       "_id": "env_base",
       "parentId": "wrk_brk_backend",
@@ -230,4 +734,4 @@
       "_type": "environment"
     }
   ]
-} 
+}
