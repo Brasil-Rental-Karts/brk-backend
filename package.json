@@ -9,10 +9,12 @@
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm-migration.config.ts src/migrations/InitialMigration",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm-migration.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d typeorm-migration.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d typeorm-migration.config.ts",
-    "migration:show": "npm run typeorm -- migration:show -d typeorm-migration.config.ts"
+    "migration:show": "npm run typeorm -- migration:show -d typeorm-migration.config.ts",
+    "db:reset": "ts-node src/scripts/reset-database.ts",
+    "generate-swagger": "ts-node src/scripts/generate-swagger.ts"
   },
   "keywords": [
     "typescript",
@@ -34,6 +36,8 @@
     "morgan": "^1.10.0",
     "pg": "^8.14.1",
     "reflect-metadata": "^0.2.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.22"
   },
   "devDependencies": {
@@ -45,6 +49,8 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.14.1",
     "@types/pg": "^8.11.12",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",

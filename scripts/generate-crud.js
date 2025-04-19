@@ -129,9 +129,9 @@ export class ${pascalCase}Controller extends BaseCrudController<${pascalCase}, C
   protected createDtoClass = Create${pascalCase}Dto;
   protected updateDtoClass = Update${pascalCase}Dto;
   protected allowedRoles = {
-    create: [UserRole.ADMINISTRATOR, UserRole.ORGANIZER],
-    read: [UserRole.ADMINISTRATOR, UserRole.ORGANIZER, UserRole.PILOT, UserRole.MEMBER],
-    update: [UserRole.ADMINISTRATOR, UserRole.ORGANIZER],
+    create: [UserRole.ADMINISTRATOR],
+    read: [UserRole.ADMINISTRATOR, UserRole.MEMBER],
+    update: [UserRole.ADMINISTRATOR],
     delete: [UserRole.ADMINISTRATOR]
   };
 

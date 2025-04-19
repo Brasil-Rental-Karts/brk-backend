@@ -1,6 +1,6 @@
 # Database Migrations
 
-This directory contains database migrations for the karting management system.
+This directory contains database migrations for the simplified karting management system.
 
 ## Migration Structure
 
@@ -10,18 +10,14 @@ Each migration file consists of two methods:
 
 ## Existing Migrations
 
-### Initial Migration (1744490423748-InitialMigration.ts)
+### Simplified Schema Migration (1689087654321-SimplifiedSchema.ts)
 
-This is the initial migration that creates all the entity tables in the database:
+This is the migration that creates the tables for our simplified schema:
 
-- Users, Pilots, Administrators, Organizers
-- Clubs, Championship, Season, Categories
-- Venues, Karting_Tracks, Fleet
-- Stages, Heats, Results
-- Penalties, Appeals
-- Many-to-many relationship tables (Club_Organizers, Season_Categories, Pilot_Categories, Track_Administrators)
+- Users - Stores user information including roles (Member or Administrator)
+- Clubs - Stores club information
 
-It sets up the entire database schema including foreign key relationships between tables.
+The migration also creates necessary PostgreSQL extensions (uuid-ossp) and enum types.
 
 ## How to Apply Migrations in Production
 
@@ -64,7 +60,7 @@ npm run migration:revert
 To generate a new migration based on entity changes:
 
 ```bash
-npm run migration:generate -- ./src/migrations/name-of-your-migration
+npm run migration:generate -- migration-name
 ```
 
 ### Create an Empty Migration
@@ -72,7 +68,7 @@ npm run migration:generate -- ./src/migrations/name-of-your-migration
 To create an empty migration file that you can fill manually:
 
 ```bash
-npm run migration:create -- ./src/migrations/name-of-your-migration
+npm run typeorm -- migration:create src/migrations/migration-name
 ```
 
 ## Testing Migrations
