@@ -2,7 +2,8 @@
 /**
  * This script generates an Insomnia REST client collection with all API endpoints.
  * 
- * Usage: node scripts/generate-insomnia-collection.js > insomnia-collection.json
+ * Usage: node scripts/generate-insomnia-collection.js [output_file]
+ * If output_file is not provided, it will write to insomnia-collection.json
  */
 
 const fs = require('fs');
@@ -448,5 +449,14 @@ entityFiles.forEach(entityFile => {
   });
 });
 
-// Output the collection as JSON
-console.log(JSON.stringify(collection, null, 2)); 
+// Get the output file path
+const outputFile = process.argv[2] || path.join(__dirname, '..', 'insomnia-collection.json');
+
+// Write the collection to file directly instead of using console.log
+fs.writeFileSync(
+  outputFile, 
+  JSON.stringify(collection, null, 2),
+  'utf8'
+);
+
+console.log(`Insomnia collection generated and saved to: ${outputFile}`);
