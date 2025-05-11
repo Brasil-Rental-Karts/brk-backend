@@ -17,6 +17,8 @@ import { Club } from './models/club.entity';
 import { AuthService } from './services/auth.service';
 import { UserService } from './services/user.service';
 import { ClubService } from './services/club.service';
+import { RabbitMQService } from './services/rabbitmq.service';
+import { DatabaseEventsService } from './services/database-events.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -24,7 +26,7 @@ import { ClubRepository } from './repositories/club.repository';
 
 // Initialize database connection
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     console.log('Database connection established');
     
     // Initialize repositories
@@ -51,7 +53,29 @@ AppDataSource.initialize()
     const PORT: number = Number(config.port) || 3000;
     app.listen(PORT);
 
+    // Initialize RabbitMQ connection
+    try {
+      // Connect to RabbitMQ
+      await RabbitMQService.getInstance().connect();
+      
+      // Start listening for database events
+      await DatabaseEventsService.getInstance().startListening();
+      
+      console.log('RabbitMQ and database event listeners initialized');
+    } catch (error) {
+      console.error('Failed to initialize RabbitMQ or database event listeners:', error);
+    }
+
     console.log(`Server started on port ${PORT} in ${config.nodeEnv} mode`);
+    
+    // Handle graceful shutdown
+    process.on('SIGINT', async () => {
+      console.log('Shutting down...');
+      await DatabaseEventsService.getInstance().stopListening();
+      await RabbitMQService.getInstance().close();
+      await AppDataSource.destroy();
+      process.exit(0);
+    });
   })
   .catch((error) => {
     console.error('Error during database initialization:', error);
