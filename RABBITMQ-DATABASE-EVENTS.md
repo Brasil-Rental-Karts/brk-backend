@@ -43,6 +43,35 @@ RABBITMQ_QUEUE=database_changes
 RABBITMQ_ROUTING_KEY=database.changes
 ```
 
+## RabbitMQ Architecture
+
+The system is configured with a robust setup including dead letter handling:
+
+1. **Main Exchange (`database_events`)**: A topic exchange where all database events are published.
+2. **Main Queue (`database_changes`)**: The primary queue that consumers should subscribe to.
+3. **Dead Letter Exchange (`database_events.dlx`)**: Exchange for messages that are rejected or expire.
+4. **Dead Letter Queue (`database_changes.dlq`)**: Queue for storing rejected or expired messages.
+5. **Dead Letter Routing Key (`database.changes.dlq`)**: Specific routing key for messages going to the dead letter queue.
+
+This architecture allows for:
+- Reliable message delivery
+- Handling of failed message processing
+- Monitoring of problematic messages in the dead letter queue
+- Specific routing of dead letter messages
+
+## Message Flow
+
+1. Normal flow:
+   - Message published to `database_events` exchange with routing key `database.changes`
+   - Message routed to `database_changes` queue
+   - Consumer processes message and acknowledges it
+
+2. Error flow:
+   - Consumer rejects message or message expires
+   - Message sent to `database_events.dlx` exchange with routing key `database.changes.dlq`
+   - Message routed to `database_changes.dlq` queue
+   - DLQ processor can handle these failed messages
+
 ## Currently Tracked Tables
 
 The system is currently configured to track changes in the following tables:
@@ -124,40 +153,110 @@ async function setupConsumer() {
   const queue = process.env.RABBITMQ_QUEUE || 'database_changes';
   const routingKey = process.env.RABBITMQ_ROUTING_KEY || 'database.changes';
   
+  // Setup dead letter configuration
+  const dlxName = `${exchange}.dlx`;
+  const dlRoutingKey = `${routingKey}.dlq`;
+  
+  // Declare the main exchange
   await channel.assertExchange(exchange, 'topic', { durable: true });
-  await channel.assertQueue(queue, { durable: true });
+  
+  // Declare the queue with dead letter configuration
+  await channel.assertQueue(queue, { 
+    durable: true,
+    arguments: {
+      'x-dead-letter-exchange': dlxName,
+      'x-dead-letter-routing-key': dlRoutingKey
+    }
+  });
+  
+  // Bind queue to exchange
   await channel.bindQueue(queue, exchange, routingKey);
   
   // Consume messages
   channel.consume(queue, (msg) => {
     if (msg) {
-      const content = JSON.parse(msg.content.toString());
-      console.log(`Received event: ${content.operation} on ${content.table}`);
-      
-      // Process the message based on table and operation
-      if (content.table === 'Clubs') {
-        switch (content.operation) {
-          case 'INSERT':
-            // Handle club creation
-            break;
-          case 'UPDATE':
-            // Handle club update
-            break;
-          case 'DELETE':
-            // Handle club deletion
-            break;
+      try {
+        const content = JSON.parse(msg.content.toString());
+        console.log(`Received event: ${content.operation} on ${content.table}`);
+        
+        // Process the message based on table and operation
+        if (content.table === 'Clubs') {
+          switch (content.operation) {
+            case 'INSERT':
+              // Handle club creation
+              break;
+            case 'UPDATE':
+              // Handle club update
+              break;
+            case 'DELETE':
+              // Handle club deletion
+              break;
+          }
         }
+        
+        // Acknowledge the message if processed successfully
+        channel.ack(msg);
+      } catch (error) {
+        // Reject the message and send to dead letter queue if processing fails
+        console.error('Error processing message:', error);
+        channel.reject(msg, false);
       }
-      
-      // Acknowledge the message
-      channel.ack(msg);
     }
-  });
+  }, { noAck: false }); // Important: set noAck to false to enable manual acknowledgment
   
   console.log('Consumer started');
 }
 
 setupConsumer().catch(console.error);
+```
+
+## Dead Letter Queue Handling
+
+Messages can end up in the dead letter queue (`database_changes.dlq`) for several reasons:
+- Processing errors (rejected messages)
+- Message expiration (TTL)
+- Queue length limits exceeded
+
+To process messages from the dead letter queue:
+
+```typescript
+async function processDLQ() {
+  const connection = await amqp.connect(process.env.RABBITMQ_URL);
+  const channel = await connection.createChannel();
+  
+  // DLQ configuration
+  const exchange = process.env.RABBITMQ_EXCHANGE || 'database_events';
+  const dlxName = `${exchange}.dlx`;
+  const dlqName = 'database_changes.dlq';
+  const dlRoutingKey = `${process.env.RABBITMQ_ROUTING_KEY || 'database.changes'}.dlq`;
+  
+  // Setup DLX and DLQ
+  await channel.assertExchange(dlxName, 'topic', { durable: true });
+  await channel.assertQueue(dlqName, { durable: true });
+  await channel.bindQueue(dlqName, dlxName, dlRoutingKey);
+  
+  // Consume messages from DLQ
+  channel.consume(dlqName, async (msg) => {
+    if (msg) {
+      try {
+        const content = JSON.parse(msg.content.toString());
+        console.log(`Processing failed message from DLQ: ${content.operation} on ${content.table}`);
+        
+        // Special handling for failed messages
+        // ...
+        
+        // Acknowledge the message
+        channel.ack(msg);
+      } catch (error) {
+        console.error('Error processing DLQ message:', error);
+        // You might want to move to a "parking lot" or log for manual intervention
+        channel.ack(msg);
+      }
+    }
+  }, { noAck: false });
+  
+  console.log('DLQ consumer started');
+}
 ```
 
 ## Troubleshooting
@@ -167,4 +266,19 @@ If events are not being sent to RabbitMQ:
 1. Check the PostgreSQL logs to ensure that the trigger is firing correctly.
 2. Verify that the application is successfully connecting to PostgreSQL and RabbitMQ.
 3. Check the application logs for any errors related to notification handling or RabbitMQ publishing.
-4. Ensure that the table name in the code matches exactly the table name in PostgreSQL (case-sensitive). 
+4. Ensure that the table name in the code matches exactly the table name in PostgreSQL (case-sensitive).
+5. Examine the RabbitMQ management interface (http://localhost:15672 with default credentials guest/guest) to verify queue and exchange configuration.
+6. Check the dead letter queue for rejected messages.
+
+### Queue Declaration Issues
+
+If you encounter errors like `PRECONDITION_FAILED - inequivalent arg 'x-dead-letter-exchange'` or `'x-dead-letter-routing-key'`, it means that:
+
+1. The queue already exists in RabbitMQ with certain parameters
+2. Your application is trying to declare the same queue with different parameters
+
+To fix this, ensure your queue declaration matches the existing queue configuration:
+
+- Check the RabbitMQ Admin UI for the existing queue parameters
+- Update your code to match these parameters exactly
+- Consider deleting the queue through the RabbitMQ Admin UI if you need to change its configuration (make sure no important messages are lost) 
