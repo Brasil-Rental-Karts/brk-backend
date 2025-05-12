@@ -122,14 +122,14 @@
             "minLength": 3,
             "maxLength": 100,
             "description": "Club's name",
-            "example": "Arsenal FC"
+            "example": "Turbo Kart Racing"
           },
           "description": {
             "type": "string",
             "minLength": 3,
             "maxLength": 500,
             "description": "Club's description",
-            "example": "Arsenal Football Club is a professional football club based in Islington, London, England..."
+            "example": "Turbo Kart Racing é um clube de kartismo dedicado a pilotos amadores que buscam aprimorar suas habilidades com treinamentos e competições regulares..."
           },
           "active": {
             "type": "boolean",
@@ -146,14 +146,14 @@
             "minLength": 3,
             "maxLength": 100,
             "description": "Club's name",
-            "example": "Arsenal FC"
+            "example": "Pro Kart Association"
           },
           "description": {
             "type": "string",
             "minLength": 3,
             "maxLength": 500,
             "description": "Club's description",
-            "example": "Arsenal Football Club is a professional football club based in Islington, London, England..."
+            "example": "Pro Kart Association é uma associação de pilotos de kart focada em desenvolvimento profissional, com acesso a pistas oficiais e equipamentos de última geração..."
           },
           "active": {
             "type": "boolean",
@@ -266,23 +266,23 @@
           "name": {
             "type": "string",
             "description": "Club's name",
-            "example": "Manchester United FC"
+            "example": "Speed Kart Club"
           },
           "foundationDate": {
             "type": "string",
             "format": "date",
             "description": "Date when the club was founded",
-            "example": "1878-01-01"
+            "example": "2015-03-15"
           },
           "description": {
             "type": "string",
             "description": "Club's description",
-            "example": "Manchester United Football Club is a professional football club based in Old Trafford, Greater Manchester, England..."
+            "example": "Speed Kart Club é um clube de kartismo amador focado em competições de endurance e sprint, localizado em São Paulo..."
           },
           "logoUrl": {
             "type": "string",
             "description": "URL to the club's logo",
-            "example": "https://example.com/logos/manchester-united.png"
+            "example": "https://example.com/logos/speed-kart-club.png"
           },
           "createdAt": {
             "type": "string",

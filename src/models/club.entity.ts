@@ -16,20 +16,20 @@ import { BaseEntity } from './base.entity';
  *         name:
  *           type: string
  *           description: Club's name
- *           example: Manchester United FC
+ *           example: Speed Kart Club
  *         foundationDate:
  *           type: string
  *           format: date
  *           description: Date when the club was founded
- *           example: 1878-01-01
+ *           example: 2015-03-15
  *         description:
  *           type: string
  *           description: Club's description
- *           example: Manchester United Football Club is a professional football club based in Old Trafford, Greater Manchester, England...
+ *           example: Speed Kart Club é um clube de kartismo amador focado em competições de endurance e sprint, localizado em São Paulo...
  *         logoUrl:
  *           type: string
  *           description: URL to the club's logo
- *           example: https://example.com/logos/manchester-united.png
+ *           example: https://example.com/logos/speed-kart-club.png
  *         createdAt:
  *           type: string
  *           format: date-time

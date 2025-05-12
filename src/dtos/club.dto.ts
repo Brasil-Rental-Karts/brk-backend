@@ -15,13 +15,13 @@ import { BaseDto } from './base.dto';
  *           minLength: 3
  *           maxLength: 100
  *           description: Club's name
- *           example: Arsenal FC
+ *           example: Turbo Kart Racing
  *         description:
  *           type: string
  *           minLength: 3
  *           maxLength: 500
  *           description: Club's description
- *           example: Arsenal Football Club is a professional football club based in Islington, London, England...
+ *           example: Turbo Kart Racing é um clube de kartismo dedicado a pilotos amadores que buscam aprimorar suas habilidades com treinamentos e competições regulares...
  *         active:
  *           type: boolean
  *           description: Whether the club is active
@@ -54,13 +54,13 @@ export class CreateClubDto extends BaseDto {
  *           minLength: 3
  *           maxLength: 100
  *           description: Club's name
- *           example: Arsenal FC
+ *           example: Pro Kart Association
  *         description:
  *           type: string
  *           minLength: 3
  *           maxLength: 500
  *           description: Club's description
- *           example: Arsenal Football Club is a professional football club based in Islington, London, England...
+ *           example: Pro Kart Association é uma associação de pilotos de kart focada em desenvolvimento profissional, com acesso a pistas oficiais e equipamentos de última geração...
  *         active:
  *           type: boolean
  *           description: Whether the club is active
