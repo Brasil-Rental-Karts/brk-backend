@@ -26,7 +26,7 @@ This project uses TypeORM with PostgreSQL. You can set up the database in two wa
 ### Using Docker Compose (Recommended)
 
 1. Make sure Docker and Docker Compose are installed on your system
-2. Run the following command to start PostgreSQL and PgAdmin:
+2. Run the following command to start PostgreSQL:
 
 ```bash
 docker-compose up -d
@@ -34,7 +34,6 @@ docker-compose up -d
 
 This will start:
 - PostgreSQL database on port 5432 (or the port specified in your .env file)
-- PgAdmin web interface available at http://localhost:5050 (or the port specified in your .env file)
 
 To stop the containers:
 

@@ -10,4 +10,7 @@ export const rabbitMQConfig = {
   routingKey: process.env.RABBITMQ_ROUTING_KEY || 'database.changes',
   // List of tables to track changes
   trackedTables: ['Clubs'], // We'll start with Clubs table but can expand later
+  tls: {
+    rejectUnauthorized: false
+  }
 }; 

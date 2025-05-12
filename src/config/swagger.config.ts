@@ -37,4 +37,16 @@ const options: swaggerJsdoc.Options = {
   apis: ['./src/controllers/*.ts', './src/dtos/*.ts', './src/models/*.ts'],
 };
 
-export const specs = swaggerJsdoc(options); 
+export const specs = swaggerJsdoc(options);
+
+// Opções para configuração do Swagger UI
+export const swaggerUiOptions = {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  swaggerOptions: {
+    validatorUrl: null,
+    docExpansion: 'list',
+    filter: true,
+    displayRequestDuration: true
+  }
+}; 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Start PostgreSQL in Docker
-echo "Starting PostgreSQL and PgAdmin in Docker..."
+echo "Starting PostgreSQL in Docker..."
 docker-compose up -d
 
 # Wait for PostgreSQL to be ready

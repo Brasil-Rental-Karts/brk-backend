@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
-import { specs } from './config/swagger.config';
+import { specs, swaggerUiOptions } from './config/swagger.config';
 import { errorMiddleware } from './middleware/error.middleware';
 import { loggerMiddleware } from './middleware/logger.middleware';
 import { BaseController } from './controllers/base.controller';
@@ -25,16 +25,35 @@ export class App {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(cors());
-    this.app.use(helmet());
+    
+    // Configuração normal para todas as rotas
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false,
+        crossOriginOpenerPolicy: false,
+        crossOriginResourcePolicy: false,
+      })
+    );
+    
     this.app.use(morgan('dev'));
     this.app.use(loggerMiddleware);
   }
 
   private initializeSwagger(): void {
-    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
-      explorer: true,
-      customCss: '.swagger-ui .topbar { display: none }',
-    }));
+    // Servir arquivos estáticos do Swagger
+    this.app.use('/api-docs', express.static(path.join(__dirname, '../swagger')));
+    
+    // Middleware para rotas do Swagger
+    this.app.use('/api-docs', (req, res, next) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+      res.setHeader('X-XSS-Protection', '1; mode=block');
+      next();
+    });
+    
+    // Setup do Swagger UI
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerUiOptions));
   }
 
   private initializeErrorHandling(): void {
