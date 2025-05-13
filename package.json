@@ -13,9 +13,7 @@
     "migration:run": "npm run typeorm -- migration:run -d typeorm-migration.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d typeorm-migration.config.ts",
     "migration:show": "npm run typeorm -- migration:show -d typeorm-migration.config.ts",
-    "db:reset": "ts-node src/scripts/reset-database.ts",
     "generate-swagger": "ts-node src/scripts/generate-swagger.ts",
-    "add-table-trigger": "ts-node src/scripts/add-table-trigger.ts",
     "change-role": "ts-node src/scripts/change-user-role.ts",
     "reset-password": "ts-node src/scripts/reset-password.ts"
   },

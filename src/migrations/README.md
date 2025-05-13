@@ -1,82 +1,47 @@
 # Database Migrations
 
-This directory contains database migrations for the simplified karting management system.
+## Migration Strategy
 
-## Migration Structure
+This project uses TypeORM for database migrations. Initially, we had multiple migration files, but as the application was still in development (not in production), we decided to consolidate all migrations into a single unified migration file for simplicity.
 
-Each migration file consists of two methods:
-- `up()`: Contains the SQL commands to apply the migration
-- `down()`: Contains the SQL commands to revert the migration
+## Migration Files
 
-## Existing Migrations
+- `1000000000000-UnifiedMigration.ts` - The unified migration file that contains all database setup required for the application.
 
-### Simplified Schema Migration (1689087654321-SimplifiedSchema.ts)
+## Running Migrations
 
-This is the migration that creates the tables for our simplified schema:
+### Development
 
-- Users - Stores user information including roles (Member or Administrator)
-- Clubs - Stores club information
-
-The migration also creates necessary PostgreSQL extensions (uuid-ossp) and enum types.
-
-## How to Apply Migrations in Production
-
-1. First, ensure your `.env` file is configured with the correct production database settings:
-
-```
-DB_HOST=your-production-host
-DB_PORT=5432
-DB_USERNAME=your-production-username
-DB_PASSWORD=your-production-password
-DB_DATABASE=brk_competition
-DB_SSL=true
-NODE_ENV=production
-```
-
-2. Build the application:
+In development, migrations can be run manually:
 
 ```bash
-npm run build
-```
-
-3. Run the migrations:
-
-```bash
+# Run migrations
 npm run migration:run
-```
 
-## How to Revert Migrations
-
-If you need to revert the most recent migration:
-
-```bash
+# Revert migrations
 npm run migration:revert
 ```
 
+### Production
+
+In production, migrations run automatically on application startup if the `migrationsRun` option is set to `true` in the database configuration.
+
 ## Creating New Migrations
 
-### Generate a New Migration
+Since the app is still in development, if new database changes are needed:
 
-To generate a new migration based on entity changes:
-
-```bash
-npm run migration:generate -- migration-name
-```
-
-### Create an Empty Migration
-
-To create an empty migration file that you can fill manually:
+1. Option 1 (Preferred): Modify the existing unified migration file directly.
+2. Option 2: Generate a new migration file for significant changes:
 
 ```bash
-npm run typeorm -- migration:create src/migrations/migration-name
+# Generate a new migration
+npm run migration:generate -- -n YourMigrationName
 ```
 
-## Testing Migrations
+## Notes
 
-Before applying migrations to production, it's recommended to test them in a staging environment first:
-
-1. Set up a staging database with a copy of the production data
-2. Configure the environment to connect to the staging database
-3. Run the migrations on the staging database
-4. Verify that everything works as expected
-5. Once verified, apply the migrations to production 
+- The unified migration includes:
+  - Creation of the Users and Clubs tables
+  - Manager role in the role enum
+  - ownerId foreign key relationship between Clubs and Users
+  - Database notification events functionality 
