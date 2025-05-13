@@ -70,8 +70,8 @@ async function changeUserRole() {
     // Confirmar alteração
     console.log(`Alterando role de ${user.role} para ${newRole}...`);
     
-    // Atualizar apenas o campo role, sem afetar os outros campos
-    const updatedUser = await userRepository.update(user.id, { role: newRole });
+    // Use the UserService method to update the role safely
+    await userService.changeUserRole(user.id, newRole);
     
     console.log('Role alterada com sucesso!');
     

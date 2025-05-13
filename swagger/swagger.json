@@ -284,6 +284,12 @@
             "description": "URL to the club's logo",
             "example": "https://example.com/logos/speed-kart-club.png"
           },
+          "ownerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user who owns this club",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -302,7 +308,8 @@
         "type": "string",
         "enum": [
           "Member",
-          "Administrator"
+          "Administrator",
+          "Manager"
         ]
       },
       "User": {
@@ -528,7 +535,7 @@
     "/clubs": {
       "post": {
         "summary": "Create a new club",
-        "description": "Create a new club (admin only)",
+        "description": "Create a new club (available to admins, managers and members)",
         "tags": [
           "Clubs"
         ],
@@ -555,7 +562,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "Forbidden - requires admin role"
+            "description": "Forbidden - requires admin, manager or member role"
           },
           "500": {
             "description": "Internal server error"
@@ -564,7 +571,7 @@
       },
       "get": {
         "summary": "Get all clubs",
-        "description": "Retrieve a list of all clubs (available to admins and members)",
+        "description": "Retrieve a list of all clubs (available to all authenticated users)",
         "tags": [
           "Clubs"
         ],
@@ -599,7 +606,7 @@
     "/clubs/{id}": {
       "get": {
         "summary": "Get club by ID",
-        "description": "Retrieve a club by ID (available to admins and members)",
+        "description": "Retrieve a club by ID (available to all authenticated users)",
         "tags": [
           "Clubs"
         ],
@@ -643,7 +650,7 @@
       },
       "put": {
         "summary": "Update club",
-        "description": "Update a club by ID (admin only)",
+        "description": "Update a club by ID (admin can update any club, managers can only update clubs they own)",
         "tags": [
           "Clubs"
         ],
@@ -681,7 +688,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "Forbidden - requires admin role"
+            "description": "Forbidden - requires admin role or ownership by manager"
           },
           "404": {
             "description": "Club not found"
@@ -693,7 +700,7 @@
       },
       "delete": {
         "summary": "Delete club",
-        "description": "Delete a club by ID (admin only)",
+        "description": "Delete a club by ID (admin can delete any club, managers can only delete clubs they own)",
         "tags": [
           "Clubs"
         ],
@@ -721,10 +728,61 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "Forbidden - requires admin role"
+            "description": "Forbidden - requires admin role or ownership by manager"
           },
           "404": {
             "description": "Club not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/clubs/{id}/owner/{userId}": {
+      "patch": {
+        "summary": "Change club owner",
+        "description": "Change the owner of a club (admin only)",
+        "tags": [
+          "Clubs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Club ID"
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "New owner's user ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Club ownership updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - requires admin role"
+          },
+          "404": {
+            "description": "Club or user not found"
           },
           "500": {
             "description": "Internal server error"

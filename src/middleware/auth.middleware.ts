@@ -62,4 +62,5 @@ export const roleMiddleware = (roles: UserRole[]): RequestHandler => {
 
 // Middleware shortcuts for specific roles
 export const requireAdmin = roleMiddleware([UserRole.ADMINISTRATOR]);
-export const requireMember = roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MEMBER]); 
+export const requireMember = roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MEMBER, UserRole.MANAGER]);
+export const requireManager = roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]); 

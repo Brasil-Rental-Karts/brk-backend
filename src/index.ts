@@ -38,12 +38,15 @@ AppDataSource.initialize()
     const userService = new UserService(userRepository);
     const clubService = new ClubService(clubRepository);
     
+    // Set up service relationships
+    clubService.setUserService(userService);
+    
     // Initialize controllers
     const controllers = [
       new HealthController(),
       new AuthController(authService),
       new UserController(userService),
-      new ClubController(clubService)
+      new ClubController(clubService, userService, authService)
     ];
 
     // Initialize the app

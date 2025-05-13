@@ -56,8 +56,12 @@ export class UserService extends BaseService<User> {
       throw new HttpException(404, 'User not found');
     }
 
-    user.role = newRole;
-    return this.update(id, user);
+    // Only update the role field, don't touch other fields including the password
+    return this.update(id, { role: newRole });
+  }
+
+  async makeUserManager(id: string): Promise<User | null> {
+    return this.changeUserRole(id, UserRole.MANAGER);
   }
 
   async activateAccount(id: string): Promise<User | null> {

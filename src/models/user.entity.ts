@@ -7,11 +7,12 @@ import { BaseEntity } from './base.entity';
  *   schemas:
  *     UserRole:
  *       type: string
- *       enum: [Member, Administrator]
+ *       enum: [Member, Administrator, Manager]
  */
 export enum UserRole {
   MEMBER = 'Member',
-  ADMINISTRATOR = 'Administrator'
+  ADMINISTRATOR = 'Administrator',
+  MANAGER = 'Manager'
 }
 
 /**

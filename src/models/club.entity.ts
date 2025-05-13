@@ -1,5 +1,6 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { User } from './user.entity';
 
 /**
  * @swagger
@@ -30,6 +31,11 @@ import { BaseEntity } from './base.entity';
  *           type: string
  *           description: URL to the club's logo
  *           example: https://example.com/logos/speed-kart-club.png
+ *         ownerId:
+ *           type: string
+ *           format: uuid
+ *           description: ID of the user who owns this club
+ *           example: 123e4567-e89b-12d3-a456-426614174000
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -54,4 +60,11 @@ export class Club extends BaseEntity {
 
   @Column({ length: 255, nullable: true })
   logoUrl: string;
+  
+  @Column({ nullable: true })
+  ownerId: string;
+  
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'ownerId' })
+  owner: User;
 } 
