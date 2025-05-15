@@ -24,6 +24,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
       {
         url: 'http://localhost:3000',
         description: 'Development server'
+      },
+      {
+        url: 'https://brk-backend.onrender.com',
+        description: 'Production server'
       }
     ],
     components: {
@@ -76,11 +80,29 @@ export class App {
   }
 
   private initializeSwagger(): void {
+    // Serve Swagger UI with custom options
     this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
       explorer: true,
       customCss: '.swagger-ui .topbar { display: none }',
-      customSiteTitle: 'BRK API Documentation'
+      customSiteTitle: 'BRK API Documentation',
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: 'list',
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        defaultModelsExpandDepth: 3,
+        defaultModelExpandDepth: 3,
+        displayRequestDuration: true,
+        tryItOutEnabled: true
+      }
     }));
+
+    // Serve raw Swagger JSON
+    this.app.get('/api-docs.json', (req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.send(swaggerSpec);
+    });
   }
 
   private initializeErrorHandling(): void {
