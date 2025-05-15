@@ -13,10 +13,6 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 COPY typeorm-migration.config.ts ./
 COPY typeorm.config.ts ./
-COPY build.sh ./
-
-# Make build script executable
-RUN chmod +x build.sh
 
 # Build the application
 RUN npm run build

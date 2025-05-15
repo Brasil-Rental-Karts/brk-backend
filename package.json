@@ -6,8 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon --watch \"src/**/*.ts\" --exec \"npx ts-node\" src/index.ts",
-    "build": "sh ./build.sh",
-    "build:ts": "tsc",
+    "build": "tsc",
     "postbuild": "ls -la dist && echo 'Build completed'",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
