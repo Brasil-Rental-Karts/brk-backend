@@ -88,4 +88,10 @@ export class User extends BaseEntity {
 
   @Column({ default: true })
   active: boolean = true;
+  
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  resetPasswordToken?: string;
+  
+  @Column({ type: 'timestamp', nullable: true })
+  resetPasswordExpires?: Date;
 } 

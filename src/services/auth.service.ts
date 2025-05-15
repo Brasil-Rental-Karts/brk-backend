@@ -1,14 +1,19 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { User, UserRole } from '../models/user.entity';
-import { RegisterUserDto, LoginUserDto, TokenDto } from '../dtos/auth.dto';
+import { RegisterUserDto, LoginUserDto, TokenDto, ForgotPasswordDto, ResetPasswordDto } from '../dtos/auth.dto';
 import { UserRepository } from '../repositories/user.repository';
+import { EmailService } from './email.service';
 import config from '../config/config';
 
 export class AuthService {
   private refreshTokens: Map<string, string> = new Map(); // In-memory storage (use Redis in production)
 
-  constructor(private userRepository: UserRepository) {}
+  constructor(
+    private userRepository: UserRepository,
+    private emailService: EmailService
+  ) {}
 
   async register(registerUserDto: RegisterUserDto): Promise<User> {
     // Check if user with the same email already exists
@@ -84,6 +89,61 @@ export class AuthService {
   logout(userId: string): void {
     // Remove refresh token
     this.refreshTokens.delete(userId);
+  }
+  
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
+    const { email } = forgotPasswordDto;
+    
+    // Find the user
+    const user = await this.userRepository.findByEmail(email);
+    
+    // If user not found, just return without error to prevent email enumeration
+    if (!user) {
+      return;
+    }
+    
+    // Generate a random token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Set token expiration (60 minutes from now)
+    const resetTokenExpiration = new Date();
+    resetTokenExpiration.setMinutes(resetTokenExpiration.getMinutes() + 60);
+    
+    // Save the token and expiration to the user
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiration;
+    
+    await this.userRepository.updateUser(user);
+    
+    // Send the reset password email
+    await this.emailService.sendPasswordResetEmail(user.email, user.name, resetToken);
+  }
+  
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
+    const { token, password } = resetPasswordDto;
+    
+    // Find user with the token
+    const user = await this.userRepository.findByResetPasswordToken(token);
+    
+    if (!user) {
+      throw new Error('Invalid or expired reset token');
+    }
+    
+    // Check if token is expired
+    const now = new Date();
+    if (!user.resetPasswordExpires || now > user.resetPasswordExpires) {
+      throw new Error('Reset token has expired');
+    }
+    
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Update the user's password and clear reset token fields
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    await this.userRepository.updateUser(user);
   }
 
   private generateTokens(user: User): TokenDto {

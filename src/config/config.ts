@@ -23,7 +23,18 @@ const config = {
     secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     accessTokenExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
     refreshTokenExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
-  }
+  },
+  
+  // Brevo (Email) configuration
+  brevo: {
+    apiKey: process.env.BREVO_API_KEY || '',
+    senderEmail: process.env.BREVO_SENDER_EMAIL || 'no-reply@example.com',
+    senderName: process.env.BREVO_SENDER_NAME || 'BRK Competition',
+  },
+  
+  // Frontend URL for reset password page
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  passwordResetPath: process.env.PASSWORD_RESET_PATH || '/reset-password',
 };
 
 export default config; 

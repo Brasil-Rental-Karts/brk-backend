@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, Matches } from 'class-validator';
 import { BaseDto } from './base.dto';
 
 /**
@@ -130,4 +130,57 @@ export class RefreshTokenDto extends BaseDto {
   @IsString()
   @IsNotEmpty({ message: 'Refresh token is required' })
   refreshToken!: string;
+}
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ForgotPasswordDto:
+ *       type: object
+ *       required:
+ *         - email
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: User's email address
+ *           example: john@example.com
+ */
+export class ForgotPasswordDto extends BaseDto {
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  email!: string;
+}
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ResetPasswordDto:
+ *       type: object
+ *       required:
+ *         - token
+ *         - password
+ *       properties:
+ *         token:
+ *           type: string
+ *           description: Reset password token
+ *           example: 123e4567-e89b-12d3-a456-426614174000
+ *         password:
+ *           type: string
+ *           format: password
+ *           minLength: 6
+ *           description: New password
+ *           example: newSecurePassword123
+ */
+export class ResetPasswordDto extends BaseDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Token is required' })
+  token!: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
+  password!: string;
 } 

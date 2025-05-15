@@ -23,6 +23,8 @@ export class UnifiedMigration1000000000000 implements MigrationInterface {
                 "role" "public"."Users_role_enum" NOT NULL DEFAULT 'Member', 
                 "registrationDate" date NOT NULL, 
                 "active" boolean NOT NULL DEFAULT true, 
+                "resetPasswordToken" character varying(100),
+                "resetPasswordExpires" TIMESTAMP,
                 CONSTRAINT "UQ_3c3ab3f49a87e6ddb607f3c4945" UNIQUE ("email"), 
                 CONSTRAINT "PK_16d4f7d636df336db11d87413e3" PRIMARY KEY ("id")
             )

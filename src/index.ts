@@ -19,6 +19,7 @@ import { UserService } from './services/user.service';
 import { ClubService } from './services/club.service';
 import { RabbitMQService } from './services/rabbitmq.service';
 import { DatabaseEventsService } from './services/database-events.service';
+import { EmailService } from './services/email.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -34,7 +35,8 @@ AppDataSource.initialize()
     const clubRepository = new ClubRepository(AppDataSource.getRepository(Club));
     
     // Initialize services
-    const authService = new AuthService(userRepository);
+    const emailService = new EmailService();
+    const authService = new AuthService(userRepository, emailService);
     const userService = new UserService(userRepository);
     const clubService = new ClubService(clubRepository);
     

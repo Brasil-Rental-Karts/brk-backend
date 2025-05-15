@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { AuthService } from '../services/auth.service';
-import { RegisterUserDto, LoginUserDto, RefreshTokenDto } from '../dtos/auth.dto';
+import { RegisterUserDto, LoginUserDto, RefreshTokenDto, ForgotPasswordDto, ResetPasswordDto } from '../dtos/auth.dto';
 import { authMiddleware } from '../middleware/auth.middleware';
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
@@ -121,6 +121,64 @@ export class AuthController extends BaseController {
      */
     this.router.post('/refresh-token', validationMiddleware(RefreshTokenDto), this.refreshToken.bind(this));
     
+    /**
+     * @swagger
+     * /auth/forgot-password:
+     *   post:
+     *     summary: Request a password reset email
+     *     tags: [Authentication]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ForgotPasswordDto'
+     *     responses:
+     *       200:
+     *         description: Password reset email sent (if account exists)
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                   example: If your email is registered, you will receive a reset link
+     *       500:
+     *         description: Internal server error
+     */
+    this.router.post('/forgot-password', validationMiddleware(ForgotPasswordDto), this.forgotPassword.bind(this));
+    
+    /**
+     * @swagger
+     * /auth/reset-password:
+     *   post:
+     *     summary: Reset password using a token
+     *     tags: [Authentication]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ResetPasswordDto'
+     *     responses:
+     *       200:
+     *         description: Password reset successful
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                   example: Password has been reset successfully
+     *       400:
+     *         description: Invalid or expired token
+     *       500:
+     *         description: Internal server error
+     */
+    this.router.post('/reset-password', validationMiddleware(ResetPasswordDto), this.resetPassword.bind(this));
+    
     // Protected routes
     /**
      * @swagger
@@ -207,6 +265,52 @@ export class AuthController extends BaseController {
     } catch (error) {
       console.error('Refresh token error:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+  
+  private async forgotPassword(req: Request, res: Response): Promise<void> {
+    try {
+      console.log('Received forgot password request:', { email: req.body.email });
+      
+      const forgotPasswordDto: ForgotPasswordDto = req.body;
+      
+      // Process the request (will not reveal if email exists)
+      await this.authService.forgotPassword(forgotPasswordDto);
+      
+      // Always return the same response to prevent email enumeration
+      res.status(200).json({
+        message: 'If your email is registered, you will receive a reset link'
+      });
+      
+      console.log('Forgot password request processed successfully');
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+  
+  private async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const resetPasswordDto: ResetPasswordDto = req.body;
+      
+      await this.authService.resetPassword(resetPasswordDto);
+      
+      res.status(200).json({
+        message: 'Password has been reset successfully'
+      });
+    } catch (error) {
+      if (error instanceof Error && 
+          (error.message === 'Invalid or expired reset token' || 
+           error.message === 'Reset token has expired')) {
+        res.status(400).json({ message: error.message });
+      } else {
+        console.error('Reset password error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
     }
   }
 
