@@ -6,8 +6,10 @@ services:
     container_name: brk-api
     restart: unless-stopped
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "${PORT:-3000}:3000"
     environment:
@@ -32,6 +34,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    volumes:
+      - api_logs:/app/logs
 
   postgres:
     image: postgres:16-alpine
@@ -72,3 +76,4 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  api_logs:
