@@ -7,6 +7,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import { errorMiddleware } from './middleware/error.middleware';
 import { loggerMiddleware } from './middleware/logger.middleware';
 import { BaseController } from './controllers/base.controller';
+import path from 'path';
 
 const swaggerOptions: swaggerJsdoc.Options = {
   definition: {
@@ -43,7 +44,11 @@ const swaggerOptions: swaggerJsdoc.Options = {
       bearerAuth: []
     }]
   },
-  apis: ['./src/controllers/*.ts', './src/dtos/*.ts', './src/models/*.ts']
+  apis: [
+    path.join(__dirname, 'controllers/*.{ts,js}'),
+    path.join(__dirname, 'dtos/*.{ts,js}'),
+    path.join(__dirname, 'models/*.{ts,js}')
+  ]
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -103,6 +108,10 @@ export class App {
       res.setHeader('Content-Type', 'application/json');
       res.send(swaggerSpec);
     });
+
+    // Log Swagger initialization
+    console.log('Swagger documentation initialized');
+    console.log('API patterns:', swaggerOptions.apis);
   }
 
   private initializeErrorHandling(): void {
