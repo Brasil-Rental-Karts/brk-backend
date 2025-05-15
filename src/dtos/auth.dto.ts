@@ -2,36 +2,7 @@ import { IsEmail, IsString, MinLength, IsNotEmpty, Matches } from 'class-validat
 import { BaseDto } from './base.dto';
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     RegisterUserDto:
- *       type: object
- *       required:
- *         - name
- *         - email
- *         - password
- *       properties:
- *         name:
- *           type: string
- *           minLength: 3
- *           description: User's full name
- *           example: John Doe
- *         email:
- *           type: string
- *           format: email
- *           description: User's email address
- *           example: john@example.com
- *         password:
- *           type: string
- *           format: password
- *           minLength: 6
- *           description: User's password
- *           example: securePassword123
- *         phone:
- *           type: string
- *           description: User's phone number (optional)
- *           example: +1234567890
+ * Data Transfer Object for user registration
  */
 export class RegisterUserDto extends BaseDto {
   @IsString()
@@ -53,25 +24,7 @@ export class RegisterUserDto extends BaseDto {
 }
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     LoginUserDto:
- *       type: object
- *       required:
- *         - email
- *         - password
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *           description: User's email address
- *           example: john@example.com
- *         password:
- *           type: string
- *           format: password
- *           description: User's password
- *           example: securePassword123
+ * Data Transfer Object for user login
  */
 export class LoginUserDto extends BaseDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
@@ -84,23 +37,7 @@ export class LoginUserDto extends BaseDto {
 }
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     TokenDto:
- *       type: object
- *       required:
- *         - accessToken
- *         - refreshToken
- *       properties:
- *         accessToken:
- *           type: string
- *           description: JWT access token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *         refreshToken:
- *           type: string
- *           description: JWT refresh token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ * Data Transfer Object for token response
  */
 export class TokenDto extends BaseDto {
   @IsString()
@@ -113,18 +50,7 @@ export class TokenDto extends BaseDto {
 }
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     RefreshTokenDto:
- *       type: object
- *       required:
- *         - refreshToken
- *       properties:
- *         refreshToken:
- *           type: string
- *           description: JWT refresh token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ * Data Transfer Object for token refresh
  */
 export class RefreshTokenDto extends BaseDto {
   @IsString()
@@ -133,19 +59,7 @@ export class RefreshTokenDto extends BaseDto {
 }
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     ForgotPasswordDto:
- *       type: object
- *       required:
- *         - email
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *           description: User's email address
- *           example: john@example.com
+ * Data Transfer Object for password reset request
  */
 export class ForgotPasswordDto extends BaseDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
@@ -154,25 +68,7 @@ export class ForgotPasswordDto extends BaseDto {
 }
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     ResetPasswordDto:
- *       type: object
- *       required:
- *         - token
- *         - password
- *       properties:
- *         token:
- *           type: string
- *           description: Reset password token
- *           example: 123e4567-e89b-12d3-a456-426614174000
- *         password:
- *           type: string
- *           format: password
- *           minLength: 6
- *           description: New password
- *           example: newSecurePassword123
+ * Data Transfer Object for password reset confirmation
  */
 export class ResetPasswordDto extends BaseDto {
   @IsString()

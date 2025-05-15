@@ -2,10 +2,7 @@ import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 
 /**
- * @swagger
- * tags:
- *   name: Health
- *   description: Health check endpoints
+ * Health controller for checking API status
  */
 export class HealthController extends BaseController {
   constructor() {
@@ -15,27 +12,8 @@ export class HealthController extends BaseController {
 
   public initializeRoutes(): void {
     /**
-     * @swagger
-     * /health:
-     *   get:
-     *     summary: Get health status
-     *     description: Check if the API is running
-     *     tags: [Health]
-     *     responses:
-     *       200:
-     *         description: API is running
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                   example: UP
-     *                 timestamp:
-     *                   type: string
-     *                   format: date-time
-     *                   example: 2023-01-01T00:00:00Z
+     * GET /health
+     * Health check endpoint to verify API is running
      */
     this.router.get('/', this.getHealth.bind(this));
   }

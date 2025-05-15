@@ -15,7 +15,6 @@ src/
 ├── dtos/            # Data Transfer Objects
 ├── middleware/      # Express middleware
 ├── config/          # Application configuration
-├── docs/            # API documentation
 └── utils/           # Utility functions
 ```
 
@@ -70,22 +69,6 @@ The following commands are available for database migrations:
 - `npm run migration:generate -- src/migrations/MigrationName` - Generate a migration from entity changes
 - `npm run migration:run` - Run pending migrations
 - `npm run migration:revert` - Revert the most recent migration
-
-## API Documentation
-
-This project uses Swagger/OpenAPI for API documentation. When the server is running, you can access the interactive API documentation at:
-
-```
-http://localhost:3000/api-docs
-```
-
-The documentation is automatically generated from JSDoc comments in the codebase. For more information about the API documentation, see [src/docs/README.md](src/docs/README.md).
-
-To manually regenerate the API documentation:
-
-```bash
-npm run generate-swagger
-```
 
 ## Development
 

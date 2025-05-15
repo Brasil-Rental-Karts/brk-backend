@@ -2,30 +2,7 @@ import { IsString, IsOptional, IsUUID, Length, IsBoolean } from 'class-validator
 import { BaseDto } from './base.dto';
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     CreateClubDto:
- *       type: object
- *       required:
- *         - name
- *       properties:
- *         name:
- *           type: string
- *           minLength: 3
- *           maxLength: 100
- *           description: Club's name
- *           example: Turbo Kart Racing
- *         description:
- *           type: string
- *           minLength: 3
- *           maxLength: 500
- *           description: Club's description
- *           example: Turbo Kart Racing é um clube de kartismo dedicado a pilotos amadores que buscam aprimorar suas habilidades com treinamentos e competições regulares...
- *         active:
- *           type: boolean
- *           description: Whether the club is active
- *           example: true
+ * Data Transfer Object for creating a club
  */
 export class CreateClubDto extends BaseDto {
   @IsString()
@@ -43,28 +20,7 @@ export class CreateClubDto extends BaseDto {
 }
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     UpdateClubDto:
- *       type: object
- *       properties:
- *         name:
- *           type: string
- *           minLength: 3
- *           maxLength: 100
- *           description: Club's name
- *           example: Pro Kart Association
- *         description:
- *           type: string
- *           minLength: 3
- *           maxLength: 500
- *           description: Club's description
- *           example: Pro Kart Association é uma associação de pilotos de kart focada em desenvolvimento profissional, com acesso a pistas oficiais e equipamentos de última geração...
- *         active:
- *           type: boolean
- *           description: Whether the club is active
- *           example: true
+ * Data Transfer Object for updating a club
  */
 export class UpdateClubDto extends BaseDto {
   @IsString()

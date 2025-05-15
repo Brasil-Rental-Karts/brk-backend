@@ -41,7 +41,6 @@
     "pg": "^8.14.1",
     "reflect-metadata": "^0.2.2",
     "sib-api-v3-sdk": "^8.5.0",
-
     "typeorm": "^0.3.22"
   },
   "devDependencies": {
@@ -54,7 +53,6 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.14.1",
     "@types/pg": "^8.11.12",
-
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",

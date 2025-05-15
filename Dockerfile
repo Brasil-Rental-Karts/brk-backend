@@ -13,7 +13,6 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 COPY typeorm-migration.config.ts ./
 COPY typeorm.config.ts ./
-COPY swagger/ ./swagger/
 COPY build.sh ./
 
 # Make build script executable
@@ -43,7 +42,6 @@ RUN npm ci --only=production
 
 # Copy compiled code from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/swagger ./swagger
 
 # Print directory contents to debug
 RUN ls -la /app
