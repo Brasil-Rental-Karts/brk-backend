@@ -12,7 +12,10 @@ import { AuthService } from '../services/auth.service';
 import { HttpException } from '../exceptions/http.exception';
 
 /**
- * Controller for club management
+ * @swagger
+ * tags:
+ *   name: Clubs
+ *   description: Club management endpoints
  */
 
 /**
@@ -41,9 +44,34 @@ export class ClubController extends BaseCrudController<Club, CreateClubDto, Upda
   }
 
   initializeRoutes(): void {
-    // Override the default routes to add custom logic for owner permissions
-    
-    // CREATE
+    /**
+     * @swagger
+     * /clubs:
+     *   post:
+     *     tags: [Clubs]
+     *     summary: Create a new club
+     *     description: Create a new club (Member, Manager, or Administrator)
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateClubDto'
+     *     responses:
+     *       201:
+     *         description: Club created successfully
+     *         headers:
+     *           X-Role-Changed:
+     *             schema:
+     *               type: string
+     *             description: Indicates if the user's role was changed to Manager
+     *       401:
+     *         description: Unauthorized
+     *       500:
+     *         description: Internal server error
+     */
     this.router.post(
       '/',
       authMiddleware,
@@ -52,7 +80,29 @@ export class ClubController extends BaseCrudController<Club, CreateClubDto, Upda
       this.create.bind(this)
     );
 
-    // READ ALL
+    /**
+     * @swagger
+     * /clubs:
+     *   get:
+     *     tags: [Clubs]
+     *     summary: Get all clubs
+     *     description: Retrieve a list of all clubs (Member, Manager, or Administrator)
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: List of clubs retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/Club'
+     *       401:
+     *         description: Unauthorized
+     *       500:
+     *         description: Internal server error
+     */
     this.router.get(
       '/',
       authMiddleware,
@@ -60,7 +110,36 @@ export class ClubController extends BaseCrudController<Club, CreateClubDto, Upda
       this.getAll.bind(this)
     );
 
-    // READ ONE
+    /**
+     * @swagger
+     * /clubs/{id}:
+     *   get:
+     *     tags: [Clubs]
+     *     summary: Get club by ID
+     *     description: Retrieve a specific club by its ID (Member, Manager, or Administrator)
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Club ID
+     *     responses:
+     *       200:
+     *         description: Club retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Club'
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Club not found
+     *       500:
+     *         description: Internal server error
+     */
     this.router.get(
       '/:id',
       authMiddleware,
@@ -68,7 +147,40 @@ export class ClubController extends BaseCrudController<Club, CreateClubDto, Upda
       this.getById.bind(this)
     );
 
-    // UPDATE
+    /**
+     * @swagger
+     * /clubs/{id}:
+     *   put:
+     *     tags: [Clubs]
+     *     summary: Update club
+     *     description: Update a specific club by its ID (Manager or Administrator)
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Club ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateClubDto'
+     *     responses:
+     *       200:
+     *         description: Club updated successfully
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden - Insufficient permissions
+     *       404:
+     *         description: Club not found
+     *       500:
+     *         description: Internal server error
+     */
     this.router.put(
       '/:id',
       authMiddleware,
@@ -78,7 +190,34 @@ export class ClubController extends BaseCrudController<Club, CreateClubDto, Upda
       this.update.bind(this)
     );
 
-    // DELETE
+    /**
+     * @swagger
+     * /clubs/{id}:
+     *   delete:
+     *     tags: [Clubs]
+     *     summary: Delete club
+     *     description: Delete a specific club by its ID (Manager or Administrator)
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Club ID
+     *     responses:
+     *       200:
+     *         description: Club deleted successfully
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden - Insufficient permissions
+     *       404:
+     *         description: Club not found
+     *       500:
+     *         description: Internal server error
+     */
     this.router.delete(
       '/:id',
       authMiddleware,
@@ -87,11 +226,49 @@ export class ClubController extends BaseCrudController<Club, CreateClubDto, Upda
       this.delete.bind(this)
     );
     
-    // CHANGE OWNER - Only admins can change club ownership
+    /**
+     * @swagger
+     * /clubs/{id}/owner/{userId}:
+     *   patch:
+     *     tags: [Clubs]
+     *     summary: Change club owner
+     *     description: Change the owner of a club (Manager or Administrator)
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Club ID
+     *       - in: path
+     *         name: userId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: New owner's user ID
+     *     responses:
+     *       200:
+     *         description: Club ownership changed successfully
+     *         headers:
+     *           X-Role-Changed:
+     *             schema:
+     *               type: string
+     *             description: Indicates if any user's role was changed
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden - Insufficient permissions
+     *       404:
+     *         description: Club or user not found
+     *       500:
+     *         description: Internal server error
+     */
     this.router.patch(
       '/:id/owner/:userId',
       authMiddleware,
-      requireManager, // Only administrators can change ownership
+      requireManager,
       this.changeOwner.bind(this)
     );
   }

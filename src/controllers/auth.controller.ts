@@ -8,6 +8,13 @@ import config from '../config/config';
 import { validationMiddleware } from '../middleware/validator.middleware';
 
 /**
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: User authentication and authorization endpoints
+ */
+
+/**
  * Authentication controller to handle login, registration, and token management
  */
 export class AuthController extends BaseController {
@@ -22,39 +29,191 @@ export class AuthController extends BaseController {
   initializeRoutes(): void {
     // Public routes
     /**
-     * POST /auth/register
-     * Register a new user
+     * @swagger
+     * /auth/register:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Register a new user
+     *     description: Creates a new user account with the provided information
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/RegisterUserDto'
+     *     responses:
+     *       201:
+     *         description: User registered successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                 user:
+     *                   type: object
+     *                   properties:
+     *                     id:
+     *                       type: string
+     *                     name:
+     *                       type: string
+     *                     email:
+     *                       type: string
+     *                     role:
+     *                       type: string
+     *       409:
+     *         description: User with this email already exists
+     *       500:
+     *         description: Internal server error
      */
     this.router.post('/register', validationMiddleware(RegisterUserDto), this.register.bind(this));
     
     /**
-     * POST /auth/login
-     * Login user and get tokens
+     * @swagger
+     * /auth/login:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Login user
+     *     description: Authenticate user and get access and refresh tokens
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/LoginUserDto'
+     *     responses:
+     *       200:
+     *         description: Login successful
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 accessToken:
+     *                   type: string
+     *                 refreshToken:
+     *                   type: string
+     *       401:
+     *         description: Invalid credentials or inactive account
+     *       500:
+     *         description: Internal server error
      */
     this.router.post('/login', validationMiddleware(LoginUserDto), this.login.bind(this));
     
     /**
-     * POST /auth/refresh-token
-     * Refresh access token using refresh token
+     * @swagger
+     * /auth/refresh-token:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Refresh access token
+     *     description: Get a new access token using a valid refresh token
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/RefreshTokenDto'
+     *     responses:
+     *       200:
+     *         description: Token refreshed successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 accessToken:
+     *                   type: string
+     *                 refreshToken:
+     *                   type: string
+     *       401:
+     *         description: Invalid refresh token
+     *       500:
+     *         description: Internal server error
      */
     this.router.post('/refresh-token', validationMiddleware(RefreshTokenDto), this.refreshToken.bind(this));
     
     /**
-     * POST /auth/forgot-password
-     * Request a password reset email
+     * @swagger
+     * /auth/forgot-password:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Request password reset
+     *     description: Send a password reset link to the user's email
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ForgotPasswordDto'
+     *     responses:
+     *       200:
+     *         description: Reset link sent if email exists
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *       500:
+     *         description: Internal server error
      */
     this.router.post('/forgot-password', validationMiddleware(ForgotPasswordDto), this.forgotPassword.bind(this));
     
     /**
-     * POST /auth/reset-password
-     * Reset password using a token
+     * @swagger
+     * /auth/reset-password:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Reset password
+     *     description: Reset user password using a valid reset token
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ResetPasswordDto'
+     *     responses:
+     *       200:
+     *         description: Password reset successful
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *       400:
+     *         description: Invalid or expired reset token
+     *       500:
+     *         description: Internal server error
      */
     this.router.post('/reset-password', validationMiddleware(ResetPasswordDto), this.resetPassword.bind(this));
     
-    // Protected routes
     /**
-     * POST /auth/logout
-     * Logout user (requires authentication)
+     * @swagger
+     * /auth/logout:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Logout user
+     *     description: Logout the currently authenticated user
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Logout successful
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *       401:
+     *         description: Unauthorized
+     *       500:
+     *         description: Internal server error
      */
     this.router.post('/logout', authMiddleware, this.logout.bind(this));
   }

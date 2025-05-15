@@ -2,9 +2,47 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
 import { errorMiddleware } from './middleware/error.middleware';
 import { loggerMiddleware } from './middleware/logger.middleware';
 import { BaseController } from './controllers/base.controller';
+
+const swaggerOptions: swaggerJsdoc.Options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'BRK Backend API',
+      version: '1.0.0',
+      description: 'API documentation for BRK Backend',
+      contact: {
+        name: 'API Support',
+        email: 'support@example.com'
+      }
+    },
+    servers: [
+      {
+        url: 'http://localhost:3000',
+        description: 'Development server'
+      }
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT'
+        }
+      }
+    },
+    security: [{
+      bearerAuth: []
+    }]
+  },
+  apis: ['./src/controllers/*.ts', './src/dtos/*.ts', './src/models/*.ts']
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 export class App {
   public app: Application;
@@ -13,6 +51,7 @@ export class App {
     this.app = express();
 
     this.initializeMiddlewares();
+    this.initializeSwagger();
     this.initializeControllers(controllers);
     this.initializeErrorHandling();
   }
@@ -36,6 +75,14 @@ export class App {
     this.app.use(loggerMiddleware);
   }
 
+  private initializeSwagger(): void {
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+      explorer: true,
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'BRK API Documentation'
+    }));
+  }
+
   private initializeErrorHandling(): void {
     this.app.use(errorMiddleware);
   }
@@ -49,6 +96,7 @@ export class App {
   public listen(port: number): void {
     this.app.listen(port, () => {
       console.log(`App listening on port ${port}`);
+      console.log(`Swagger documentation available at http://localhost:${port}/api-docs`);
     });
   }
 }

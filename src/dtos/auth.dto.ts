@@ -2,7 +2,31 @@ import { IsEmail, IsString, MinLength, IsNotEmpty, Matches } from 'class-validat
 import { BaseDto } from './base.dto';
 
 /**
- * Data Transfer Object for user registration
+ * @swagger
+ * components:
+ *   schemas:
+ *     RegisterUserDto:
+ *       type: object
+ *       required:
+ *         - name
+ *         - email
+ *         - password
+ *       properties:
+ *         name:
+ *           type: string
+ *           minLength: 3
+ *           description: User's full name
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: User's email address
+ *         password:
+ *           type: string
+ *           minLength: 6
+ *           description: User's password
+ *         phone:
+ *           type: string
+ *           description: User's phone number (optional)
  */
 export class RegisterUserDto extends BaseDto {
   @IsString()
@@ -24,7 +48,22 @@ export class RegisterUserDto extends BaseDto {
 }
 
 /**
- * Data Transfer Object for user login
+ * @swagger
+ * components:
+ *   schemas:
+ *     LoginUserDto:
+ *       type: object
+ *       required:
+ *         - email
+ *         - password
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: User's email address
+ *         password:
+ *           type: string
+ *           description: User's password
  */
 export class LoginUserDto extends BaseDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
@@ -37,7 +76,21 @@ export class LoginUserDto extends BaseDto {
 }
 
 /**
- * Data Transfer Object for token response
+ * @swagger
+ * components:
+ *   schemas:
+ *     TokenDto:
+ *       type: object
+ *       required:
+ *         - accessToken
+ *         - refreshToken
+ *       properties:
+ *         accessToken:
+ *           type: string
+ *           description: JWT access token
+ *         refreshToken:
+ *           type: string
+ *           description: JWT refresh token
  */
 export class TokenDto extends BaseDto {
   @IsString()
@@ -50,7 +103,17 @@ export class TokenDto extends BaseDto {
 }
 
 /**
- * Data Transfer Object for token refresh
+ * @swagger
+ * components:
+ *   schemas:
+ *     RefreshTokenDto:
+ *       type: object
+ *       required:
+ *         - refreshToken
+ *       properties:
+ *         refreshToken:
+ *           type: string
+ *           description: Valid refresh token
  */
 export class RefreshTokenDto extends BaseDto {
   @IsString()
@@ -59,7 +122,18 @@ export class RefreshTokenDto extends BaseDto {
 }
 
 /**
- * Data Transfer Object for password reset request
+ * @swagger
+ * components:
+ *   schemas:
+ *     ForgotPasswordDto:
+ *       type: object
+ *       required:
+ *         - email
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: User's email address
  */
 export class ForgotPasswordDto extends BaseDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
@@ -68,7 +142,22 @@ export class ForgotPasswordDto extends BaseDto {
 }
 
 /**
- * Data Transfer Object for password reset confirmation
+ * @swagger
+ * components:
+ *   schemas:
+ *     ResetPasswordDto:
+ *       type: object
+ *       required:
+ *         - token
+ *         - password
+ *       properties:
+ *         token:
+ *           type: string
+ *           description: Password reset token
+ *         password:
+ *           type: string
+ *           minLength: 6
+ *           description: New password
  */
 export class ResetPasswordDto extends BaseDto {
   @IsString()
