@@ -30,20 +30,10 @@ export class RabbitMQService {
         // Setup main exchange
         await this.channel.assertExchange(rabbitMQConfig.exchange, 'topic', { durable: true });
         
-        // Setup dead letter exchange
-        const dlxName = `${rabbitMQConfig.exchange}.dlx`;
-        await this.channel.assertExchange(dlxName, 'topic', { durable: true });
-        
-        // Dead letter routing key
-        const dlRoutingKey = `${rabbitMQConfig.routingKey}.dlq`;
-        
-        // Setup queue with dead letter exchange
+        // Setup queue without modifying existing properties
         await this.channel.assertQueue(rabbitMQConfig.queue, { 
           durable: true,
-          arguments: {
-            'x-dead-letter-exchange': dlxName,
-            'x-dead-letter-routing-key': dlRoutingKey
-          }
+          // Removing dead letter configuration to avoid conflicts with existing queue
         });
         
         // Bind queue to exchange with routing key
@@ -51,17 +41,6 @@ export class RabbitMQService {
           rabbitMQConfig.queue, 
           rabbitMQConfig.exchange, 
           rabbitMQConfig.routingKey
-        );
-        
-        // Setup dead letter queue
-        const dlqName = `${rabbitMQConfig.queue}.dlq`;
-        await this.channel.assertQueue(dlqName, { durable: true });
-        
-        // Bind dead letter queue to dead letter exchange with specific routing key
-        await this.channel.bindQueue(
-          dlqName,
-          dlxName,
-          dlRoutingKey
         );
         
         console.log('Connected to RabbitMQ and set up exchange/queue');
