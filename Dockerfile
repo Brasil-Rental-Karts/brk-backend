@@ -39,6 +39,9 @@ RUN npm ci --only=production
 # Copy compiled code from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy template files
+COPY src/templates ./src/templates
+
 # Print directory contents to debug
 RUN ls -la /app
 RUN ls -la /app/dist || echo "dist directory not found"
