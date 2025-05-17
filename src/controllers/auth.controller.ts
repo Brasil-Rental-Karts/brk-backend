@@ -436,10 +436,18 @@ export class AuthController extends BaseController {
 
   private async handleGoogleCallback(req: Request, res: Response): Promise<void> {
     try {
+      // Check for any error in query parameters
+      if (req.query.error) {
+        console.error('Google auth error:', req.query.error);
+        res.redirect(`${config.frontendUrl}/login-error`);
+        return;
+      }
+      
       const { code } = req.query;
       
       if (!code || typeof code !== 'string') {
-        res.status(400).json({ message: 'Authorization code is required' });
+        console.error('Missing authorization code');
+        res.redirect(`${config.frontendUrl}/login-error`);
         return;
       }
       
