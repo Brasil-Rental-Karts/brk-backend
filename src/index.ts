@@ -20,6 +20,7 @@ import { ClubService } from './services/club.service';
 import { RabbitMQService } from './services/rabbitmq.service';
 import { DatabaseEventsService } from './services/database-events.service';
 import { EmailService } from './services/email.service';
+import { GoogleAuthService } from './services/google-auth.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -39,6 +40,7 @@ AppDataSource.initialize()
     const authService = new AuthService(userRepository, emailService);
     const userService = new UserService(userRepository);
     const clubService = new ClubService(clubRepository);
+    const googleAuthService = new GoogleAuthService(userRepository);
     
     // Set up service relationships
     clubService.setUserService(userService);
@@ -46,7 +48,7 @@ AppDataSource.initialize()
     // Initialize controllers
     const controllers = [
       new HealthController(),
-      new AuthController(authService),
+      new AuthController(authService, googleAuthService),
       new UserController(userService),
       new ClubController(clubService, userService, authService)
     ];

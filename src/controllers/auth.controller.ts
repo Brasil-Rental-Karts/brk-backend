@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { AuthService } from '../services/auth.service';
-import { RegisterUserDto, LoginUserDto, RefreshTokenDto, ForgotPasswordDto, ResetPasswordDto } from '../dtos/auth.dto';
+import { RegisterUserDto, LoginUserDto, RefreshTokenDto, ForgotPasswordDto, ResetPasswordDto, GoogleAuthDto } from '../dtos/auth.dto';
 import { authMiddleware } from '../middleware/auth.middleware';
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
 import { validationMiddleware } from '../middleware/validator.middleware';
+import { GoogleAuthService } from '../services/google-auth.service';
 
 /**
  * @swagger
@@ -19,10 +20,12 @@ import { validationMiddleware } from '../middleware/validator.middleware';
  */
 export class AuthController extends BaseController {
   private authService: AuthService;
+  private googleAuthService: GoogleAuthService;
 
-  constructor(authService: AuthService) {
+  constructor(authService: AuthService, googleAuthService: GoogleAuthService) {
     super('/auth');
     this.authService = authService;
+    this.googleAuthService = googleAuthService;
     this.initializeRoutes();
   }
 
@@ -100,6 +103,77 @@ export class AuthController extends BaseController {
      *         description: Internal server error
      */
     this.router.post('/login', validationMiddleware(LoginUserDto), this.login.bind(this));
+    
+    /**
+     * @swagger
+     * /auth/google/url:
+     *   get:
+     *     tags: [Authentication]
+     *     summary: Get Google OAuth URL
+     *     description: Get the URL to redirect the user to Google for authentication
+     *     responses:
+     *       200:
+     *         description: Google OAuth URL
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 url:
+     *                   type: string
+     */
+    this.router.get('/google/url', this.getGoogleAuthUrl.bind(this));
+    
+    /**
+     * @swagger
+     * /auth/google/callback:
+     *   get:
+     *     tags: [Authentication]
+     *     summary: Google OAuth callback
+     *     description: Handle the Google OAuth callback after user authentication
+     *     parameters:
+     *       - in: query
+     *         name: code
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       302:
+     *         description: Redirect to frontend with tokens
+     */
+    this.router.get('/google/callback', this.handleGoogleCallback.bind(this));
+    
+    /**
+     * @swagger
+     * /auth/google:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Authenticate with Google ID token
+     *     description: Authenticate user with Google ID token from client-side authentication
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/GoogleAuthDto'
+     *     responses:
+     *       200:
+     *         description: Authentication successful
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 accessToken:
+     *                   type: string
+     *                 refreshToken:
+     *                   type: string
+     *       401:
+     *         description: Invalid Google token
+     *       500:
+     *         description: Internal server error
+     */
+    this.router.post('/google', validationMiddleware(GoogleAuthDto), this.authenticateWithGoogle.bind(this));
     
     /**
      * @swagger
@@ -347,6 +421,58 @@ export class AuthController extends BaseController {
     } catch (error) {
       console.error('Logout error:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  private async getGoogleAuthUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const url = this.googleAuthService.getAuthUrl();
+      res.status(200).json({ url });
+    } catch (error) {
+      console.error('Google auth URL error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  private async handleGoogleCallback(req: Request, res: Response): Promise<void> {
+    try {
+      const { code } = req.query;
+      
+      if (!code || typeof code !== 'string') {
+        res.status(400).json({ message: 'Authorization code is required' });
+        return;
+      }
+      
+      // Process the OAuth callback with Google
+      const user = await this.googleAuthService.handleCallback(code);
+      
+      // Generate tokens for the authenticated user
+      const tokens = this.authService.generateTokensForUser(user);
+      
+      // Redirect to frontend with tokens as query parameters
+      // In a production app, you might want to use a more secure method
+      const redirectUrl = `${config.frontendUrl}/login-success?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
+      res.redirect(redirectUrl);
+    } catch (error) {
+      console.error('Google callback error:', error);
+      res.redirect(`${config.frontendUrl}/login-error`);
+    }
+  }
+
+  private async authenticateWithGoogle(req: Request, res: Response): Promise<void> {
+    try {
+      const { idToken } = req.body as GoogleAuthDto;
+      
+      // Verify the Google ID token and get/create the user
+      const user = await this.googleAuthService.verifyGoogleIdToken(idToken);
+      
+      // Generate tokens for the authenticated user
+      const tokens = this.authService.generateTokensForUser(user);
+      
+      res.status(200).json(tokens);
+    } catch (error) {
+      console.error('Google authentication error:', error);
+      res.status(401).json({ message: 'Invalid Google token' });
     }
   }
 } 

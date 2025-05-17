@@ -168,4 +168,23 @@ export class ResetPasswordDto extends BaseDto {
   @IsNotEmpty({ message: 'Password is required' })
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password!: string;
+}
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     GoogleAuthDto:
+ *       type: object
+ *       required:
+ *         - idToken
+ *       properties:
+ *         idToken:
+ *           type: string
+ *           description: Google ID Token from client-side authentication
+ */
+export class GoogleAuthDto extends BaseDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Google ID token is required' })
+  idToken!: string;
 } 

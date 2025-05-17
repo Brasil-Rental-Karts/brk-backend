@@ -146,6 +146,15 @@ export class AuthService {
     await this.userRepository.updateUser(user);
   }
 
+  /**
+   * Generate JWT tokens for a user (used for both regular and Google OAuth login)
+   * @param user The user to generate tokens for
+   * @returns Access and refresh tokens
+   */
+  generateTokensForUser(user: User): TokenDto {
+    return this.generateTokens(user);
+  }
+
   private generateTokens(user: User): TokenDto {
     const payload = {
       id: user.id,

@@ -39,4 +39,10 @@ export class User extends BaseEntity {
   
   @Column({ type: 'timestamp', nullable: true })
   resetPasswordExpires?: Date;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  googleId?: string;
+  
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  profilePicture?: string;
 } 
