@@ -12,6 +12,7 @@ import { ClubController } from './controllers/club.controller';
 // Entities
 import { User } from './models/user.entity';
 import { Club } from './models/club.entity';
+import { MemberProfile } from './models/member-profile.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
@@ -25,6 +26,7 @@ import { GoogleAuthService } from './services/google-auth.service';
 // Repositories
 import { UserRepository } from './repositories/user.repository';
 import { ClubRepository } from './repositories/club.repository';
+import { MemberProfileRepository } from './repositories/member-profile.repository';
 
 // Initialize database connection
 AppDataSource.initialize()
@@ -34,13 +36,14 @@ AppDataSource.initialize()
     // Initialize repositories
     const userRepository = new UserRepository(AppDataSource.getRepository(User));
     const clubRepository = new ClubRepository(AppDataSource.getRepository(Club));
+    const memberProfileRepository = new MemberProfileRepository(AppDataSource.getRepository(MemberProfile));
     
     // Initialize services
     const emailService = new EmailService();
-    const authService = new AuthService(userRepository, emailService);
+    const authService = new AuthService(userRepository, memberProfileRepository, emailService);
     const userService = new UserService(userRepository);
     const clubService = new ClubService(clubRepository);
-    const googleAuthService = new GoogleAuthService(userRepository);
+    const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);
     
     // Set up service relationships
     clubService.setUserService(userService);

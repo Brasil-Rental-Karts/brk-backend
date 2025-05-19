@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, IsBoolean } from 'class-validator';
 import { BaseDto } from './base.dto';
 
 /**
@@ -91,6 +91,9 @@ export class LoginUserDto extends BaseDto {
  *         refreshToken:
  *           type: string
  *           description: JWT refresh token
+ *         firstLogin:
+ *           type: boolean
+ *           description: Flag indicating if this is the user's first login
  */
 export class TokenDto extends BaseDto {
   @IsString()
@@ -100,6 +103,9 @@ export class TokenDto extends BaseDto {
   @IsString()
   @IsNotEmpty()
   refreshToken!: string;
+  
+  @IsBoolean()
+  firstLogin: boolean = false;
 }
 
 /**

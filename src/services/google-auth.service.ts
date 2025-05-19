@@ -1,13 +1,18 @@
 import { OAuth2Client } from 'google-auth-library';
 import { User, UserRole } from '../models/user.entity';
+import { MemberProfile } from '../models/member-profile.entity';
 import { UserRepository } from '../repositories/user.repository';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import config from '../config/config';
 import crypto from 'crypto';
 
 export class GoogleAuthService {
   private oAuth2Client: OAuth2Client;
 
-  constructor(private userRepository: UserRepository) {
+  constructor(
+    private userRepository: UserRepository,
+    private memberProfileRepository: MemberProfileRepository
+  ) {
     this.oAuth2Client = new OAuth2Client(
       config.google.clientId,
       config.google.clientSecret,
@@ -19,14 +24,12 @@ export class GoogleAuthService {
    * Generate the Google OAuth URL for the user to authenticate
    */
   getAuthUrl(): string {
-    const scopes = [
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/userinfo.email'
-    ];
-
     return this.oAuth2Client.generateAuthUrl({
       access_type: 'offline',
-      scope: scopes,
+      scope: [
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile'
+      ],
       prompt: 'consent'
     });
   }

@@ -91,12 +91,7 @@ export class AuthController extends BaseController {
      *         content:
      *           application/json:
      *             schema:
-     *               type: object
-     *               properties:
-     *                 accessToken:
-     *                   type: string
-     *                 refreshToken:
-     *                   type: string
+     *               $ref: '#/components/schemas/TokenDto'
      *       401:
      *         description: Invalid credentials or inactive account
      *       500:
@@ -162,12 +157,7 @@ export class AuthController extends BaseController {
      *         content:
      *           application/json:
      *             schema:
-     *               type: object
-     *               properties:
-     *                 accessToken:
-     *                   type: string
-     *                 refreshToken:
-     *                   type: string
+     *               $ref: '#/components/schemas/TokenDto'
      *       401:
      *         description: Invalid Google token
      *       500:
@@ -194,12 +184,7 @@ export class AuthController extends BaseController {
      *         content:
      *           application/json:
      *             schema:
-     *               type: object
-     *               properties:
-     *                 accessToken:
-     *                   type: string
-     *                 refreshToken:
-     *                   type: string
+     *               $ref: '#/components/schemas/TokenDto'
      *       401:
      *         description: Invalid refresh token
      *       500:
@@ -455,11 +440,11 @@ export class AuthController extends BaseController {
       const user = await this.googleAuthService.handleCallback(code);
       
       // Generate tokens for the authenticated user
-      const tokens = this.authService.generateTokensForUser(user);
+      const tokens = await this.authService.generateTokensForUser(user);
       
       // Redirect to frontend with tokens as query parameters
       // In a production app, you might want to use a more secure method
-      const redirectUrl = `${config.frontendUrl}/login-success?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
+      const redirectUrl = `${config.frontendUrl}/login-success?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&firstLogin=${tokens.firstLogin}`;
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('Google callback error:', error);
@@ -475,7 +460,7 @@ export class AuthController extends BaseController {
       const user = await this.googleAuthService.verifyGoogleIdToken(idToken);
       
       // Generate tokens for the authenticated user
-      const tokens = this.authService.generateTokensForUser(user);
+      const tokens = await this.authService.generateTokensForUser(user);
       
       res.status(200).json(tokens);
     } catch (error) {

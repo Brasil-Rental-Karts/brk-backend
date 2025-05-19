@@ -2,8 +2,10 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User, UserRole } from '../models/user.entity';
+import { MemberProfile } from '../models/member-profile.entity';
 import { RegisterUserDto, LoginUserDto, TokenDto, ForgotPasswordDto, ResetPasswordDto } from '../dtos/auth.dto';
 import { UserRepository } from '../repositories/user.repository';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import { EmailService } from './email.service';
 import config from '../config/config';
 
@@ -12,6 +14,7 @@ export class AuthService {
 
   constructor(
     private userRepository: UserRepository,
+    private memberProfileRepository: MemberProfileRepository,
     private emailService: EmailService
   ) {}
 
@@ -55,6 +58,17 @@ export class AuthService {
 
     // Generate tokens
     const tokens = this.generateTokens(user);
+
+    // Check if this is the user's first login by looking for their profile
+    const profile = await this.memberProfileRepository.findByUserId(user.id);
+    
+    if (!profile) {
+      // First login - set the flag
+      tokens.firstLogin = true;
+    } else {
+      // Not first login - update last login timestamp
+      await this.memberProfileRepository.updateLastLogin(user.id);
+    }
 
     // Store refresh token
     this.refreshTokens.set(user.id, tokens.refreshToken);
@@ -151,8 +165,24 @@ export class AuthService {
    * @param user The user to generate tokens for
    * @returns Access and refresh tokens
    */
-  generateTokensForUser(user: User): TokenDto {
-    return this.generateTokens(user);
+  async generateTokensForUser(user: User): Promise<TokenDto> {
+    const tokens = this.generateTokens(user);
+    
+    // Check if this is the user's first login by looking for their profile
+    const profile = await this.memberProfileRepository.findByUserId(user.id);
+    
+    if (!profile) {
+      // First login - set the flag
+      tokens.firstLogin = true;
+    } else {
+      // Not first login - update last login timestamp
+      await this.memberProfileRepository.updateLastLogin(user.id);
+    }
+    
+    // Store refresh token
+    this.refreshTokens.set(user.id, tokens.refreshToken);
+    
+    return tokens;
   }
 
   private generateTokens(user: User): TokenDto {
