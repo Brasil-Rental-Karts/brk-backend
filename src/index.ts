@@ -8,6 +8,7 @@ import { HealthController } from './controllers/health.controller';
 import { AuthController } from './controllers/auth.controller';
 import { UserController } from './controllers/user.controller';
 import { ClubController } from './controllers/club.controller';
+import { MemberProfileController } from './controllers/member-profile.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -22,6 +23,7 @@ import { RabbitMQService } from './services/rabbitmq.service';
 import { DatabaseEventsService } from './services/database-events.service';
 import { EmailService } from './services/email.service';
 import { GoogleAuthService } from './services/google-auth.service';
+import { MemberProfileService } from './services/member-profile.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -44,6 +46,7 @@ AppDataSource.initialize()
     const userService = new UserService(userRepository);
     const clubService = new ClubService(clubRepository);
     const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);
+    const memberProfileService = new MemberProfileService(memberProfileRepository);
     
     // Set up service relationships
     clubService.setUserService(userService);
@@ -53,7 +56,8 @@ AppDataSource.initialize()
       new HealthController(),
       new AuthController(authService, googleAuthService),
       new UserController(userService),
-      new ClubController(clubService, userService, authService)
+      new ClubController(clubService, userService, authService),
+      new MemberProfileController(memberProfileService)
     ];
 
     // Initialize the app

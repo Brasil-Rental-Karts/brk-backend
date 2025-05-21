@@ -1,18 +1,33 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddMemberProfileTable1747675246598 implements MigrationInterface {
-    name = 'AddMemberProfileTable1747675246598'
+export class UnifiedMemberProfileTable1747675246600 implements MigrationInterface {
+    name = 'UnifiedMemberProfileTable1747675246600'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create MemberProfiles table with ID that matches the User ID
+        // Create MemberProfiles table with all fields using camelCase
         await queryRunner.query(`
             CREATE TABLE "MemberProfiles" (
                 "id" uuid NOT NULL, 
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
-                "nickname" character varying(50),
-                "birthday" date,
                 "lastLoginAt" TIMESTAMP,
+                "nickName" VARCHAR(100) NOT NULL DEFAULT '',
+                "birthDate" DATE NOT NULL DEFAULT NOW(),
+                "gender" VARCHAR(20) NOT NULL DEFAULT '',
+                "city" VARCHAR(100) NOT NULL DEFAULT '',
+                "state" CHAR(2) NOT NULL DEFAULT '',
+                "experienceTime" VARCHAR(20) NOT NULL DEFAULT '',
+                "raceFrequency" VARCHAR(20) NOT NULL DEFAULT '',
+                "championshipParticipation" VARCHAR(20) NOT NULL DEFAULT '',
+                "competitiveLevel" VARCHAR(20) NOT NULL DEFAULT '',
+                "hasOwnKart" BOOLEAN NOT NULL DEFAULT FALSE,
+                "isTeamMember" BOOLEAN NOT NULL DEFAULT FALSE,
+                "teamName" VARCHAR(100),
+                "usesTelemetry" BOOLEAN NOT NULL DEFAULT FALSE,
+                "telemetryType" VARCHAR(100),
+                "attendsEvents" VARCHAR(20) NOT NULL DEFAULT '',
+                "interestCategories" TEXT[] NOT NULL DEFAULT '{}',
+                "preferredTrack" VARCHAR(100),
                 CONSTRAINT "PK_MemberProfiles" PRIMARY KEY ("id")
             )
         `);

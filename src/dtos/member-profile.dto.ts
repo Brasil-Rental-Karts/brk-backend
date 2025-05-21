@@ -1,18 +1,17 @@
-import { Entity, Column, JoinColumn, OneToOne } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
+import { IsString, IsOptional, IsBoolean, IsArray, Length, IsISO8601, IsUUID } from 'class-validator';
+import { BaseDto } from './base.dto';
 
 /**
  * @swagger
  * components:
  *   schemas:
- *     MemberProfile:
+ *     UpsertMemberProfileDto:
  *       type: object
  *       properties:
  *         id:
  *           type: string
  *           format: uuid
- *           description: Unique identifier (same as User ID)
+ *           description: User ID (required for update, provided by token for create)
  *           example: "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
  *         lastLoginAt:
  *           type: string
@@ -21,6 +20,7 @@ import { User } from './user.entity';
  *           example: "2023-07-25T14:30:00Z"
  *         nickName:
  *           type: string
+ *           maxLength: 100
  *           description: User's nickname
  *           example: "SpeedRacer"
  *         birthDate:
@@ -30,30 +30,37 @@ import { User } from './user.entity';
  *           example: "1990-05-15"
  *         gender:
  *           type: string
+ *           maxLength: 20
  *           description: User's gender
  *           example: "Male"
  *         city:
  *           type: string
+ *           maxLength: 100
  *           description: User's city
  *           example: "São Paulo"
  *         state:
  *           type: string
+ *           maxLength: 2
  *           description: User's state (2-letter code)
  *           example: "SP"
  *         experienceTime:
  *           type: string
+ *           maxLength: 20
  *           description: User's experience time
  *           example: "3-5 years"
  *         raceFrequency:
  *           type: string
+ *           maxLength: 20
  *           description: User's race frequency
  *           example: "Weekly"
  *         championshipParticipation:
  *           type: string
+ *           maxLength: 20
  *           description: User's championship participation
  *           example: "Regional"
  *         competitiveLevel:
  *           type: string
+ *           maxLength: 20
  *           description: User's competitive level
  *           example: "Intermediate"
  *         hasOwnKart:
@@ -66,6 +73,7 @@ import { User } from './user.entity';
  *           example: false
  *         teamName:
  *           type: string
+ *           maxLength: 100
  *           description: User's team name
  *           example: "Racing Team"
  *         usesTelemetry:
@@ -74,10 +82,12 @@ import { User } from './user.entity';
  *           example: true
  *         telemetryType:
  *           type: string
+ *           maxLength: 100
  *           description: User's telemetry type
  *           example: "AiM"
  *         attendsEvents:
  *           type: string
+ *           maxLength: 20
  *           description: User's event attendance
  *           example: "Often"
  *         interestCategories:
@@ -88,29 +98,16 @@ import { User } from './user.entity';
  *           example: ["Sprint", "Endurance"]
  *         preferredTrack:
  *           type: string
+ *           maxLength: 100
  *           description: User's preferred track
  *           example: "Interlagos"
- *         createdAt:
- *           type: string
- *           format: date-time
- *           description: Timestamp when the profile was created
- *           example: "2023-01-15T10:30:00Z"
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           description: Timestamp when the profile was last updated
- *           example: "2023-07-25T14:45:00Z"
  *       example:
- *         id: "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
- *         createdAt: "2023-01-15T10:30:00Z"
- *         updatedAt: "2023-07-25T14:45:00Z"
- *         lastLoginAt: "2023-07-25T14:30:00Z"
  *         nickName: "SpeedRacer"
  *         birthDate: "1990-05-15"
  *         gender: "Male"
  *         city: "São Paulo"
  *         state: "SP"
- *         experienceTime: "3-5 years"
+ *         experienceTime: "3-5 years" 
  *         raceFrequency: "Weekly"
  *         championshipParticipation: "Regional"
  *         competitiveLevel: "Intermediate"
@@ -123,63 +120,91 @@ import { User } from './user.entity';
  *         interestCategories: ["Sprint", "Endurance"]
  *         preferredTrack: "Interlagos"
  */
-@Entity('MemberProfiles')
-export class MemberProfile extends BaseEntity {
-  @OneToOne(() => User, { nullable: false })
-  @JoinColumn({ name: 'id' })
-  user!: User;
+export class UpsertMemberProfileDto extends BaseDto {
+  @IsUUID()
+  @IsOptional()
+  id?: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @IsOptional()
   lastLoginAt?: Date;
 
-  @Column({ length: 100, nullable: false, default: '' })
-  nickName!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 100)
+  nickName?: string;
 
-  @Column({ type: 'date', nullable: false })
-  birthDate!: Date;
+  @IsOptional()
+  @IsISO8601()
+  birthDate?: Date;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  gender!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 20)
+  gender?: string;
 
-  @Column({ length: 100, nullable: false, default: '' })
-  city!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 100)
+  city?: string;
 
-  @Column({ length: 2, nullable: false, default: '' })
-  state!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 2)
+  state?: string;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  experienceTime!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 20)
+  experienceTime?: string;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  raceFrequency!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 20)
+  raceFrequency?: string;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  championshipParticipation!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 20)
+  championshipParticipation?: string;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  competitiveLevel!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 20)
+  competitiveLevel?: string;
 
-  @Column({ nullable: false, default: false })
-  hasOwnKart!: boolean;
+  @IsBoolean()
+  @IsOptional()
+  hasOwnKart?: boolean;
 
-  @Column({ nullable: false, default: false })
-  isTeamMember!: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isTeamMember?: boolean;
 
-  @Column({ length: 100, nullable: true })
+  @IsString()
+  @IsOptional()
+  @Length(1, 100)
   teamName?: string;
 
-  @Column({ nullable: false, default: false })
-  usesTelemetry!: boolean;
+  @IsBoolean()
+  @IsOptional()
+  usesTelemetry?: boolean;
 
-  @Column({ length: 100, nullable: true })
+  @IsString()
+  @IsOptional()
+  @Length(1, 100)
   telemetryType?: string;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  attendsEvents!: string;
+  @IsString()
+  @IsOptional()
+  @Length(1, 20)
+  attendsEvents?: string;
 
-  @Column('text', { array: true, nullable: false, default: [] })
-  interestCategories!: string[];
+  @IsArray()
+  @IsOptional()
+  interestCategories?: string[];
 
-  @Column({ length: 100, nullable: true })
+  @IsString()
+  @IsOptional()
+  @Length(1, 100)
   preferredTrack?: string;
 } 

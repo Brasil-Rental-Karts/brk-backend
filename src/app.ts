@@ -8,6 +8,7 @@ import { errorMiddleware } from './middleware/error.middleware';
 import { loggerMiddleware } from './middleware/logger.middleware';
 import { BaseController } from './controllers/base.controller';
 import path from 'path';
+import fs from 'fs';
 
 const swaggerOptions: swaggerJsdoc.Options = {
   definition: {
@@ -45,9 +46,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
     }]
   },
   apis: [
-    path.join(__dirname, 'controllers/*.{ts,js}'),
-    path.join(__dirname, 'dtos/*.{ts,js}'),
-    path.join(__dirname, 'models/*.{ts,js}')
+    `${__dirname}/controllers/*.js`,
+    `${__dirname}/dtos/*.js`,
+    `${__dirname}/models/*.js`
   ]
 };
 
@@ -66,25 +67,23 @@ export class App {
   }
 
   private initializeMiddlewares(): void {
-    this.app.use(express.json());
-    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(helmet({
+      contentSecurityPolicy: false, // Disable CSP for Swagger UI
+    }));
     this.app.use(cors());
-    
-    // Configuração normal para todas as rotas
-    this.app.use(
-      helmet({
-        contentSecurityPolicy: false,
-        crossOriginEmbedderPolicy: false,
-        crossOriginOpenerPolicy: false,
-        crossOriginResourcePolicy: false,
-      })
-    );
-    
+    this.app.use(express.json());
     this.app.use(morgan('dev'));
     this.app.use(loggerMiddleware);
   }
 
   private initializeSwagger(): void {
+    // Log detected files for debugging
+    console.log('Looking for Swagger API docs in:');
+    const apiPatterns = swaggerOptions.apis || [];
+    apiPatterns.forEach(pattern => {
+      console.log(` - ${pattern}`);
+    });
+    
     // Serve Swagger UI with custom options
     this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
       explorer: true,
@@ -111,17 +110,20 @@ export class App {
 
     // Log Swagger initialization
     console.log('Swagger documentation initialized');
-    console.log('API patterns:', swaggerOptions.apis);
-  }
-
-  private initializeErrorHandling(): void {
-    this.app.use(errorMiddleware);
+    // Cast swaggerSpec to any to avoid TypeScript errors with dynamic properties
+    const spec = swaggerSpec as any;
+    console.log(`Found ${Object.keys(spec.paths || {}).length} API paths`);
+    console.log(`Found ${Object.keys(spec.components?.schemas || {}).length} schemas`);
   }
 
   private initializeControllers(controllers: BaseController[]): void {
     controllers.forEach((controller) => {
       this.app.use(controller.path, controller.router);
     });
+  }
+
+  private initializeErrorHandling(): void {
+    this.app.use(errorMiddleware);
   }
 
   public listen(port: number): void {
