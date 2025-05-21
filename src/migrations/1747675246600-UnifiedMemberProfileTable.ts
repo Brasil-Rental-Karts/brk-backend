@@ -12,7 +12,7 @@ export class UnifiedMemberProfileTable1747675246600 implements MigrationInterfac
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
                 "lastLoginAt" TIMESTAMP,
                 "nickName" VARCHAR(100) NOT NULL DEFAULT '',
-                "birthDate" DATE NOT NULL DEFAULT NOW(),
+                "birthDate" DATE,
                 "gender" VARCHAR(20) NOT NULL DEFAULT '',
                 "city" VARCHAR(100) NOT NULL DEFAULT '',
                 "state" CHAR(2) NOT NULL DEFAULT '',

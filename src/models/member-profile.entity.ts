@@ -135,8 +135,8 @@ export class MemberProfile extends BaseEntity {
   @Column({ length: 100, nullable: false, default: '' })
   nickName!: string;
 
-  @Column({ type: 'date', nullable: false })
-  birthDate!: Date;
+  @Column({ type: 'date', nullable: true })
+  birthDate?: Date;
 
   @Column({ length: 20, nullable: false, default: '' })
   gender!: string;

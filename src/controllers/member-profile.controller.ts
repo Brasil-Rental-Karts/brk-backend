@@ -48,81 +48,73 @@ export class MemberProfileController extends BaseController {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
-     *             properties:
-     *               nickName:
-     *                 type: string
-     *                 description: User's nickname
-     *                 example: "SpeedRacer"
-     *               birthDate:
-     *                 type: string
-     *                 format: date
-     *                 description: User's date of birth
-     *                 example: "1990-05-15"
-     *               gender:
-     *                 type: string
-     *                 description: User's gender
-     *                 example: "Male"
-     *               city:
-     *                 type: string
-     *                 description: User's city
-     *                 example: "São Paulo"
-     *               state:
-     *                 type: string
-     *                 description: User's state (2-letter code)
-     *                 example: "SP"
-     *               experienceTime:
-     *                 type: string
-     *                 description: User's experience time
-     *                 example: "3-5 years"
-     *               raceFrequency:
-     *                 type: string
-     *                 description: User's race frequency
-     *                 example: "Weekly"
-     *               championshipParticipation:
-     *                 type: string
-     *                 description: User's championship participation
-     *                 example: "Regional"
-     *               competitiveLevel:
-     *                 type: string
-     *                 description: User's competitive level
-     *                 example: "Intermediate"
-     *               hasOwnKart:
-     *                 type: boolean
-     *                 description: Whether the user has their own kart
-     *                 example: true
-     *               isTeamMember:
-     *                 type: boolean
-     *                 description: Whether the user is a team member
-     *                 example: false
-     *               teamName:
-     *                 type: string
-     *                 description: User's team name
-     *                 example: "Racing Team"
-     *               usesTelemetry:
-     *                 type: boolean
-     *                 description: Whether the user uses telemetry
-     *                 example: true
-     *               telemetryType:
-     *                 type: string
-     *                 description: User's telemetry type
-     *                 example: "AiM"
-     *               attendsEvents:
-     *                 type: string
-     *                 description: User's event attendance
-     *                 example: "Often"
-     *               interestCategories:
-     *                 type: array
-     *                 items:
-     *                   type: string
-     *                 description: User's categories of interest
-     *                 example: ["Sprint", "Endurance"]
-     *               preferredTrack:
-     *                 type: string
-     *                 description: User's preferred track
-     *                 example: "Interlagos"
+     *             oneOf:
+     *               - type: object
+     *                 properties:
+     *                   profile:
+     *                     type: object
+     *                     properties:
+     *                       nickName:
+     *                         type: string
+     *                         description: User's nickname
+     *                         example: "SpeedRacer"
+     *                       birthDate:
+     *                         type: string
+     *                         format: date
+     *                         description: User's date of birth
+     *                         example: "1990-05-15"
+     *                       gender:
+     *                         type: string
+     *                         description: User's gender
+     *                         example: "Male"
+     *                       city:
+     *                         type: string
+     *                         description: User's city
+     *                         example: "São Paulo"
+     *                       state:
+     *                         type: string
+     *                         description: User's state (2-letter code)
+     *                         example: "SP"
+     *                   # ... More profile fields
+     *               - type: object
+     *                 properties:
+     *                   nickName:
+     *                     type: string
+     *                     description: User's nickname
+     *                     example: "SpeedRacer"
+     *                   birthDate:
+     *                     type: string
+     *                     format: date
+     *                     description: User's date of birth
+     *                     example: "1990-05-15"
+     *                   gender:
+     *                     type: string
+     *                     description: User's gender
+     *                     example: "Male"
+     *                   city:
+     *                     type: string
+     *                     description: User's city
+     *                     example: "São Paulo"
+     *                   state:
+     *                     type: string
+     *                     description: User's state (2-letter code)
+     *                     example: "SP"
+     *                 # ... More direct fields
      *           examples:
-     *             update:
+     *             nested:
+     *               value: {
+     *                 "profile": {
+     *                   "nickName": "SpeedRacer",
+     *                   "birthDate": "1990-05-15",
+     *                   "gender": "Male",
+     *                   "city": "São Paulo",
+     *                   "state": "SP",
+     *                   "experienceTime": "3-5 years",
+     *                   "hasOwnKart": true,
+     *                   "interestCategories": ["Sprint", "Endurance"]
+     *                 }
+     *               }
+     *             direct:
      *               value: {
      *                 "nickName": "SpeedRacer",
      *                 "gender": "Male",
@@ -491,7 +483,11 @@ export class MemberProfileController extends BaseController {
       }
 
       const userId = req.user.id;
-      const profileData = req.body as UpsertMemberProfileDto;
+      
+      // Handle both nested and direct payload formats
+      const profileData = req.body.profile || req.body;
+      
+      console.log('Profile data received:', JSON.stringify(profileData));
       
       // Check if profile exists to determine response status
       const existingProfile = await this.memberProfileService.findByUserId(userId);
