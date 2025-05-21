@@ -1,6 +1,15 @@
 import { Entity, Column, JoinColumn, OneToOne } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
+import { 
+  Gender, 
+  KartExperienceYears, 
+  RaceFrequency, 
+  ChampionshipParticipation, 
+  CompetitiveLevel, 
+  AttendsEvents,
+  InterestCategory
+} from './member-profile-enums';
 
 /**
  * @swagger
@@ -29,9 +38,9 @@ import { User } from './user.entity';
  *           description: User's date of birth
  *           example: "1990-05-15"
  *         gender:
- *           type: string
- *           description: User's gender
- *           example: "Male"
+ *           type: number
+ *           description: User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)
+ *           example: 0
  *         city:
  *           type: string
  *           description: User's city
@@ -41,21 +50,21 @@ import { User } from './user.entity';
  *           description: User's state (2-letter code)
  *           example: "SP"
  *         experienceTime:
- *           type: string
- *           description: User's experience time
- *           example: "3-5 years"
+ *           type: number
+ *           description: Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)
+ *           example: 2
  *         raceFrequency:
- *           type: string
- *           description: User's race frequency
- *           example: "Weekly"
+ *           type: number
+ *           description: Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)
+ *           example: 2
  *         championshipParticipation:
- *           type: string
- *           description: User's championship participation
- *           example: "Regional"
+ *           type: number
+ *           description: Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)
+ *           example: 1
  *         competitiveLevel:
- *           type: string
- *           description: User's competitive level
- *           example: "Intermediate"
+ *           type: number
+ *           description: User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)
+ *           example: 1
  *         hasOwnKart:
  *           type: boolean
  *           description: Whether the user has their own kart
@@ -77,15 +86,15 @@ import { User } from './user.entity';
  *           description: User's telemetry type
  *           example: "AiM"
  *         attendsEvents:
- *           type: string
- *           description: User's event attendance
- *           example: "Often"
+ *           type: number
+ *           description: User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)
+ *           example: 0
  *         interestCategories:
  *           type: array
  *           items:
- *             type: string
- *           description: User's categories of interest
- *           example: ["Sprint", "Endurance"]
+ *             type: number
+ *           description: User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)
+ *           example: [0, 1]
  *         preferredTrack:
  *           type: string
  *           description: User's preferred track
@@ -107,20 +116,20 @@ import { User } from './user.entity';
  *         lastLoginAt: "2023-07-25T14:30:00Z"
  *         nickName: "SpeedRacer"
  *         birthDate: "1990-05-15"
- *         gender: "Male"
+ *         gender: 0
  *         city: "São Paulo"
  *         state: "SP"
- *         experienceTime: "3-5 years"
- *         raceFrequency: "Weekly"
- *         championshipParticipation: "Regional"
- *         competitiveLevel: "Intermediate"
+ *         experienceTime: 2
+ *         raceFrequency: 2
+ *         championshipParticipation: 1
+ *         competitiveLevel: 1
  *         hasOwnKart: true
  *         isTeamMember: false
  *         teamName: null
  *         usesTelemetry: true
  *         telemetryType: "AiM"
- *         attendsEvents: "Often"
- *         interestCategories: ["Sprint", "Endurance"]
+ *         attendsEvents: 0
+ *         interestCategories: [0, 1]
  *         preferredTrack: "Interlagos"
  */
 @Entity('MemberProfiles')
@@ -129,8 +138,8 @@ export class MemberProfile extends BaseEntity {
   @JoinColumn({ name: 'id' })
   user!: User;
 
-  @Column({ type: 'timestamp', nullable: true })
-  lastLoginAt?: Date;
+  @Column({ type: 'timestamp', nullable: false, default: () => 'CURRENT_TIMESTAMP' })
+  lastLoginAt!: Date;
 
   @Column({ length: 100, nullable: false, default: '' })
   nickName!: string;
@@ -138,8 +147,8 @@ export class MemberProfile extends BaseEntity {
   @Column({ type: 'date', nullable: true })
   birthDate?: Date;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  gender!: string;
+  @Column({ type: 'smallint', nullable: true })
+  gender?: number;
 
   @Column({ length: 100, nullable: false, default: '' })
   city!: string;
@@ -147,17 +156,17 @@ export class MemberProfile extends BaseEntity {
   @Column({ length: 2, nullable: false, default: '' })
   state!: string;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  experienceTime!: string;
+  @Column({ type: 'smallint', nullable: true })
+  experienceTime?: number;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  raceFrequency!: string;
+  @Column({ type: 'smallint', nullable: true })
+  raceFrequency?: number;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  championshipParticipation!: string;
+  @Column({ type: 'smallint', nullable: true })
+  championshipParticipation?: number;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  competitiveLevel!: string;
+  @Column({ type: 'smallint', nullable: true })
+  competitiveLevel?: number;
 
   @Column({ nullable: false, default: false })
   hasOwnKart!: boolean;
@@ -174,11 +183,11 @@ export class MemberProfile extends BaseEntity {
   @Column({ length: 100, nullable: true })
   telemetryType?: string;
 
-  @Column({ length: 20, nullable: false, default: '' })
-  attendsEvents!: string;
+  @Column({ type: 'smallint', nullable: true })
+  attendsEvents?: number;
 
-  @Column('text', { array: true, nullable: false, default: [] })
-  interestCategories!: string[];
+  @Column('smallint', { array: true, nullable: true })
+  interestCategories?: number[];
 
   @Column({ length: 100, nullable: true })
   preferredTrack?: string;

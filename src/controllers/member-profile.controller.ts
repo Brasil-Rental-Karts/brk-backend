@@ -6,6 +6,15 @@ import { validationMiddleware } from '../middleware/validator.middleware';
 import { authMiddleware, requireMember } from '../middleware/auth.middleware';
 import { UserRole } from '../models/user.entity';
 import { MemberProfile } from '../models/member-profile.entity';
+import { 
+  Gender, 
+  KartExperienceYears, 
+  RaceFrequency, 
+  ChampionshipParticipation, 
+  CompetitiveLevel, 
+  AttendsEvents,
+  InterestCategory
+} from '../models/member-profile-enums';
 
 /**
  * @swagger
@@ -64,9 +73,9 @@ export class MemberProfileController extends BaseController {
      *                         description: User's date of birth
      *                         example: "1990-05-15"
      *                       gender:
-     *                         type: string
-     *                         description: User's gender
-     *                         example: "Male"
+     *                         type: integer
+     *                         description: User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)
+     *                         example: 0
      *                       city:
      *                         type: string
      *                         description: User's city
@@ -88,9 +97,9 @@ export class MemberProfileController extends BaseController {
      *                     description: User's date of birth
      *                     example: "1990-05-15"
      *                   gender:
-     *                     type: string
-     *                     description: User's gender
-     *                     example: "Male"
+     *                     type: integer
+     *                     description: User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)
+     *                     example: 0
      *                   city:
      *                     type: string
      *                     description: User's city
@@ -106,23 +115,23 @@ export class MemberProfileController extends BaseController {
      *                 "profile": {
      *                   "nickName": "SpeedRacer",
      *                   "birthDate": "1990-05-15",
-     *                   "gender": "Male",
+     *                   "gender": 0,
      *                   "city": "São Paulo",
      *                   "state": "SP",
-     *                   "experienceTime": "3-5 years",
+     *                   "experienceTime": 2,
      *                   "hasOwnKart": true,
-     *                   "interestCategories": ["Sprint", "Endurance"]
+     *                   "interestCategories": [0, 1]
      *                 }
      *               }
      *             direct:
      *               value: {
      *                 "nickName": "SpeedRacer",
-     *                 "gender": "Male",
+     *                 "gender": 0,
      *                 "city": "São Paulo",
      *                 "state": "SP",
-     *                 "experienceTime": "3-5 years",
+     *                 "experienceTime": 2,
      *                 "hasOwnKart": true,
-     *                 "interestCategories": ["Sprint", "Endurance"]
+     *                 "interestCategories": [0, 1]
      *               }
      *     responses:
      *       200:
@@ -162,9 +171,9 @@ export class MemberProfileController extends BaseController {
      *                   description: User's date of birth
      *                   example: "1990-05-15"
      *                 gender:
-     *                   type: string
-     *                   description: User's gender
-     *                   example: "Male"
+     *                   type: integer
+     *                   description: User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)
+     *                   example: 0
      *                 city:
      *                   type: string
      *                   description: User's city
@@ -174,21 +183,21 @@ export class MemberProfileController extends BaseController {
      *                   description: User's state (2-letter code)
      *                   example: "SP"
      *                 experienceTime:
-     *                   type: string
-     *                   description: User's experience time
-     *                   example: "3-5 years"
+     *                   type: integer
+     *                   description: Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)
+     *                   example: 2
      *                 raceFrequency:
-     *                   type: string
-     *                   description: User's race frequency
-     *                   example: "Weekly"
+     *                   type: integer
+     *                   description: Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)
+     *                   example: 2
      *                 championshipParticipation:
-     *                   type: string
-     *                   description: User's championship participation
-     *                   example: "Regional"
+     *                   type: integer
+     *                   description: Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)
+     *                   example: 1
      *                 competitiveLevel:
-     *                   type: string
-     *                   description: User's competitive level
-     *                   example: "Intermediate"
+     *                   type: integer
+     *                   description: User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)
+     *                   example: 1
      *                 hasOwnKart:
      *                   type: boolean
      *                   description: Whether the user has their own kart
@@ -210,15 +219,15 @@ export class MemberProfileController extends BaseController {
      *                   description: User's telemetry type
      *                   example: "AiM"
      *                 attendsEvents:
-     *                   type: string
-     *                   description: User's event attendance
-     *                   example: "Often"
+     *                   type: integer
+     *                   description: User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)
+     *                   example: 0
      *                 interestCategories:
      *                   type: array
      *                   items:
-     *                     type: string
-     *                   description: User's categories of interest
-     *                   example: ["Sprint", "Endurance"]
+     *                     type: integer
+     *                   description: User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)
+     *                   example: [0, 1]
      *                 preferredTrack:
      *                   type: string
      *                   description: User's preferred track
@@ -230,20 +239,20 @@ export class MemberProfileController extends BaseController {
      *               "lastLoginAt": "2023-07-25T14:30:00Z",
      *               "nickName": "SpeedRacer",
      *               "birthDate": "1990-05-15",
-     *               "gender": "Male",
+     *               "gender": 0,
      *               "city": "São Paulo",
      *               "state": "SP",
-     *               "experienceTime": "3-5 years",
-     *               "raceFrequency": "Weekly",
-     *               "championshipParticipation": "Regional",
-     *               "competitiveLevel": "Intermediate",
+     *               "experienceTime": 2,
+     *               "raceFrequency": 2,
+     *               "championshipParticipation": 1,
+     *               "competitiveLevel": 1,
      *               "hasOwnKart": true,
      *               "isTeamMember": false,
      *               "teamName": null,
      *               "usesTelemetry": true,
      *               "telemetryType": "AiM",
-     *               "attendsEvents": "Often",
-     *               "interestCategories": ["Sprint", "Endurance"],
+     *               "attendsEvents": 0,
+     *               "interestCategories": [0, 1],
      *               "preferredTrack": "Interlagos"
      *             }
      *       201:
@@ -274,28 +283,28 @@ export class MemberProfileController extends BaseController {
      *                   format: date
      *                   example: "1990-05-15"
      *                 gender:
-     *                   type: string
-     *                   example: "Male"
+     *                   type: integer
+     *                   example: 0
      *             example: {
      *               "id": "a1b2c3d4-e5f6-7890-abcd-1234567890ab",
      *               "createdAt": "2023-01-15T10:30:00Z",
      *               "updatedAt": "2023-01-15T10:30:00Z",
      *               "nickName": "SpeedRacer",
      *               "birthDate": "1990-05-15",
-     *               "gender": "Male",
+     *               "gender": 0,
      *               "city": "São Paulo",
      *               "state": "SP",
-     *               "experienceTime": "3-5 years",
-     *               "raceFrequency": "Weekly",
-     *               "championshipParticipation": "Regional",
-     *               "competitiveLevel": "Intermediate",
+     *               "experienceTime": 2,
+     *               "raceFrequency": 2,
+     *               "championshipParticipation": 1,
+     *               "competitiveLevel": 1,
      *               "hasOwnKart": true,
      *               "isTeamMember": false,
      *               "teamName": null,
      *               "usesTelemetry": true,
      *               "telemetryType": "AiM",
-     *               "attendsEvents": "Often",
-     *               "interestCategories": ["Sprint", "Endurance"],
+     *               "attendsEvents": 0,
+     *               "interestCategories": [0, 1],
      *               "preferredTrack": "Interlagos"
      *             }
      *       400:
@@ -371,8 +380,8 @@ export class MemberProfileController extends BaseController {
      *                   format: date
      *                   example: "1990-05-15"
      *                 gender:
-     *                   type: string
-     *                   example: "Male"
+     *                   type: integer
+     *                   example: 0
      *                 city:
      *                   type: string
      *                   example: "São Paulo"
@@ -380,17 +389,17 @@ export class MemberProfileController extends BaseController {
      *                   type: string
      *                   example: "SP"
      *                 experienceTime:
-     *                   type: string
-     *                   example: "3-5 years"
+     *                   type: integer
+     *                   example: 2
      *                 raceFrequency:
-     *                   type: string
-     *                   example: "Weekly"
+     *                   type: integer
+     *                   example: 2
      *                 championshipParticipation:
-     *                   type: string
-     *                   example: "Regional"
+     *                   type: integer
+     *                   example: 1
      *                 competitiveLevel:
-     *                   type: string
-     *                   example: "Intermediate"
+     *                   type: integer
+     *                   example: 1
      *                 hasOwnKart:
      *                   type: boolean
      *                   example: true
@@ -407,13 +416,13 @@ export class MemberProfileController extends BaseController {
      *                   type: string
      *                   example: "AiM"
      *                 attendsEvents:
-     *                   type: string
-     *                   example: "Often"
+     *                   type: integer
+     *                   example: 0
      *                 interestCategories:
      *                   type: array
      *                   items:
-     *                     type: string
-     *                   example: ["Sprint", "Endurance"]
+     *                     type: integer
+     *                   example: [0, 1]
      *                 preferredTrack:
      *                   type: string
      *                   example: "Interlagos"
@@ -424,20 +433,20 @@ export class MemberProfileController extends BaseController {
      *               "lastLoginAt": "2023-07-25T14:30:00Z",
      *               "nickName": "SpeedRacer",
      *               "birthDate": "1990-05-15",
-     *               "gender": "Male",
+     *               "gender": 0,
      *               "city": "São Paulo",
      *               "state": "SP",
-     *               "experienceTime": "3-5 years",
-     *               "raceFrequency": "Weekly",
-     *               "championshipParticipation": "Regional",
-     *               "competitiveLevel": "Intermediate",
+     *               "experienceTime": 2,
+     *               "raceFrequency": 2,
+     *               "championshipParticipation": 1,
+     *               "competitiveLevel": 1,
      *               "hasOwnKart": true,
      *               "isTeamMember": false,
      *               "teamName": null,
      *               "usesTelemetry": true,
      *               "telemetryType": "AiM",
-     *               "attendsEvents": "Often",
-     *               "interestCategories": ["Sprint", "Endurance"],
+     *               "attendsEvents": 0,
+     *               "interestCategories": [0, 1],
      *               "preferredTrack": "Interlagos"
      *             }
      *       401:
@@ -466,7 +475,7 @@ export class MemberProfileController extends BaseController {
       '/',
       authMiddleware,
       requireMember,
-      this.getCurrentUserProfile.bind(this)
+      this.getProfile.bind(this)
     );
   }
 
@@ -509,13 +518,13 @@ export class MemberProfileController extends BaseController {
    * @param req HTTP request
    * @param res HTTP response
    */
-  private async getCurrentUserProfile(req: Request, res: Response): Promise<void> {
+  private async getProfile(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user || !req.user.id) {
         res.status(401).json({ message: 'Authentication required' });
         return;
       }
-
+      
       const userId = req.user.id;
       const profile = await this.memberProfileService.findByUserId(userId);
       

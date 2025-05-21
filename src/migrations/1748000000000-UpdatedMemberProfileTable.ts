@@ -1,32 +1,40 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class UnifiedMemberProfileTable1747675246600 implements MigrationInterface {
-    name = 'UnifiedMemberProfileTable1747675246600'
+export class UpdatedMemberProfileTable1748000000000 implements MigrationInterface {
+    name = 'UpdatedMemberProfileTable1748000000000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create MemberProfiles table with all fields using camelCase
+        // Create MemberProfiles table with the specified fields using small numbers
+        // Field descriptions:
+        // gender: 0=Male, 1=Female, 2=Other, 3=PreferNotToSay
+        // experienceTime: 0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears
+        // raceFrequency: 0=Rarely, 1=Regularly, 2=Weekly, 3=Daily
+        // championshipParticipation: 0=Never, 1=LocalRegional, 2=State, 3=National
+        // competitiveLevel: 0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional
+        // attendsEvents: 0=Yes, 1=No, 2=DependsOnDistance
+        // interestCategories: Array of: 0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces
         await queryRunner.query(`
             CREATE TABLE "MemberProfiles" (
                 "id" uuid NOT NULL, 
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
-                "lastLoginAt" TIMESTAMP,
+                "lastLoginAt" TIMESTAMP NOT NULL DEFAULT now(),
                 "nickName" VARCHAR(100) NOT NULL DEFAULT '',
                 "birthDate" DATE,
-                "gender" VARCHAR(20) NOT NULL DEFAULT '',
+                "gender" SMALLINT,
                 "city" VARCHAR(100) NOT NULL DEFAULT '',
                 "state" CHAR(2) NOT NULL DEFAULT '',
-                "experienceTime" VARCHAR(20) NOT NULL DEFAULT '',
-                "raceFrequency" VARCHAR(20) NOT NULL DEFAULT '',
-                "championshipParticipation" VARCHAR(20) NOT NULL DEFAULT '',
-                "competitiveLevel" VARCHAR(20) NOT NULL DEFAULT '',
+                "experienceTime" SMALLINT,
+                "raceFrequency" SMALLINT,
+                "championshipParticipation" SMALLINT,
+                "competitiveLevel" SMALLINT,
                 "hasOwnKart" BOOLEAN NOT NULL DEFAULT FALSE,
                 "isTeamMember" BOOLEAN NOT NULL DEFAULT FALSE,
                 "teamName" VARCHAR(100),
                 "usesTelemetry" BOOLEAN NOT NULL DEFAULT FALSE,
                 "telemetryType" VARCHAR(100),
-                "attendsEvents" VARCHAR(20) NOT NULL DEFAULT '',
-                "interestCategories" TEXT[] NOT NULL DEFAULT '{}',
+                "attendsEvents" SMALLINT,
+                "interestCategories" SMALLINT[],
                 "preferredTrack" VARCHAR(100),
                 CONSTRAINT "PK_MemberProfiles" PRIMARY KEY ("id")
             )

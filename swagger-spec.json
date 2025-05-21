@@ -262,10 +262,11 @@
             "example": "1990-01-01"
           },
           "gender": {
-            "type": "string",
-            "maxLength": 20,
-            "description": "User's gender",
-            "example": "Male"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
+            "example": 0
           },
           "city": {
             "type": "string",
@@ -280,28 +281,32 @@
             "example": "SP"
           },
           "experienceTime": {
-            "type": "string",
-            "maxLength": 20,
-            "description": "User's experience time",
-            "example": "3-5 years"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4,
+            "description": "Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)",
+            "example": 2
           },
           "raceFrequency": {
-            "type": "string",
-            "maxLength": 20,
-            "description": "User's race frequency",
-            "example": "Weekly"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)",
+            "example": 2
           },
           "championshipParticipation": {
-            "type": "string",
-            "maxLength": 20,
-            "description": "User's championship participation",
-            "example": "Regional"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)",
+            "example": 1
           },
           "competitiveLevel": {
-            "type": "string",
-            "maxLength": 20,
-            "description": "User's competitive level",
-            "example": "Amateur"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)",
+            "example": 1
           },
           "hasOwnKart": {
             "type": "boolean",
@@ -331,22 +336,21 @@
             "example": "GPS+Accelerometer"
           },
           "attendsEvents": {
-            "type": "string",
-            "maxLength": 20,
-            "description": "User's event attendance",
-            "example": "Frequently"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2,
+            "description": "User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)",
+            "example": 0
           },
           "interestCategories": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 6
             },
-            "description": "User's categories of interest",
-            "example": [
-              "Racing",
-              "Training",
-              "Equipment"
-            ]
+            "description": "User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)",
+            "example": [0, 1, 2]
           },
           "preferredTrack": {
             "type": "string",
@@ -354,6 +358,19 @@
             "description": "User's preferred track",
             "example": "Interlagos"
           }
+        },
+        "example": {
+          "nickName": "RacerX",
+          "birthDate": "1990-01-01",
+          "gender": 0,
+          "city": "São Paulo",
+          "state": "SP",
+          "experienceTime": 2,
+          "raceFrequency": 2,
+          "championshipParticipation": 1,
+          "competitiveLevel": 1,
+          "hasOwnKart": true,
+          "interestCategories": [0, 1, 2]
         }
       },
       "CreateUserDto": {
@@ -442,20 +459,7 @@
         "description": "Member profile entity that stores additional information about users.\nEach member profile is linked to a user account via a one-to-one relationship.\n",
         "required": [
           "id",
-          "nickName",
-          "birthDate",
-          "gender",
-          "city",
-          "state",
-          "experienceTime",
-          "raceFrequency",
-          "championshipParticipation",
-          "competitiveLevel",
-          "hasOwnKart",
-          "isTeamMember",
-          "usesTelemetry",
-          "attendsEvents",
-          "interestCategories"
+          "nickName"
         ],
         "properties": {
           "id": {
@@ -482,9 +486,9 @@
             "example": "1990-01-01"
           },
           "gender": {
-            "type": "string",
-            "description": "User's gender",
-            "example": "Male"
+            "type": "integer",
+            "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
+            "example": 0
           },
           "city": {
             "type": "string",
@@ -497,24 +501,24 @@
             "example": "SP"
           },
           "experienceTime": {
-            "type": "string",
-            "description": "User's experience time",
-            "example": "3-5 years"
+            "type": "integer",
+            "description": "Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)",
+            "example": 2
           },
           "raceFrequency": {
-            "type": "string",
-            "description": "User's race frequency",
-            "example": "Weekly"
+            "type": "integer",
+            "description": "Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)",
+            "example": 2
           },
           "championshipParticipation": {
-            "type": "string",
-            "description": "User's championship participation",
-            "example": "Regional"
+            "type": "integer",
+            "description": "Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)",
+            "example": 1
           },
           "competitiveLevel": {
-            "type": "string",
-            "description": "User's competitive level",
-            "example": "Amateur"
+            "type": "integer",
+            "description": "User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)",
+            "example": 1
           },
           "hasOwnKart": {
             "type": "boolean",
@@ -542,38 +546,22 @@
             "example": "GPS+Accelerometer"
           },
           "attendsEvents": {
-            "type": "string",
-            "description": "User's event attendance",
-            "example": "Frequently"
+            "type": "integer",
+            "description": "User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)",
+            "example": 0
           },
           "interestCategories": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "integer"
             },
-            "description": "User's categories of interest",
-            "example": [
-              "Racing",
-              "Training",
-              "Equipment"
-            ]
+            "description": "User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)",
+            "example": [0, 1, 2]
           },
           "preferredTrack": {
             "type": "string",
             "description": "User's preferred track",
             "example": "Interlagos"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp when the profile was created",
-            "example": "2023-01-01T12:00:00Z"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp when the profile was last updated",
-            "example": "2023-01-05T14:30:00Z"
           }
         }
       }
