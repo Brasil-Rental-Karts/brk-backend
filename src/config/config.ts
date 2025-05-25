@@ -49,6 +49,7 @@ const config = {
   frontendUrl: frontendUrls[0], // for redirects
   frontendUrls, // for CORS
   passwordResetPath: process.env.PASSWORD_RESET_PATH || '/reset-password',
+  emailConfirmationPath: process.env.EMAIL_CONFIRMATION_PATH || '/confirm-email',
   
   // Cookie configuration
   cookie: {

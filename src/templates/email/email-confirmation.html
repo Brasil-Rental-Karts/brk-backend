@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
+    <title>Confirmação de E-mail - BRK</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #ffffff;
+      }
+      .header {
+        text-align: center;
+        padding: 20px 0;
+      }
+      .content {
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 5px;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #f47820;
+        color: #ffffff !important;
+        text-decoration: none;
+        border-radius: 5px;
+        margin: 20px 0;
+        font-weight: bold;
+      }
+      .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 12px;
+        color: #666;
+      }
+      .logo {
+        max-width: 150px;
+        height: auto;
+        margin-bottom: 10px;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #1a1a1a;
+          color: #ffffff;
+        }
+        .container,
+        .content {
+          background-color: #2d2d2d;
+          color: #ffffff;
+        }
+        .footer {
+          color: #999;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img class="logo" src="https://i.ibb.co/DH3vqv37/logo-brk-orginal.png" alt="BRK Logo" />
+        <h2>Confirmação de E-mail</h2>
+      </div>
+      <div class="content">
+        <p>Olá {{nome}},</p>
+
+        <p>
+          Obrigado por se registrar na plataforma BRK! Para ativar sua conta, por favor confirme seu e-mail clicando no botão abaixo:
+        </p>
+
+        <div style="text-align: center">
+          <a href="{{confirmLink}}" class="button">Confirmar E-mail</a>
+        </div>
+
+        <p>
+          Por motivos de segurança, este link é válido por 24 horas. Após esse período, será necessário solicitar um novo link de confirmação.
+        </p>
+
+        <p>
+          Se você não criou esta conta, por favor ignore este e-mail ou entre em contato com nossa equipe de suporte.
+        </p>
+
+        <p>Atenciosamente,<br />Equipe BRK</p>
+      </div>
+      <div class="footer">
+        <p>Este é um e-mail automático. Por favor, não responda.</p>
+        <p>© {{ano}} BRK. Todos os direitos reservados.</p>
+      </div>
+    </div>
+  </body>
+</html> 

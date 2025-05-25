@@ -29,13 +29,27 @@ export class AuthService {
     // Hash the password
     const hashedPassword = await bcrypt.hash(registerUserDto.password, 10);
 
-    // Create and save the new user
-    return this.userRepository.create({
+    // Generate confirmation token and expiry
+    const emailConfirmationToken = crypto.randomBytes(32).toString('hex');
+    const emailConfirmationExpires = new Date();
+    emailConfirmationExpires.setHours(emailConfirmationExpires.getHours() + 24); // 24 hours expiry
+
+    // Create and save the new user (inactive, not confirmed)
+    const user = await this.userRepository.create({
       ...registerUserDto,
       password: hashedPassword,
       role: UserRole.MEMBER,
-      registrationDate: new Date()
+      registrationDate: new Date(),
+      active: false,
+      emailConfirmed: false,
+      emailConfirmationToken,
+      emailConfirmationExpires
     });
+
+    // Send confirmation email
+    await this.emailService.sendEmailConfirmationEmail(user.email, user.name, emailConfirmationToken);
+
+    return user;
   }
 
   async login(loginUserDto: LoginUserDto): Promise<TokenDto> {
@@ -208,5 +222,21 @@ export class AuthService {
     tokenDto.refreshToken = refreshToken;
     
     return tokenDto;
+  }
+
+  async confirmEmail(token: string): Promise<void> {
+    const user = await this.userRepository.findByEmailConfirmationToken(token);
+    if (!user) {
+      throw new Error('Invalid or expired confirmation token');
+    }
+    const now = new Date();
+    if (!user.emailConfirmationExpires || now > user.emailConfirmationExpires) {
+      throw new Error('Confirmation token has expired');
+    }
+    user.emailConfirmed = true;
+    user.active = true;
+    user.emailConfirmationToken = undefined;
+    user.emailConfirmationExpires = undefined;
+    await this.userRepository.updateUser(user);
   }
 } 

@@ -45,4 +45,13 @@ export class User extends BaseEntity {
   
   @Column({ type: 'varchar', length: 255, nullable: true })
   profilePicture?: string;
+
+  @Column({ default: false })
+  emailConfirmed: boolean = false;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  emailConfirmationToken?: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  emailConfirmationExpires?: Date;
 } 

@@ -18,4 +18,8 @@ export class UserRepository extends BaseRepositoryImpl<User> {
   async updateUser(user: User): Promise<User> {
     return this.repository.save(user);
   }
+
+  async findByEmailConfirmationToken(token: string): Promise<User | null> {
+    return this.repository.findOne({ where: { emailConfirmationToken: token } });
+  }
 } 

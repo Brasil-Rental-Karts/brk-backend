@@ -193,4 +193,23 @@ export class GoogleAuthDto extends BaseDto {
   @IsString()
   @IsNotEmpty({ message: 'Google ID token is required' })
   idToken!: string;
+}
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ConfirmEmailDto:
+ *       type: object
+ *       required:
+ *         - token
+ *       properties:
+ *         token:
+ *           type: string
+ *           description: Email confirmation token
+ */
+export class ConfirmEmailDto extends BaseDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Token is required' })
+  token!: string;
 } 

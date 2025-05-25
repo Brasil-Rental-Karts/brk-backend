@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { AuthService } from '../services/auth.service';
-import { RegisterUserDto, LoginUserDto, RefreshTokenDto, ForgotPasswordDto, ResetPasswordDto, GoogleAuthDto } from '../dtos/auth.dto';
+import { RegisterUserDto, LoginUserDto, RefreshTokenDto, ForgotPasswordDto, ResetPasswordDto, GoogleAuthDto, ConfirmEmailDto } from '../dtos/auth.dto';
 import { authMiddleware } from '../middleware/auth.middleware';
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
@@ -278,6 +278,36 @@ export class AuthController extends BaseController {
      *         description: Unauthorized
      */
     this.router.get('/me', authMiddleware, this.me.bind(this));
+
+    /**
+     * @swagger
+     * /auth/confirm-email:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Confirm user email
+     *     description: Confirms a user's email address using a confirmation token
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ConfirmEmailDto'
+     *     responses:
+     *       200:
+     *         description: Email confirmed successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *       400:
+     *         description: Invalid or expired confirmation token
+     *       500:
+     *         description: Internal server error
+     */
+    this.router.post('/confirm-email', validationMiddleware(ConfirmEmailDto), this.confirmEmail.bind(this));
   }
 
   
@@ -520,6 +550,21 @@ export class AuthController extends BaseController {
       });
     } catch (error) {
       res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  private async confirmEmail(req: Request, res: Response): Promise<void> {
+    try {
+      const { token } = req.body;
+      await this.authService.confirmEmail(token);
+      res.status(200).json({ message: 'Email confirmado com sucesso!' });
+    } catch (error) {
+      if (error instanceof Error && (error.message === 'Invalid or expired confirmation token' || error.message === 'Confirmation token has expired')) {
+        res.status(400).json({ message: error.message });
+      } else {
+        console.error('Email confirmation error:', error);
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
     }
   }
 } 
