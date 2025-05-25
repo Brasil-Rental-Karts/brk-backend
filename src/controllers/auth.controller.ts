@@ -167,33 +167,6 @@ export class AuthController extends BaseController {
     
     /**
      * @swagger
-     * /auth/refresh-token:
-     *   post:
-     *     tags: [Authentication]
-     *     summary: Refresh access token
-     *     description: Get a new access token using a valid refresh token
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             $ref: '#/components/schemas/RefreshTokenDto'
-     *     responses:
-     *       200:
-     *         description: Token refreshed successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/TokenDto'
-     *       401:
-     *         description: Invalid refresh token
-     *       500:
-     *         description: Internal server error
-     */
-    this.router.post('/refresh-token', validationMiddleware(RefreshTokenDto), this.refreshToken.bind(this));
-    
-    /**
-     * @swagger
      * /auth/forgot-password:
      *   post:
      *     tags: [Authentication]
@@ -275,6 +248,36 @@ export class AuthController extends BaseController {
      *         description: Internal server error
      */
     this.router.post('/logout', authMiddleware, this.logout.bind(this));
+
+    /**
+     * @swagger
+     * /auth/me:
+     *   get:
+     *     tags: [Authentication]
+     *     summary: Get current authenticated user
+     *     description: Returns the authenticated user's information
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Authenticated user info
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 id:
+     *                   type: string
+     *                 name:
+     *                   type: string
+     *                 email:
+     *                   type: string
+     *                 role:
+     *                   type: string
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.get('/me', authMiddleware, this.me.bind(this));
   }
 
   
@@ -307,8 +310,28 @@ export class AuthController extends BaseController {
     try {
       const loginUserDto: LoginUserDto = req.body;
       const tokens = await this.authService.login(loginUserDto);
-      
-      res.status(200).json(tokens);
+      // Set cookies for accessToken and refreshToken
+      const cookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 15 // 15 minutes (should match accessToken expiry)
+      };
+      const refreshCookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days (should match refreshToken expiry)
+      };
+      // Only set domain in production
+      if (process.env.NODE_ENV === 'production') {
+        cookieOptions['domain'] = config.cookie.domain;
+        refreshCookieOptions['domain'] = config.cookie.domain;
+      }
+      res.cookie('accessToken', tokens.accessToken, cookieOptions);
+      res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
+      // Return only firstLogin indicator
+      res.status(200).json({ firstLogin: !!tokens.firstLogin });
     } catch (error) {
       if (error instanceof Error && 
           (error.message === 'Invalid email or password' || 
@@ -321,30 +344,6 @@ export class AuthController extends BaseController {
     }
   }
 
-  
-  private async refreshToken(req: Request, res: Response): Promise<void> {
-    try {
-      const { refreshToken } = req.body as RefreshTokenDto;
-      
-      try {
-        // Use any type to work around typescript issues
-        const jwtVerify: any = jwt.verify;
-        
-        // Verify the refresh token to get the user id
-        const decoded = jwtVerify(refreshToken, config.jwt.secret) as { id: string };
-        
-        // Get new tokens
-        const tokens = await this.authService.refreshToken(decoded.id, refreshToken);
-        
-        res.status(200).json(tokens);
-      } catch (jwtError) {
-        res.status(401).json({ message: 'Invalid refresh token' });
-      }
-    } catch (error) {
-      console.error('Refresh token error:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
   
   private async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
@@ -421,30 +420,40 @@ export class AuthController extends BaseController {
 
   private async handleGoogleCallback(req: Request, res: Response): Promise<void> {
     try {
-      // Check for any error in query parameters
       if (req.query.error) {
         console.error('Google auth error:', req.query.error);
         res.redirect(`${config.frontendUrl}/login-error`);
         return;
       }
-      
       const { code } = req.query;
-      
       if (!code || typeof code !== 'string') {
         console.error('Missing authorization code');
         res.redirect(`${config.frontendUrl}/login-error`);
         return;
       }
-      
-      // Process the OAuth callback with Google
       const user = await this.googleAuthService.handleCallback(code);
-      
-      // Generate tokens for the authenticated user
       const tokens = await this.authService.generateTokensForUser(user);
-      
-      // Redirect to frontend with tokens as query parameters
-      // In a production app, you might want to use a more secure method
-      const redirectUrl = `${config.frontendUrl}/login-success?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&firstLogin=${tokens.firstLogin}`;
+      // Set cookies for accessToken and refreshToken
+      const cookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 15 // 15 minutes
+      };
+      const refreshCookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+      };
+      if (process.env.NODE_ENV === 'production') {
+        cookieOptions['domain'] = config.cookie.domain;
+        refreshCookieOptions['domain'] = config.cookie.domain;
+      }
+      res.cookie('accessToken', tokens.accessToken, cookieOptions);
+      res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
+      // Redirect to frontend with only firstLogin indicator
+      const redirectUrl = `${config.frontendUrl}/login-success?firstLogin=${tokens.firstLogin ? 'true' : 'false'}`;
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('Google callback error:', error);
@@ -455,17 +464,50 @@ export class AuthController extends BaseController {
   private async authenticateWithGoogle(req: Request, res: Response): Promise<void> {
     try {
       const { idToken } = req.body as GoogleAuthDto;
-      
-      // Verify the Google ID token and get/create the user
       const user = await this.googleAuthService.verifyGoogleIdToken(idToken);
-      
-      // Generate tokens for the authenticated user
       const tokens = await this.authService.generateTokensForUser(user);
-      
-      res.status(200).json(tokens);
+      // Set cookies for accessToken and refreshToken
+      const cookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 15 // 15 minutes
+      };
+      const refreshCookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+      };
+      if (process.env.NODE_ENV === 'production') {
+        cookieOptions['domain'] = config.cookie.domain;
+        refreshCookieOptions['domain'] = config.cookie.domain;
+      }
+      res.cookie('accessToken', tokens.accessToken, cookieOptions);
+      res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
+      // Return only firstLogin indicator
+      res.status(200).json({ firstLogin: !!tokens.firstLogin });
     } catch (error) {
       console.error('Google authentication error:', error);
       res.status(401).json({ message: 'Invalid Google token' });
+    }
+  }
+
+  private async me(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: 'Unauthorized' });
+        return;
+      }
+      // Optionally, fetch full user info from DB if needed
+      res.status(200).json({
+        id: req.user.id,
+        email: req.user.email,
+        role: req.user.role,
+        // name: ... (if you want to fetch from DB, add here)
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Internal server error' });
     }
   }
 } 

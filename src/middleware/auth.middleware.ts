@@ -19,15 +19,19 @@ declare global {
 // Verify JWT token
 export const authMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Debug: log all cookies
+    console.log('Cookies received:', req.cookies);
+
+    const token = req.cookies?.accessToken;
+    if (!token) {
+      console.log('No accessToken cookie found');
       res.status(401).json({ message: 'Authentication token is required' });
       return;
     }
-    
-    const token = authHeader.split(' ')[1];
-    
+
+    // Debug: log the token
+    console.log('AccessToken:', token);
+
     // Use any type to work around typescript issues
     const jwtVerify: any = jwt.verify;
     const decoded = jwtVerify(token, config.jwt.secret) as {
@@ -35,10 +39,11 @@ export const authMiddleware: RequestHandler = (req: Request, res: Response, next
       email: string;
       role: UserRole;
     };
-    
+
     req.user = decoded;
     next();
   } catch (error) {
+    console.error('JWT verification error:', error);
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 };

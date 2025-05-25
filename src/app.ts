@@ -9,6 +9,8 @@ import { loggerMiddleware } from './middleware/logger.middleware';
 import { BaseController } from './controllers/base.controller';
 import path from 'path';
 import fs from 'fs';
+import config from './config/config';
+import cookieParser from 'cookie-parser';
 
 const swaggerOptions: swaggerJsdoc.Options = {
   definition: {
@@ -70,8 +72,12 @@ export class App {
     this.app.use(helmet({
       contentSecurityPolicy: false, // Disable CSP for Swagger UI
     }));
-    this.app.use(cors());
+    this.app.use(cors({
+      origin: config.frontendUrl,
+      credentials: true,
+    }));
     this.app.use(express.json());
+    this.app.use(cookieParser());
     this.app.use(morgan('dev'));
     this.app.use(loggerMiddleware);
   }

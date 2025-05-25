@@ -42,6 +42,13 @@ const config = {
   // Frontend URL for reset password page
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   passwordResetPath: process.env.PASSWORD_RESET_PATH || '/reset-password',
+  
+  // Cookie configuration
+  cookie: {
+    domain: process.env.COOKIE_DOMAIN || 'localhost',
+    secure: process.env.COOKIE_SECURE === 'true',
+    sameSite: process.env.COOKIE_SAMESITE || 'lax',
+  },
 };
 
 export default config; 
