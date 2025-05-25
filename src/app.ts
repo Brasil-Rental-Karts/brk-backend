@@ -50,7 +50,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
   apis: [
     `${__dirname}/controllers/*.js`,
     `${__dirname}/dtos/*.js`,
-    `${__dirname}/models/*.js`
+    `${__dirname}/models/*.js`,
+    `${__dirname}/controllers/*.ts`,
+    `${__dirname}/dtos/*.ts`,
+    `${__dirname}/models/*.ts`
   ]
 };
 
@@ -97,36 +100,39 @@ export class App {
       console.log(` - ${pattern}`);
     });
     
-    // Serve Swagger UI with custom options
-    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-      explorer: true,
-      customCss: '.swagger-ui .topbar { display: none }',
-      customSiteTitle: 'BRK API Documentation',
-      swaggerOptions: {
-        persistAuthorization: true,
-        docExpansion: 'list',
-        filter: true,
-        showExtensions: true,
-        showCommonExtensions: true,
-        defaultModelsExpandDepth: 3,
-        defaultModelExpandDepth: 3,
-        displayRequestDuration: true,
-        tryItOutEnabled: true
-      }
-    }));
+    // Só expõe Swagger se não for produção
+    if (process.env.NODE_ENV !== 'production') {
+      // Serve Swagger UI com opções customizadas
+      this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+        explorer: true,
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: 'BRK API Documentation',
+        swaggerOptions: {
+          persistAuthorization: true,
+          docExpansion: 'list',
+          filter: true,
+          showExtensions: true,
+          showCommonExtensions: true,
+          defaultModelsExpandDepth: 3,
+          defaultModelExpandDepth: 3,
+          displayRequestDuration: true,
+          tryItOutEnabled: true
+        }
+      }));
 
-    // Serve raw Swagger JSON
-    this.app.get('/api-docs.json', (req, res) => {
-      res.setHeader('Content-Type', 'application/json');
-      res.send(swaggerSpec);
-    });
+      // Serve raw Swagger JSON
+      this.app.get('/api-docs.json', (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.send(swaggerSpec);
+      });
 
-    // Log Swagger initialization
-    console.log('Swagger documentation initialized');
-    // Cast swaggerSpec to any to avoid TypeScript errors with dynamic properties
-    const spec = swaggerSpec as any;
-    console.log(`Found ${Object.keys(spec.paths || {}).length} API paths`);
-    console.log(`Found ${Object.keys(spec.components?.schemas || {}).length} schemas`);
+      // Log Swagger initialization
+      console.log('Swagger documentation initialized');
+      // Cast swaggerSpec to any to avoid TypeScript errors with dynamic properties
+      const spec = swaggerSpec as any;
+      console.log(`Found ${Object.keys(spec.paths || {}).length} API paths`);
+      console.log(`Found ${Object.keys(spec.components?.schemas || {}).length} schemas`);
+    }
   }
 
   private initializeControllers(controllers: BaseController[]): void {
