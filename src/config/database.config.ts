@@ -19,7 +19,7 @@ export const dbConfig: DataSourceOptions = {
   // This is useful when starting with Docker Compose
   connectTimeoutMS: 10000,
   // Only use synchronize in development, never in production
-  synchronize: process.env.NODE_ENV === 'development',
+  synchronize: false,
   logging: process.env.NODE_ENV === 'development',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   // Configure migrations
