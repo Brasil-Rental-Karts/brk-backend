@@ -73,7 +73,14 @@ export class App {
       contentSecurityPolicy: false, // Disable CSP for Swagger UI
     }));
     this.app.use(cors({
-      origin: config.frontendUrl,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        if (config.frontendUrls.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'), false);
+      },
       credentials: true,
     }));
     this.app.use(express.json());

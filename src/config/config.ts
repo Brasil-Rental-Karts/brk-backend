@@ -3,6 +3,12 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
+// Support comma-separated list for CORS
+const frontendUrls = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(url => url.trim())
+  .filter(Boolean);
+
 const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -39,8 +45,9 @@ const config = {
     redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback',
   },
   
-  // Frontend URL for reset password page
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  // Frontend URLs for CORS and redirects
+  frontendUrl: frontendUrls[0], // for redirects
+  frontendUrls, // for CORS
   passwordResetPath: process.env.PASSWORD_RESET_PATH || '/reset-password',
   
   // Cookie configuration
