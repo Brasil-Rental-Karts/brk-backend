@@ -67,6 +67,23 @@ export class AuthService {
     }
 
     if (!user.active) {
+      // If user is not active and not confirmed, check if confirmation expired
+      if (!user.emailConfirmed) {
+        const now = new Date();
+        if (!user.emailConfirmationToken || !user.emailConfirmationExpires || now > user.emailConfirmationExpires) {
+          // Generate new token and expiry
+          const newToken = crypto.randomBytes(32).toString('hex');
+          const newExpires = new Date();
+          newExpires.setHours(newExpires.getHours() + 24);
+          user.emailConfirmationToken = newToken;
+          user.emailConfirmationExpires = newExpires;
+          await this.userRepository.updateUser(user);
+          await this.emailService.sendEmailConfirmationEmail(user.email, user.name, newToken);
+          throw new Error('Email de confirmação expirado. Um novo e-mail foi enviado. Por favor, verifique sua caixa de entrada.');
+        } else {
+          throw new Error('Sua conta ainda não foi ativada. Por favor, confirme seu e-mail para acessar a plataforma.');
+        }
+      }
       throw new Error('User account is inactive');
     }
 

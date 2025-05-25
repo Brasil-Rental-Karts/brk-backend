@@ -308,6 +308,42 @@ export class AuthController extends BaseController {
      *         description: Internal server error
      */
     this.router.post('/confirm-email', validationMiddleware(ConfirmEmailDto), this.confirmEmail.bind(this));
+
+    /**
+     * @swagger
+     * /auth/refresh-token:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Refresh access token
+     *     description: Refresh the access token using a valid refresh token
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               refreshToken:
+     *                 type: string
+     *                 description: Valid refresh token
+     *     responses:
+     *       200:
+     *         description: New tokens issued
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 accessToken:
+     *                   type: string
+     *                 refreshToken:
+     *                   type: string
+     *       401:
+     *         description: Invalid or expired refresh token
+     *       500:
+     *         description: Internal server error
+     */
+    this.router.post('/refresh-token', this.refreshToken.bind(this));
   }
 
   
@@ -365,7 +401,9 @@ export class AuthController extends BaseController {
     } catch (error) {
       if (error instanceof Error && 
           (error.message === 'Invalid email or password' || 
-           error.message === 'User account is inactive')) {
+           error.message === 'User account is inactive' ||
+           error.message === 'Email de confirmação expirado. Um novo e-mail foi enviado. Por favor, verifique sua caixa de entrada.' ||
+           error.message === 'Sua conta ainda não foi ativada. Por favor, confirme seu e-mail para acessar a plataforma.')) {
         res.status(401).json({ message: error.message });
       } else {
         console.error('Login error:', error);
@@ -565,6 +603,30 @@ export class AuthController extends BaseController {
         console.error('Email confirmation error:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
+    }
+  }
+
+  private async refreshToken(req: Request, res: Response): Promise<void> {
+    try {
+      const { refreshToken } = req.body;
+      if (!refreshToken) {
+        res.status(401).json({ message: 'Refresh token não fornecido.' });
+        return;
+      }
+      // Decodifica o refresh token para obter o userId
+      const jwt = require('jsonwebtoken');
+      let payload;
+      try {
+        payload = jwt.verify(refreshToken, config.jwt.secret);
+      } catch (err) {
+        res.status(401).json({ message: 'Refresh token inválido ou expirado.' });
+        return;
+      }
+      const userId = payload.id;
+      const tokens = await this.authService.refreshToken(userId, refreshToken);
+      res.status(200).json(tokens);
+    } catch (error) {
+      res.status(401).json({ message: 'Não foi possível renovar o token.' });
     }
   }
 } 
