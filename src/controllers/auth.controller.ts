@@ -400,7 +400,19 @@ export class AuthController extends BaseController {
       }
 
       this.authService.logout(req.user.id);
-      
+
+      // Clear cookies for accessToken and refreshToken
+      const cookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+      };
+      if (process.env.NODE_ENV === 'production') {
+        cookieOptions['domain'] = config.cookie.domain;
+      }
+      res.clearCookie('accessToken', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
+
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
       console.error('Logout error:', error);
@@ -504,7 +516,7 @@ export class AuthController extends BaseController {
         id: req.user.id,
         email: req.user.email,
         role: req.user.role,
-        // name: ... (if you want to fetch from DB, add here)
+        name: req.user.name,
       });
     } catch (error) {
       res.status(500).json({ message: 'Internal server error' });

@@ -56,12 +56,12 @@ export class AuthService {
       throw new Error('User account is inactive');
     }
 
-    // Generate tokens
-    const tokens = this.generateTokens(user);
-
-    // Check if this is the user's first login by looking for their profile
+    // Get member profile for name
     const profile = await this.memberProfileRepository.findByUserId(user.id);
-    
+    const displayName = profile?.nickName || user.name;
+    // Generate tokens with name
+    const tokens = this.generateTokens(user, displayName);
+
     if (!profile) {
       // First login - set the flag
       tokens.firstLogin = true;
@@ -166,30 +166,25 @@ export class AuthService {
    * @returns Access and refresh tokens
    */
   async generateTokensForUser(user: User): Promise<TokenDto> {
-    const tokens = this.generateTokens(user);
-    
-    // Check if this is the user's first login by looking for their profile
+    // Get member profile for name
     const profile = await this.memberProfileRepository.findByUserId(user.id);
-    
+    const displayName = profile?.nickName || user.name;
+    const tokens = this.generateTokens(user, displayName);
     if (!profile) {
-      // First login - set the flag
       tokens.firstLogin = true;
     } else {
-      // Not first login - update last login timestamp
       await this.memberProfileRepository.updateLastLogin(user.id);
     }
-    
-    // Store refresh token
     this.refreshTokens.set(user.id, tokens.refreshToken);
-    
     return tokens;
   }
 
-  private generateTokens(user: User): TokenDto {
+  private generateTokens(user: User, name?: string): TokenDto {
     const payload = {
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      name: name || user.name
     };
 
     // Use any type to work around typescript issues
