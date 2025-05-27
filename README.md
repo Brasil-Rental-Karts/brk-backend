@@ -2,6 +2,29 @@
 
 TypeScript-based Node.js backend with Express using clean architecture
 
+## Quick Start with Docker 🐳
+
+The fastest way to get started for development is using Docker Compose:
+
+```bash
+# Initial setup
+./setup-docker.sh setup
+
+# Start all services (PostgreSQL, Redis, Backend)
+./setup-docker.sh start
+
+# Run database migrations (after services are started)
+docker-compose exec brk-backend npm run migration:run
+
+# View logs
+./setup-docker.sh logs
+
+# Stop services
+./setup-docker.sh stop
+```
+
+For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
+
 ## Project Structure
 
 The project follows clean architecture principles:

@@ -57,7 +57,7 @@ export class UnifiedMigration1000000000000 implements MigrationInterface {
         
         // Create the database events notification function
         await queryRunner.query(`
-            CREATE OR REPLACE FUNCTION notify_rabbitmq() RETURNS TRIGGER AS $$
+            CREATE OR REPLACE FUNCTION notify_database_events() RETURNS TRIGGER AS $$
             DECLARE
                 payload JSON;
             BEGIN
@@ -95,7 +95,7 @@ export class UnifiedMigration1000000000000 implements MigrationInterface {
         await queryRunner.query(`
             CREATE TRIGGER clubs_notify_trigger
             AFTER INSERT OR UPDATE OR DELETE ON "Clubs"
-            FOR EACH ROW EXECUTE FUNCTION notify_rabbitmq();
+            FOR EACH ROW EXECUTE FUNCTION notify_database_events();
         `);
     }
 
@@ -104,7 +104,7 @@ export class UnifiedMigration1000000000000 implements MigrationInterface {
         await queryRunner.query(`DROP TRIGGER IF EXISTS clubs_notify_trigger ON "Clubs"`);
         
         // Drop the notification function
-        await queryRunner.query(`DROP FUNCTION IF EXISTS notify_rabbitmq()`);
+        await queryRunner.query(`DROP FUNCTION IF EXISTS notify_database_events()`);
         
         // Drop the foreign key constraint
         await queryRunner.query(`ALTER TABLE "Clubs" DROP CONSTRAINT "FK_Clubs_Users_ownerId"`);

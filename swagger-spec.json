@@ -1,1602 +1,2098 @@
 {
-  "openapi": "3.0.0",
-  "info": {
-    "title": "BRK Backend API",
-    "version": "1.0.0",
-    "description": "API documentation for BRK Backend",
-    "contact": {
-      "name": "API Support",
-      "email": "support@example.com"
-    }
-  },
-  "servers": [
-    {
-      "url": "http://localhost:3000",
-      "description": "Development server"
+    "openapi": "3.0.0",
+    "info": {
+        "title": "BRK Backend API",
+        "version": "1.0.0",
+        "description": "API documentation for BRK Backend",
+        "contact": {
+            "name": "API Support",
+            "email": "support@example.com"
+        }
     },
-    {
-      "url": "https://brk-backend.onrender.com",
-      "description": "Production server"
-    }
-  ],
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
-      }
-    },
-    "schemas": {
-      "MemberProfileResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/MemberProfile"
-          },
-          {
-            "type": "object",
-            "example": {
-              "id": "123e4567-e89b-12d3-a456-426614174000",
-              "nickName": "RacerX",
-              "birthDate": "1990-01-01",
-              "gender": "Male",
-              "city": "São Paulo",
-              "state": "SP",
-              "experienceTime": "3-5 years",
-              "raceFrequency": "Weekly",
-              "championshipParticipation": "Regional",
-              "competitiveLevel": "Amateur",
-              "hasOwnKart": true,
-              "isTeamMember": true,
-              "teamName": "Speed Racers",
-              "usesTelemetry": true,
-              "telemetryType": "GPS+Accelerometer",
-              "attendsEvents": "Frequently",
-              "interestCategories": [
-                "Racing",
-                "Training",
-                "Equipment"
-              ],
-              "preferredTrack": "Interlagos",
-              "createdAt": "2023-01-01T12:00:00Z",
-              "updatedAt": "2023-01-01T12:00:00Z",
-              "lastLoginAt": "2023-01-10T15:30:00Z"
-            }
-          }
-        ]
-      },
-      "RegisterUserDto": {
-        "type": "object",
-        "required": [
-          "name",
-          "email",
-          "password"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "description": "User's full name"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "User's email address"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 6,
-            "description": "User's password"
-          },
-          "phone": {
-            "type": "string",
-            "description": "User's phone number (optional)"
-          }
-        }
-      },
-      "LoginUserDto": {
-        "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "User's email address"
-          },
-          "password": {
-            "type": "string",
-            "description": "User's password"
-          }
-        }
-      },
-      "TokenDto": {
-        "type": "object",
-        "required": [
-          "accessToken",
-          "refreshToken"
-        ],
-        "properties": {
-          "accessToken": {
-            "type": "string",
-            "description": "JWT access token"
-          },
-          "refreshToken": {
-            "type": "string",
-            "description": "JWT refresh token"
-          },
-          "firstLogin": {
-            "type": "boolean",
-            "description": "Flag indicating if this is the user's first login"
-          }
-        }
-      },
-      "RefreshTokenDto": {
-        "type": "object",
-        "required": [
-          "refreshToken"
-        ],
-        "properties": {
-          "refreshToken": {
-            "type": "string",
-            "description": "Valid refresh token"
-          }
-        }
-      },
-      "ForgotPasswordDto": {
-        "type": "object",
-        "required": [
-          "email"
-        ],
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "User's email address"
-          }
-        }
-      },
-      "ResetPasswordDto": {
-        "type": "object",
-        "required": [
-          "token",
-          "password"
-        ],
-        "properties": {
-          "token": {
-            "type": "string",
-            "description": "Password reset token"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 6,
-            "description": "New password"
-          }
-        }
-      },
-      "GoogleAuthDto": {
-        "type": "object",
-        "required": [
-          "idToken"
-        ],
-        "properties": {
-          "idToken": {
-            "type": "string",
-            "description": "Google ID Token from client-side authentication"
-          }
-        }
-      },
-      "CreateClubDto": {
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 100,
-            "description": "Club's name"
-          },
-          "description": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 500,
-            "description": "Club's description (optional)"
-          },
-          "active": {
-            "type": "boolean",
-            "description": "Whether the club is active (optional)"
-          }
-        }
-      },
-      "UpdateClubDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 100,
-            "description": "Club's name (optional)"
-          },
-          "description": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 500,
-            "description": "Club's description (optional)"
-          },
-          "active": {
-            "type": "boolean",
-            "description": "Whether the club is active (optional)"
-          }
-        }
-      },
-      "UpsertMemberProfileDto": {
-        "type": "object",
-        "description": "Data transfer object for creating or updating a member profile.\nAll fields are optional to support partial updates.\n",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "User ID (required for update, provided by token for create)",
-            "example": "123e4567-e89b-12d3-a456-426614174000"
-          },
-          "lastLoginAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp of the user's last login",
-            "example": "2023-01-10T15:30:00Z"
-          },
-          "nickName": {
-            "type": "string",
-            "maxLength": 100,
-            "description": "User's nickname",
-            "example": "RacerX"
-          },
-          "birthDate": {
-            "type": "string",
-            "format": "date",
-            "description": "User's date of birth",
-            "example": "1990-01-01"
-          },
-          "gender": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 3,
-            "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
-            "example": 0
-          },
-          "city": {
-            "type": "string",
-            "maxLength": 100,
-            "description": "User's city",
-            "example": "São Paulo"
-          },
-          "state": {
-            "type": "string",
-            "maxLength": 2,
-            "description": "User's state (2-letter code)",
-            "example": "SP"
-          },
-          "experienceTime": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4,
-            "description": "Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)",
-            "example": 2
-          },
-          "raceFrequency": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 3,
-            "description": "Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)",
-            "example": 2
-          },
-          "championshipParticipation": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 3,
-            "description": "Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)",
-            "example": 1
-          },
-          "competitiveLevel": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 3,
-            "description": "User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)",
-            "example": 1
-          },
-          "hasOwnKart": {
-            "type": "boolean",
-            "description": "Whether the user has their own kart",
-            "example": true
-          },
-          "isTeamMember": {
-            "type": "boolean",
-            "description": "Whether the user is a team member",
-            "example": true
-          },
-          "teamName": {
-            "type": "string",
-            "maxLength": 100,
-            "description": "User's team name",
-            "example": "Speed Racers"
-          },
-          "usesTelemetry": {
-            "type": "boolean",
-            "description": "Whether the user uses telemetry",
-            "example": true
-          },
-          "telemetryType": {
-            "type": "string",
-            "maxLength": 100,
-            "description": "User's telemetry type",
-            "example": "GPS+Accelerometer"
-          },
-          "attendsEvents": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 2,
-            "description": "User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)",
-            "example": 0
-          },
-          "interestCategories": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6
-            },
-            "description": "User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)",
-            "example": [0, 1, 2]
-          },
-          "preferredTrack": {
-            "type": "string",
-            "maxLength": 100,
-            "description": "User's preferred track",
-            "example": "Interlagos"
-          }
+    "servers": [
+        {
+            "url": "http://localhost:3000",
+            "description": "Development server"
         },
-        "example": {
-          "nickName": "RacerX",
-          "birthDate": "1990-01-01",
-          "gender": 0,
-          "city": "São Paulo",
-          "state": "SP",
-          "experienceTime": 2,
-          "raceFrequency": 2,
-          "championshipParticipation": 1,
-          "competitiveLevel": 1,
-          "hasOwnKart": true,
-          "interestCategories": [0, 1, 2]
+        {
+            "url": "https://brk-backend.onrender.com",
+            "description": "Production server"
         }
-      },
-      "CreateUserDto": {
-        "type": "object",
-        "required": [
-          "name",
-          "email",
-          "password"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 100,
-            "description": "User's full name"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "User's email address"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 6,
-            "description": "User's password"
-          },
-          "phone": {
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 20,
-            "description": "User's phone number (optional)"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "ADMINISTRATOR",
-              "MANAGER",
-              "MEMBER"
-            ],
-            "description": "User's role in the system (optional)"
-          }
-        }
-      },
-      "UpdateUserDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 100,
-            "description": "User's full name (optional)"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "User's email address (optional)"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 6,
-            "description": "User's password (optional)"
-          },
-          "phone": {
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 20,
-            "description": "User's phone number (optional)"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "ADMINISTRATOR",
-              "MANAGER",
-              "MEMBER"
-            ],
-            "description": "User's role in the system (optional)"
-          },
-          "active": {
-            "type": "boolean",
-            "description": "Whether the user account is active (optional)"
-          }
-        }
-      },
-      "MemberProfile": {
-        "type": "object",
-        "description": "Member profile entity that stores additional information about users.\nEach member profile is linked to a user account via a one-to-one relationship.\n",
-        "required": [
-          "id",
-          "nickName"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Unique identifier (same as User ID)",
-            "example": "123e4567-e89b-12d3-a456-426614174000"
-          },
-          "lastLoginAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp of the user's last login",
-            "example": "2023-01-10T15:30:00Z"
-          },
-          "nickName": {
-            "type": "string",
-            "description": "User's nickname",
-            "example": "RacerX"
-          },
-          "birthDate": {
-            "type": "string",
-            "format": "date",
-            "description": "User's date of birth",
-            "example": "1990-01-01"
-          },
-          "gender": {
-            "type": "integer",
-            "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
-            "example": 0
-          },
-          "city": {
-            "type": "string",
-            "description": "User's city",
-            "example": "São Paulo"
-          },
-          "state": {
-            "type": "string",
-            "description": "User's state (2-letter code)",
-            "example": "SP"
-          },
-          "experienceTime": {
-            "type": "integer",
-            "description": "Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)",
-            "example": 2
-          },
-          "raceFrequency": {
-            "type": "integer",
-            "description": "Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)",
-            "example": 2
-          },
-          "championshipParticipation": {
-            "type": "integer",
-            "description": "Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)",
-            "example": 1
-          },
-          "competitiveLevel": {
-            "type": "integer",
-            "description": "User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)",
-            "example": 1
-          },
-          "hasOwnKart": {
-            "type": "boolean",
-            "description": "Whether the user has their own kart",
-            "example": true
-          },
-          "isTeamMember": {
-            "type": "boolean",
-            "description": "Whether the user is a team member",
-            "example": true
-          },
-          "teamName": {
-            "type": "string",
-            "description": "User's team name",
-            "example": "Speed Racers"
-          },
-          "usesTelemetry": {
-            "type": "boolean",
-            "description": "Whether the user uses telemetry",
-            "example": true
-          },
-          "telemetryType": {
-            "type": "string",
-            "description": "User's telemetry type",
-            "example": "GPS+Accelerometer"
-          },
-          "attendsEvents": {
-            "type": "integer",
-            "description": "User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)",
-            "example": 0
-          },
-          "interestCategories": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            },
-            "description": "User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)",
-            "example": [0, 1, 2]
-          },
-          "preferredTrack": {
-            "type": "string",
-            "description": "User's preferred track",
-            "example": "Interlagos"
-          }
-        }
-      }
-    }
-  },
-  "security": [
-    {
-      "bearerAuth": []
-    }
-  ],
-  "paths": {
-    "/auth/register": {
-      "post": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Register a new user",
-        "description": "Creates a new user account with the provided information",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterUserDto"
-              }
+    ],
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
             }
-          }
         },
-        "responses": {
-          "201": {
-            "description": "User registered successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
+        "schemas": {
+            "MemberProfile": {
+                "$ref": "../models/member-profile.entity.ts#/components/schemas/MemberProfile",
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Unique identifier (same as User ID)",
+                        "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
                     },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
+                    "lastLoginAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp of the user's last login",
+                        "example": "2023-07-25T14:30:00Z"
+                    },
+                    "nickName": {
+                        "type": "string",
+                        "description": "User's nickname",
+                        "example": "SpeedRacer"
+                    },
+                    "birthDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "User's date of birth",
+                        "example": "1990-05-15"
+                    },
+                    "gender": {
+                        "type": "number",
+                        "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
+                        "example": 0
+                    },
+                    "city": {
+                        "type": "string",
+                        "description": "User's city",
+                        "example": "S\u00e3o Paulo"
+                    },
+                    "state": {
+                        "type": "string",
+                        "description": "User's state (2-letter code)",
+                        "example": "SP"
+                    },
+                    "experienceTime": {
+                        "type": "number",
+                        "description": "Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)",
+                        "example": 2
+                    },
+                    "raceFrequency": {
+                        "type": "number",
+                        "description": "Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)",
+                        "example": 2
+                    },
+                    "championshipParticipation": {
+                        "type": "number",
+                        "description": "Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)",
+                        "example": 1
+                    },
+                    "competitiveLevel": {
+                        "type": "number",
+                        "description": "User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)",
+                        "example": 1
+                    },
+                    "hasOwnKart": {
+                        "type": "boolean",
+                        "description": "Whether the user has their own kart",
+                        "example": true
+                    },
+                    "isTeamMember": {
+                        "type": "boolean",
+                        "description": "Whether the user is a team member",
+                        "example": false
+                    },
+                    "teamName": {
+                        "type": "string",
+                        "description": "User's team name",
+                        "example": "Racing Team"
+                    },
+                    "usesTelemetry": {
+                        "type": "boolean",
+                        "description": "Whether the user uses telemetry",
+                        "example": true
+                    },
+                    "telemetryType": {
+                        "type": "string",
+                        "description": "User's telemetry type",
+                        "example": "AiM"
+                    },
+                    "attendsEvents": {
+                        "type": "number",
+                        "description": "User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)",
+                        "example": 0
+                    },
+                    "interestCategories": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
                         },
-                        "name": {
-                          "type": "string"
+                        "description": "User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)",
+                        "example": [
+                            0,
+                            1
+                        ]
+                    },
+                    "preferredTrack": {
+                        "type": "string",
+                        "description": "User's preferred track",
+                        "example": "Interlagos"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the profile was created",
+                        "example": "2023-01-15T10:30:00Z"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the profile was last updated",
+                        "example": "2023-07-25T14:45:00Z"
+                    }
+                },
+                "example": {
+                    "id": "a1b2c3d4-e5f6-7890-abcd-1234567890ab",
+                    "createdAt": "2023-01-15T10:30:00Z",
+                    "updatedAt": "2023-07-25T14:45:00Z",
+                    "lastLoginAt": "2023-07-25T14:30:00Z",
+                    "nickName": "SpeedRacer",
+                    "birthDate": "1990-05-15",
+                    "gender": 0,
+                    "city": "S\u00e3o Paulo",
+                    "state": "SP",
+                    "experienceTime": 2,
+                    "raceFrequency": 2,
+                    "championshipParticipation": 1,
+                    "competitiveLevel": 1,
+                    "hasOwnKart": true,
+                    "isTeamMember": false,
+                    "teamName": null,
+                    "usesTelemetry": true,
+                    "telemetryType": "AiM",
+                    "attendsEvents": 0,
+                    "interestCategories": [
+                        0,
+                        1
+                    ],
+                    "preferredTrack": "Interlagos"
+                }
+            },
+            "UpsertMemberProfileDto": {
+                "$ref": "../dtos/member-profile.dto.ts#/components/schemas/UpsertMemberProfileDto",
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "User ID (required for update, provided by token for create)",
+                        "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                    },
+                    "lastLoginAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp of the user's last login",
+                        "example": "2023-07-25T14:30:00Z"
+                    },
+                    "nickName": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "User's nickname",
+                        "example": "SpeedRacer"
+                    },
+                    "birthDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "User's date of birth",
+                        "example": "1990-05-15"
+                    },
+                    "gender": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3,
+                        "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
+                        "example": 0
+                    },
+                    "city": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "User's city",
+                        "example": "S\u00e3o Paulo"
+                    },
+                    "state": {
+                        "type": "string",
+                        "maxLength": 2,
+                        "description": "User's state (2-letter code)",
+                        "example": "SP"
+                    },
+                    "experienceTime": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4,
+                        "description": "Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)",
+                        "example": 2
+                    },
+                    "raceFrequency": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3,
+                        "description": "Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)",
+                        "example": 2
+                    },
+                    "championshipParticipation": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3,
+                        "description": "Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)",
+                        "example": 1
+                    },
+                    "competitiveLevel": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3,
+                        "description": "User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)",
+                        "example": 1
+                    },
+                    "hasOwnKart": {
+                        "type": "boolean",
+                        "description": "Whether the user has their own kart",
+                        "example": true
+                    },
+                    "isTeamMember": {
+                        "type": "boolean",
+                        "description": "Whether the user is a team member",
+                        "example": false
+                    },
+                    "teamName": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "User's team name",
+                        "example": "Racing Team"
+                    },
+                    "usesTelemetry": {
+                        "type": "boolean",
+                        "description": "Whether the user uses telemetry",
+                        "example": true
+                    },
+                    "telemetryType": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "User's telemetry type",
+                        "example": "AiM"
+                    },
+                    "attendsEvents": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2,
+                        "description": "User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)",
+                        "example": 0
+                    },
+                    "interestCategories": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 6
                         },
-                        "email": {
-                          "type": "string"
-                        },
-                        "role": {
-                          "type": "string"
+                        "description": "User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)",
+                        "example": [
+                            0,
+                            1
+                        ]
+                    },
+                    "preferredTrack": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "User's preferred track",
+                        "example": "Interlagos"
+                    }
+                },
+                "example": {
+                    "nickName": "SpeedRacer",
+                    "birthDate": "1990-05-15",
+                    "gender": 0,
+                    "city": "S\u00e3o Paulo",
+                    "state": "SP",
+                    "experienceTime": 2,
+                    "raceFrequency": 2,
+                    "championshipParticipation": 1,
+                    "competitiveLevel": 1,
+                    "hasOwnKart": true,
+                    "isTeamMember": false,
+                    "teamName": null,
+                    "usesTelemetry": true,
+                    "telemetryType": "AiM",
+                    "attendsEvents": 0,
+                    "interestCategories": [
+                        0,
+                        1
+                    ],
+                    "preferredTrack": "Interlagos"
+                }
+            },
+            "RegisterUserDto": {
+                "type": "object",
+                "required": [
+                    "name",
+                    "email",
+                    "password"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 3,
+                        "description": "User's full name"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "User's email address"
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 6,
+                        "description": "User's password"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "User's phone number (optional)"
+                    }
+                }
+            },
+            "LoginUserDto": {
+                "type": "object",
+                "required": [
+                    "email",
+                    "password"
+                ],
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "User's email address"
+                    },
+                    "password": {
+                        "type": "string",
+                        "description": "User's password"
+                    }
+                }
+            },
+            "TokenDto": {
+                "type": "object",
+                "required": [
+                    "accessToken",
+                    "refreshToken"
+                ],
+                "properties": {
+                    "accessToken": {
+                        "type": "string",
+                        "description": "JWT access token"
+                    },
+                    "refreshToken": {
+                        "type": "string",
+                        "description": "JWT refresh token"
+                    },
+                    "firstLogin": {
+                        "type": "boolean",
+                        "description": "Flag indicating if this is the user's first login"
+                    }
+                }
+            },
+            "RefreshTokenDto": {
+                "type": "object",
+                "required": [
+                    "refreshToken"
+                ],
+                "properties": {
+                    "refreshToken": {
+                        "type": "string",
+                        "description": "Valid refresh token"
+                    }
+                }
+            },
+            "ForgotPasswordDto": {
+                "type": "object",
+                "required": [
+                    "email"
+                ],
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "User's email address"
+                    }
+                }
+            },
+            "ResetPasswordDto": {
+                "type": "object",
+                "required": [
+                    "token",
+                    "password"
+                ],
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "description": "Password reset token"
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 6,
+                        "description": "New password"
+                    }
+                }
+            },
+            "GoogleAuthDto": {
+                "type": "object",
+                "required": [
+                    "idToken"
+                ],
+                "properties": {
+                    "idToken": {
+                        "type": "string",
+                        "description": "Google ID Token from client-side authentication"
+                    }
+                }
+            },
+            "ConfirmEmailDto": {
+                "type": "object",
+                "required": [
+                    "token"
+                ],
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "description": "Email confirmation token"
+                    }
+                }
+            },
+            "CreateClubDto": {
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 100,
+                        "description": "Club's name"
+                    },
+                    "description": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 500,
+                        "description": "Club's description (optional)"
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "description": "Whether the club is active (optional)"
+                    }
+                }
+            },
+            "UpdateClubDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 100,
+                        "description": "Club's name (optional)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 500,
+                        "description": "Club's description (optional)"
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "description": "Whether the club is active (optional)"
+                    }
+                }
+            },
+            "CreateUserDto": {
+                "type": "object",
+                "required": [
+                    "name",
+                    "email",
+                    "password"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 100,
+                        "description": "User's full name"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "User's email address"
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 6,
+                        "description": "User's password"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "minLength": 5,
+                        "maxLength": 20,
+                        "description": "User's phone number (optional)"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "ADMINISTRATOR",
+                            "MANAGER",
+                            "MEMBER"
+                        ],
+                        "description": "User's role in the system (optional)"
+                    }
+                }
+            },
+            "UpdateUserDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 100,
+                        "description": "User's full name (optional)"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "User's email address (optional)"
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 6,
+                        "description": "User's password (optional)"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "minLength": 5,
+                        "maxLength": 20,
+                        "description": "User's phone number (optional)"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "ADMINISTRATOR",
+                            "MANAGER",
+                            "MEMBER"
+                        ],
+                        "description": "User's role in the system (optional)"
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "description": "Whether the user account is active (optional)"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/auth/register": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Register a new user",
+                "description": "Creates a new user account with the provided information",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterUserDto"
+                            }
                         }
-                      }
                     }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "User with this email already exists"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/auth/login": {
-      "post": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Login user",
-        "description": "Authenticate user and get access and refresh tokens",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginUserDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Login successful",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid credentials or inactive account"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/auth/google/url": {
-      "get": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Get Google OAuth URL",
-        "description": "Get the URL to redirect the user to Google for authentication",
-        "responses": {
-          "200": {
-            "description": "Google OAuth URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/google/callback": {
-      "get": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Google OAuth callback",
-        "description": "Handle the Google OAuth callback after user authentication",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "code",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Redirect to frontend with tokens"
-          }
-        }
-      }
-    },
-    "/auth/google": {
-      "post": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Authenticate with Google ID token",
-        "description": "Authenticate user with Google ID token from client-side authentication",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GoogleAuthDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Authentication successful",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid Google token"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/auth/refresh-token": {
-      "post": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Refresh access token",
-        "description": "Get a new access token using a valid refresh token",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Token refreshed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid refresh token"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/auth/forgot-password": {
-      "post": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Request password reset",
-        "description": "Send a password reset link to the user's email",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ForgotPasswordDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Reset link sent if email exists",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/auth/reset-password": {
-      "post": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Reset password",
-        "description": "Reset user password using a valid reset token",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResetPasswordDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Password reset successful",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid or expired reset token"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/auth/logout": {
-      "post": {
-        "tags": [
-          "Authentication"
-        ],
-        "summary": "Logout user",
-        "description": "Logout the currently authenticated user",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Logout successful",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/clubs": {
-      "post": {
-        "tags": [
-          "Clubs"
-        ],
-        "summary": "Create a new club",
-        "description": "Create a new club (Member, Manager, or Administrator)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateClubDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Club created successfully",
-            "headers": {
-              "X-Role-Changed": {
-                "schema": {
-                  "type": "string"
                 },
-                "description": "Indicates if the user's role was changed to Manager"
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "Clubs"
-        ],
-        "summary": "Get all clubs",
-        "description": "Retrieve a list of all clubs (Member, Manager, or Administrator)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of clubs retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Club"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/clubs/{id}": {
-      "get": {
-        "tags": [
-          "Clubs"
-        ],
-        "summary": "Get club by ID",
-        "description": "Retrieve a specific club by its ID (Member, Manager, or Administrator)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Club ID"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Club retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Club"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Club not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Clubs"
-        ],
-        "summary": "Update club",
-        "description": "Update a specific club by its ID (Manager or Administrator)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Club ID"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateClubDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Club updated successfully"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "404": {
-            "description": "Club not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Clubs"
-        ],
-        "summary": "Delete club",
-        "description": "Delete a specific club by its ID (Manager or Administrator)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Club ID"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Club deleted successfully"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "404": {
-            "description": "Club not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/clubs/{id}/owner/{userId}": {
-      "patch": {
-        "tags": [
-          "Clubs"
-        ],
-        "summary": "Change club owner",
-        "description": "Change the owner of a club (Manager or Administrator)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Club ID"
-          },
-          {
-            "in": "path",
-            "name": "userId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "New owner's user ID"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Club ownership changed successfully",
-            "headers": {
-              "X-Role-Changed": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "Indicates if any user's role was changed"
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "404": {
-            "description": "Club or user not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/member-profiles": {
-      "put": {
-        "tags": [
-          "MemberProfiles"
-        ],
-        "summary": "Create or update member profile",
-        "description": "Create a new member profile or update an existing one (upsert operation).\nOnly the fields included in the request will be updated, allowing for partial updates.\nThe user ID is determined from the authentication token.\n",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpsertMemberProfileDto"
-              },
-              "example": {
-                "nickName": "RacerX",
-                "birthDate": "1990-01-01",
-                "gender": "Male",
-                "city": "São Paulo",
-                "state": "SP",
-                "experienceTime": "3-5 years",
-                "competitiveLevel": "Amateur",
-                "hasOwnKart": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Profile updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MemberProfileResponse"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Profile created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MemberProfileResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Validation failed"
+                "responses": {
+                    "201": {
+                        "description": "User registered successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "user": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": "string"
+                                                },
+                                                "role": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
-                    "errors": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "example": [
-                        "state must be exactly 2 characters"
-                      ]
+                    "409": {
+                        "description": "User with this email already exists"
+                    },
+                    "500": {
+                        "description": "Internal server error"
                     }
-                  }
                 }
-              }
             }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Failed to create or update profile"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "MemberProfiles"
-        ],
-        "summary": "Get current user's profile",
-        "description": "Get the profile of the currently authenticated user.\nThe user ID is determined from the authentication token.\n",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Profile retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MemberProfileResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Profile not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Profile not found"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Failed to retrieve profile"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/users": {
-      "post": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Create a new user",
-        "description": "Create a new user (Administrator only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateUserDto"
-              }
-            }
-          }
         },
-        "responses": {
-          "201": {
-            "description": "User created successfully"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Get all users",
-        "description": "Retrieve a list of all users (Administrator only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of users retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
-                  }
+        "/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Login user",
+                "description": "Authenticate user and get access and refresh tokens",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginUserDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenDto"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials or inactive account"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
                 }
-              }
             }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/users/{id}": {
-      "get": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Get user by ID",
-        "description": "Retrieve a specific user by their ID (Administrator only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "User ID"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Update user",
-        "description": "Update a specific user by their ID (Administrator only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "User ID"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateUserDto"
-              }
-            }
-          }
         },
-        "responses": {
-          "200": {
-            "description": "User updated successfully"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Delete user",
-        "description": "Delete a specific user by their ID (Administrator only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
+        "/auth/google/url": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get Google OAuth URL",
+                "description": "Get the URL to redirect the user to Google for authentication",
+                "responses": {
+                    "200": {
+                        "description": "Google OAuth URL",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "url": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/google/callback": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Google OAuth callback",
+                "description": "Handle the Google OAuth callback after user authentication",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to frontend with tokens"
+                    }
+                }
+            }
+        },
+        "/auth/google": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Authenticate with Google ID token",
+                "description": "Authenticate user with Google ID token from client-side authentication",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GoogleAuthDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenDto"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid Google token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/auth/forgot-password": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request password reset",
+                "description": "Send a password reset link to the user's email",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ForgotPasswordDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Reset link sent if email exists",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/auth/reset-password": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Reset password",
+                "description": "Reset user password using a valid reset token",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResetPasswordDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or expired reset token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Logout user",
+                "description": "Logout the currently authenticated user",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logout successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get current authenticated user",
+                "description": "Returns the authenticated user's information",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Authenticated user info",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "email": {
+                                            "type": "string"
+                                        },
+                                        "role": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/auth/confirm-email": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Confirm user email",
+                "description": "Confirms a user's email address using a confirmation token",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfirmEmailDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Email confirmed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or expired confirmation token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/auth/refresh-token": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Refresh access token",
+                "description": "Refresh the access token using a valid refresh token",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "refreshToken": {
+                                        "type": "string",
+                                        "description": "Valid refresh token"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "New tokens issued",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "accessToken": {
+                                            "type": "string"
+                                        },
+                                        "refreshToken": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or expired refresh token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/clubs": {
+            "post": {
+                "tags": [
+                    "Clubs"
+                ],
+                "summary": "Create a new club",
+                "description": "Create a new club (Member, Manager, or Administrator)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateClubDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Club created successfully",
+                        "headers": {
+                            "X-Role-Changed": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "description": "Indicates if the user's role was changed to Manager"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
             },
-            "description": "User ID"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User deleted successfully"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden - Insufficient permissions"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
+            "get": {
+                "tags": [
+                    "Clubs"
+                ],
+                "summary": "Get all clubs",
+                "description": "Retrieve a list of all clubs (Member, Manager, or Administrator)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of clubs retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Club"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/clubs/{id}": {
+            "get": {
+                "tags": [
+                    "Clubs"
+                ],
+                "summary": "Get club by ID",
+                "description": "Retrieve a specific club by its ID (Member, Manager, or Administrator)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Club ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Club retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Club"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Club not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Clubs"
+                ],
+                "summary": "Update club",
+                "description": "Update a specific club by its ID (Manager or Administrator)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Club ID"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateClubDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Club updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "Club not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Clubs"
+                ],
+                "summary": "Delete club",
+                "description": "Delete a specific club by its ID (Manager or Administrator)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Club ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Club deleted successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "Club not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/clubs/{id}/owner/{userId}": {
+            "patch": {
+                "tags": [
+                    "Clubs"
+                ],
+                "summary": "Change club owner",
+                "description": "Change the owner of a club (Manager or Administrator)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Club ID"
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "New owner's user ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Club ownership changed successfully",
+                        "headers": {
+                            "X-Role-Changed": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "description": "Indicates if any user's role was changed"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "Club or user not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/member-profiles": {
+            "put": {
+                "tags": [
+                    "MemberProfiles"
+                ],
+                "summary": "Create or update member profile",
+                "description": "Create a new member profile or update existing one (upsert operation). You only need to include the fields you want to update.",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "profile": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "nickName": {
+                                                        "type": "string",
+                                                        "description": "User's nickname",
+                                                        "example": "SpeedRacer"
+                                                    },
+                                                    "birthDate": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "description": "User's date of birth",
+                                                        "example": "1990-05-15"
+                                                    },
+                                                    "gender": {
+                                                        "type": "integer",
+                                                        "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
+                                                        "example": 0
+                                                    },
+                                                    "city": {
+                                                        "type": "string",
+                                                        "description": "User's city",
+                                                        "example": "S\u00e3o Paulo"
+                                                    },
+                                                    "state": {
+                                                        "type": "string",
+                                                        "description": "User's state (2-letter code)",
+                                                        "example": "SP"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "nickName": {
+                                                "type": "string",
+                                                "description": "User's nickname",
+                                                "example": "SpeedRacer"
+                                            },
+                                            "birthDate": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "description": "User's date of birth",
+                                                "example": "1990-05-15"
+                                            },
+                                            "gender": {
+                                                "type": "integer",
+                                                "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
+                                                "example": 0
+                                            },
+                                            "city": {
+                                                "type": "string",
+                                                "description": "User's city",
+                                                "example": "S\u00e3o Paulo"
+                                            },
+                                            "state": {
+                                                "type": "string",
+                                                "description": "User's state (2-letter code)",
+                                                "example": "SP"
+                                            }
+                                        }
+                                    }
+                                ]
+                            },
+                            "examples": {
+                                "nested": {
+                                    "value": {
+                                        "profile": {
+                                            "nickName": "SpeedRacer",
+                                            "birthDate": "1990-05-15",
+                                            "gender": 0,
+                                            "city": "S\u00e3o Paulo",
+                                            "state": "SP",
+                                            "experienceTime": 2,
+                                            "hasOwnKart": true,
+                                            "interestCategories": [
+                                                0,
+                                                1
+                                            ]
+                                        }
+                                    }
+                                },
+                                "direct": {
+                                    "value": {
+                                        "nickName": "SpeedRacer",
+                                        "gender": 0,
+                                        "city": "S\u00e3o Paulo",
+                                        "state": "SP",
+                                        "experienceTime": 2,
+                                        "hasOwnKart": true,
+                                        "interestCategories": [
+                                            0,
+                                            1
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "description": "Unique identifier (same as User ID)",
+                                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                                        },
+                                        "createdAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Timestamp when profile was created",
+                                            "example": "2023-01-15T10:30:00Z"
+                                        },
+                                        "updatedAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Timestamp when profile was last updated",
+                                            "example": "2023-07-25T14:45:00Z"
+                                        },
+                                        "lastLoginAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Timestamp of the user's last login",
+                                            "example": "2023-07-25T14:30:00Z"
+                                        },
+                                        "nickName": {
+                                            "type": "string",
+                                            "description": "User's nickname",
+                                            "example": "SpeedRacer"
+                                        },
+                                        "birthDate": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "description": "User's date of birth",
+                                            "example": "1990-05-15"
+                                        },
+                                        "gender": {
+                                            "type": "integer",
+                                            "description": "User's gender (0=Male, 1=Female, 2=Other, 3=PreferNotToSay)",
+                                            "example": 0
+                                        },
+                                        "city": {
+                                            "type": "string",
+                                            "description": "User's city",
+                                            "example": "S\u00e3o Paulo"
+                                        },
+                                        "state": {
+                                            "type": "string",
+                                            "description": "User's state (2-letter code)",
+                                            "example": "SP"
+                                        },
+                                        "experienceTime": {
+                                            "type": "integer",
+                                            "description": "Kart experience years (0=Never, 1=LessThanOneYear, 2=OneToTwoYears, 3=ThreeToFiveYears, 4=MoreThanFiveYears)",
+                                            "example": 2
+                                        },
+                                        "raceFrequency": {
+                                            "type": "integer",
+                                            "description": "Race frequency (0=Rarely, 1=Regularly, 2=Weekly, 3=Daily)",
+                                            "example": 2
+                                        },
+                                        "championshipParticipation": {
+                                            "type": "integer",
+                                            "description": "Championship participation (0=Never, 1=LocalRegional, 2=State, 3=National)",
+                                            "example": 1
+                                        },
+                                        "competitiveLevel": {
+                                            "type": "integer",
+                                            "description": "User's competitive level (0=Beginner, 1=Intermediate, 2=Competitive, 3=Professional)",
+                                            "example": 1
+                                        },
+                                        "hasOwnKart": {
+                                            "type": "boolean",
+                                            "description": "Whether the user has their own kart",
+                                            "example": true
+                                        },
+                                        "isTeamMember": {
+                                            "type": "boolean",
+                                            "description": "Whether the user is a team member",
+                                            "example": false
+                                        },
+                                        "teamName": {
+                                            "type": "string",
+                                            "description": "User's team name",
+                                            "example": "Racing Team"
+                                        },
+                                        "usesTelemetry": {
+                                            "type": "boolean",
+                                            "description": "Whether the user uses telemetry",
+                                            "example": true
+                                        },
+                                        "telemetryType": {
+                                            "type": "string",
+                                            "description": "User's telemetry type",
+                                            "example": "AiM"
+                                        },
+                                        "attendsEvents": {
+                                            "type": "integer",
+                                            "description": "User's event attendance (0=Yes, 1=No, 2=DependsOnDistance)",
+                                            "example": 0
+                                        },
+                                        "interestCategories": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer"
+                                            },
+                                            "description": "User's categories of interest (0=LightRentalKart, 1=HeavyRentalKart, 2=TwoStrokeKart, 3=Endurance, 4=Teams, 5=LongChampionships, 6=SingleRaces)",
+                                            "example": [
+                                                0,
+                                                1
+                                            ]
+                                        },
+                                        "preferredTrack": {
+                                            "type": "string",
+                                            "description": "User's preferred track",
+                                            "example": "Interlagos"
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "id": "a1b2c3d4-e5f6-7890-abcd-1234567890ab",
+                                    "createdAt": "2023-01-15T10:30:00Z",
+                                    "updatedAt": "2023-07-25T14:45:00Z",
+                                    "lastLoginAt": "2023-07-25T14:30:00Z",
+                                    "nickName": "SpeedRacer",
+                                    "birthDate": "1990-05-15",
+                                    "gender": 0,
+                                    "city": "S\u00e3o Paulo",
+                                    "state": "SP",
+                                    "experienceTime": 2,
+                                    "raceFrequency": 2,
+                                    "championshipParticipation": 1,
+                                    "competitiveLevel": 1,
+                                    "hasOwnKart": true,
+                                    "isTeamMember": false,
+                                    "teamName": null,
+                                    "usesTelemetry": true,
+                                    "telemetryType": "AiM",
+                                    "attendsEvents": 0,
+                                    "interestCategories": [
+                                        0,
+                                        1
+                                    ],
+                                    "preferredTrack": "Interlagos"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Profile created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "description": "Unique identifier (same as User ID)",
+                                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                                        },
+                                        "createdAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2023-01-15T10:30:00Z"
+                                        },
+                                        "updatedAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2023-07-25T14:45:00Z"
+                                        },
+                                        "nickName": {
+                                            "type": "string",
+                                            "example": "SpeedRacer"
+                                        },
+                                        "birthDate": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "example": "1990-05-15"
+                                        },
+                                        "gender": {
+                                            "type": "integer",
+                                            "example": 0
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "id": "a1b2c3d4-e5f6-7890-abcd-1234567890ab",
+                                    "createdAt": "2023-01-15T10:30:00Z",
+                                    "updatedAt": "2023-01-15T10:30:00Z",
+                                    "nickName": "SpeedRacer",
+                                    "birthDate": "1990-05-15",
+                                    "gender": 0,
+                                    "city": "S\u00e3o Paulo",
+                                    "state": "SP",
+                                    "experienceTime": 2,
+                                    "raceFrequency": 2,
+                                    "championshipParticipation": 1,
+                                    "competitiveLevel": 1,
+                                    "hasOwnKart": true,
+                                    "isTeamMember": false,
+                                    "teamName": null,
+                                    "usesTelemetry": true,
+                                    "telemetryType": "AiM",
+                                    "attendsEvents": 0,
+                                    "interestCategories": [
+                                        0,
+                                        1
+                                    ],
+                                    "preferredTrack": "Interlagos"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "message": "Failed to create or update profile",
+                                    "errors": [
+                                        "state must be exactly 2 characters"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "message": "Authentication required"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "message": "Failed to create or update profile"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "MemberProfiles"
+                ],
+                "summary": "Get current user's profile",
+                "description": "Get the profile of the currently authenticated user",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Profile retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "description": "Unique identifier (same as User ID)",
+                                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                                        },
+                                        "createdAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2023-01-15T10:30:00Z"
+                                        },
+                                        "updatedAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2023-07-25T14:45:00Z"
+                                        },
+                                        "lastLoginAt": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2023-07-25T14:30:00Z"
+                                        },
+                                        "nickName": {
+                                            "type": "string",
+                                            "example": "SpeedRacer"
+                                        },
+                                        "birthDate": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "example": "1990-05-15"
+                                        },
+                                        "gender": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "city": {
+                                            "type": "string",
+                                            "example": "S\u00e3o Paulo"
+                                        },
+                                        "state": {
+                                            "type": "string",
+                                            "example": "SP"
+                                        },
+                                        "experienceTime": {
+                                            "type": "integer",
+                                            "example": 2
+                                        },
+                                        "raceFrequency": {
+                                            "type": "integer",
+                                            "example": 2
+                                        },
+                                        "championshipParticipation": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "competitiveLevel": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "hasOwnKart": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "isTeamMember": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "teamName": {
+                                            "type": "string",
+                                            "example": "Racing Team"
+                                        },
+                                        "usesTelemetry": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "telemetryType": {
+                                            "type": "string",
+                                            "example": "AiM"
+                                        },
+                                        "attendsEvents": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "interestCategories": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer"
+                                            },
+                                            "example": [
+                                                0,
+                                                1
+                                            ]
+                                        },
+                                        "preferredTrack": {
+                                            "type": "string",
+                                            "example": "Interlagos"
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "id": "a1b2c3d4-e5f6-7890-abcd-1234567890ab",
+                                    "createdAt": "2023-01-15T10:30:00Z",
+                                    "updatedAt": "2023-07-25T14:45:00Z",
+                                    "lastLoginAt": "2023-07-25T14:30:00Z",
+                                    "nickName": "SpeedRacer",
+                                    "birthDate": "1990-05-15",
+                                    "gender": 0,
+                                    "city": "S\u00e3o Paulo",
+                                    "state": "SP",
+                                    "experienceTime": 2,
+                                    "raceFrequency": 2,
+                                    "championshipParticipation": 1,
+                                    "competitiveLevel": 1,
+                                    "hasOwnKart": true,
+                                    "isTeamMember": false,
+                                    "teamName": null,
+                                    "usesTelemetry": true,
+                                    "telemetryType": "AiM",
+                                    "attendsEvents": 0,
+                                    "interestCategories": [
+                                        0,
+                                        1
+                                    ],
+                                    "preferredTrack": "Interlagos"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "message": "Authentication required"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Profile not found",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "message": "Profile not found"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "message": "Failed to retrieve profile"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Create a new user",
+                "description": "Create a new user (Administrator only)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUserDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "User created successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get all users",
+                "description": "Retrieve a list of all users (Administrator only)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of users retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/User"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/users/{id}": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user by ID",
+                "description": "Retrieve a specific user by their ID (Administrator only)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "User ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update user",
+                "description": "Update a specific user by their ID (Administrator only)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "User ID"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateUserDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete user",
+                "description": "Delete a specific user by their ID (Administrator only)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "User ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User deleted successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
         }
-      }
-    }
-  },
-  "tags": [
-    {
-      "name": "Authentication",
-      "description": "User authentication and authorization endpoints"
     },
-    {
-      "name": "Clubs",
-      "description": "Club management endpoints"
-    },
-    {
-      "name": "MemberProfiles",
-      "description": "Member profile management endpoints"
-    },
-    {
-      "name": "Users",
-      "description": "User management endpoints"
-    }
-  ]
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "User authentication and authorization endpoints"
+        },
+        {
+            "name": "Clubs",
+            "description": "Club management endpoints"
+        },
+        {
+            "name": "MemberProfiles",
+            "description": "Member profile management endpoints"
+        },
+        {
+            "name": "Users",
+            "description": "User management endpoints"
+        }
+    ]
 }

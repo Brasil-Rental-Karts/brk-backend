@@ -1,78 +1,127 @@
-services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: brk-api
-    restart: unless-stopped
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "${PORT:-3000}:3000"
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - PORT=3000
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_SSL=${DB_SSL}
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
-      - JWT_ACCESS_EXPIRY=${JWT_ACCESS_EXPIRY:-15m}
-      - JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY:-7d}
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
-      - BREVO_API_KEY=${BREVO_API_KEY:-}
-      - BREVO_SENDER_EMAIL=${BREVO_SENDER_EMAIL:-no-reply@example.com}
-      - BREVO_SENDER_NAME=${BREVO_SENDER_NAME:-BRK Competition}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    volumes:
-      - api_logs:/app/logs
+version: '3.8'
 
+services:
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: brk-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_DATABASE:-brk_competition}
-    ports:
-      - "${DB_PORT:-5432}:5432"
+      POSTGRES_DB: brk_competition
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: brk-rabbitmq
-    restart: unless-stopped
     ports:
-      - "5672:5672"   # AMQP protocol port
-      - "15672:15672" # Management UI port
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - "5432:5432"
+    networks:
+      - brk-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d brk_competition"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: brk-redis
+    restart: unless-stopped
+    command: redis-server --requirepass redis_password --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - brk-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # BRK Backend Application
+  brk-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: brk-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: info
+      
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: brk_competition
+      DB_SSL: false
+      
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis_password
+      REDIS_DB: 0
+      
+      # JWT configuration
+      JWT_SECRET: ${JWT_SECRET:-development-jwt-secret-replace-in-production}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
+      
+      # Email configuration
+      BREVO_API_KEY: ${BREVO_API_KEY:-your-brevo-api-key}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-teste@brasilrentalkarts.com.br}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-(TESTE) Brasil Rental Karts}
+      
+      # Frontend configuration
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173,http://localhost:5174}
+      PASSWORD_RESET_PATH: ${PASSWORD_RESET_PATH:-/change-password}
+      
+      # Google OAuth configuration
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-your-google-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-your-google-client-secret}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3000/auth/google/callback}
+      
+      # Cookie configuration
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-localhost}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+    ports:
+      - "3000:3000"
+    networks:
+      - brk-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # No additional volumes needed
+
+
+
+# Named volumes for data persistence
 volumes:
   postgres_data:
-  rabbitmq_data:
-  api_logs:
+    driver: local
+  redis_data:
+    driver: local
+
+# Custom network for service communication
+networks:
+  brk-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

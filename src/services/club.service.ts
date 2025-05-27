@@ -5,12 +5,15 @@ import { ClubRepository } from '../repositories/club.repository';
 import { HttpException } from '../exceptions/http.exception';
 import { UserService } from './user.service';
 import { UserRole } from '../models/user.entity';
+import { RedisService } from './redis.service';
 
 export class ClubService extends BaseService<Club> {
   private userService?: UserService;
+  private redisService: RedisService;
 
   constructor(private clubRepository: ClubRepository) {
     super(clubRepository);
+    this.redisService = RedisService.getInstance();
   }
 
   // Set the user service (to avoid circular dependencies)
@@ -23,7 +26,29 @@ export class ClubService extends BaseService<Club> {
   }
 
   async findById(id: string): Promise<Club | null> {
-    return super.findById(id);
+    try {
+      // Try to get from cache first
+      const cachedClub = await this.redisService.getCachedClub(id);
+      if (cachedClub) {
+        console.log(`Found club ${id} in cache`);
+        return cachedClub;
+      }
+
+      // If not in cache, get from database
+      const club = await super.findById(id);
+      
+      // Cache the result if found
+      if (club) {
+        await this.redisService.cacheClubData(club);
+        console.log(`Cached club ${id} from database`);
+      }
+      
+      return club;
+    } catch (error) {
+      console.error('Error in findById with cache:', error);
+      // Fallback to database only
+      return super.findById(id);
+    }
   }
 
   async create(clubData: DeepPartial<Club>): Promise<Club> {

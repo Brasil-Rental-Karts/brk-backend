@@ -54,7 +54,7 @@ export class UpdatedMemberProfileTable1748000000000 implements MigrationInterfac
         await queryRunner.query(`
             CREATE TRIGGER member_profiles_notify_trigger
             AFTER INSERT OR UPDATE OR DELETE ON "MemberProfiles"
-            FOR EACH ROW EXECUTE FUNCTION notify_rabbitmq();
+            FOR EACH ROW EXECUTE FUNCTION notify_database_events();
         `);
     }
 

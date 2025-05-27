@@ -1,6 +1,6 @@
 import { Client } from 'pg';
-import { RabbitMQService } from './rabbitmq.service';
-import { rabbitMQConfig } from '../config/rabbitmq.config';
+import { RedisService } from './redis.service';
+import { redisConfig } from '../config/redis.config';
 import { AppDataSource } from '../config/database.config';
 import dotenv from 'dotenv';
 
@@ -10,11 +10,11 @@ dotenv.config();
 export class DatabaseEventsService {
   private static instance: DatabaseEventsService;
   private client: Client | null = null;
-  private rabbitMQService: RabbitMQService;
+  private redisService: RedisService;
   private isListening = false;
 
   private constructor() {
-    this.rabbitMQService = RabbitMQService.getInstance();
+    this.redisService = RedisService.getInstance();
   }
 
   public static getInstance(): DatabaseEventsService {
@@ -55,16 +55,16 @@ export class DatabaseEventsService {
             const payload = JSON.parse(msg.payload);
             
             // Check if the table is in our tracked tables
-            if (rabbitMQConfig.trackedTables.includes(payload.table)) {
+            if (redisConfig.trackedTables.includes(payload.table)) {
               console.log(`Received notification for ${payload.table} - ${payload.operation}`);
               
-              // Publish the message to RabbitMQ
-              const success = await this.rabbitMQService.publishMessage(payload);
+              // Publish the message to Redis
+              const success = await this.redisService.publishMessage(payload);
               
               if (success) {
-                console.log('Successfully sent to RabbitMQ');
+                console.log('Successfully sent to Redis');
               } else {
-                console.error('Failed to send to RabbitMQ');
+                console.error('Failed to send to Redis');
               }
             }
           }
@@ -73,10 +73,41 @@ export class DatabaseEventsService {
         }
       });
 
+      // Subscribe to Redis channel to handle caching
+      await this.redisService.subscribeToChannel(redisConfig.channelName, this.handleDatabaseEvent.bind(this));
+
       this.isListening = true;
       console.log('Started listening for database events');
     } catch (error) {
       console.error('Error setting up database event listener:', error);
+    }
+  }
+
+  private async handleDatabaseEvent(event: any): Promise<void> {
+    try {
+      console.log(`Processing database event: ${event.operation} on ${event.table}`);
+      
+      if (event.table === 'Clubs') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+            // Cache the club data
+            if (event.data && event.data.id) {
+              await this.redisService.cacheClubData(event.data);
+              console.log(`Cached club data for ID: ${event.data.id}`);
+            }
+            break;
+          case 'DELETE':
+            // Remove from cache
+            if (event.data && event.data.id) {
+              await this.redisService.invalidateClubCache(event.data.id);
+              console.log(`Invalidated cache for club ID: ${event.data.id}`);
+            }
+            break;
+        }
+      }
+    } catch (error) {
+      console.error('Error handling database event:', error);
     }
   }
 

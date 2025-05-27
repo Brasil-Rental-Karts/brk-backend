@@ -19,7 +19,7 @@ import { MemberProfile } from './models/member-profile.entity';
 import { AuthService } from './services/auth.service';
 import { UserService } from './services/user.service';
 import { ClubService } from './services/club.service';
-import { RabbitMQService } from './services/rabbitmq.service';
+import { RedisService } from './services/redis.service';
 import { DatabaseEventsService } from './services/database-events.service';
 import { EmailService } from './services/email.service';
 import { GoogleAuthService } from './services/google-auth.service';
@@ -67,17 +67,17 @@ AppDataSource.initialize()
     const PORT: number = Number(config.port) || 3000;
     app.listen(PORT);
 
-    // Initialize RabbitMQ connection
+    // Initialize Redis connection
     try {
-      // Connect to RabbitMQ
-      await RabbitMQService.getInstance().connect();
+      // Connect to Redis
+      await RedisService.getInstance().connect();
       
       // Start listening for database events
       await DatabaseEventsService.getInstance().startListening();
       
-      console.log('RabbitMQ and database event listeners initialized');
+      console.log('Redis and database event listeners initialized');
     } catch (error) {
-      console.error('Failed to initialize RabbitMQ or database event listeners:', error);
+      console.error('Failed to initialize Redis or database event listeners:', error);
     }
 
     console.log(`Server started on port ${PORT} in ${config.nodeEnv} mode`);
@@ -86,7 +86,7 @@ AppDataSource.initialize()
     process.on('SIGINT', async () => {
       console.log('Shutting down...');
       await DatabaseEventsService.getInstance().stopListening();
-      await RabbitMQService.getInstance().close();
+      await RedisService.getInstance().close();
       await AppDataSource.destroy();
       process.exit(0);
     });
