@@ -139,6 +139,24 @@ export class RedisService {
     }
   }
 
+  async deleteData(key: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      await this.client.del(key);
+      return true;
+    } catch (error) {
+      console.error('Error deleting data from Redis:', error);
+      return false;
+    }
+  }
+
   async close(): Promise<void> {
     try {
       if (this.client && this.client.isOpen) {

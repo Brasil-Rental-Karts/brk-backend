@@ -7,16 +7,19 @@ import { RegisterUserDto, LoginUserDto, TokenDto, ForgotPasswordDto, ResetPasswo
 import { UserRepository } from '../repositories/user.repository';
 import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import { EmailService } from './email.service';
+import { RedisService } from './redis.service';
 import config from '../config/config';
 
 export class AuthService {
-  private refreshTokens: Map<string, string> = new Map(); // In-memory storage (use Redis in production)
+  private redisService: RedisService;
 
   constructor(
     private userRepository: UserRepository,
     private memberProfileRepository: MemberProfileRepository,
     private emailService: EmailService
-  ) {}
+  ) {
+    this.redisService = RedisService.getInstance();
+  }
 
   async register(registerUserDto: RegisterUserDto): Promise<User> {
     // Check if user with the same email already exists
@@ -101,15 +104,15 @@ export class AuthService {
       await this.memberProfileRepository.updateLastLogin(user.id);
     }
 
-    // Store refresh token
-    this.refreshTokens.set(user.id, tokens.refreshToken);
+    // Store refresh token in Redis with 7 days expiry (matching refresh token expiry)
+    await this.redisService.setData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
 
     return tokens;
   }
 
   async refreshToken(userId: string, refreshToken: string): Promise<TokenDto> {
     // Validate refresh token
-    const storedRefreshToken = this.refreshTokens.get(userId);
+    const storedRefreshToken = await this.redisService.getData(`refresh_token:${userId}`);
 
     if (!storedRefreshToken || storedRefreshToken !== refreshToken) {
       throw new Error('Invalid refresh token');
@@ -122,18 +125,22 @@ export class AuthService {
       throw new Error('User not found or inactive');
     }
 
-    // Generate new tokens
-    const tokens = this.generateTokens(user);
+    // Get member profile for name (same as in login)
+    const profile = await this.memberProfileRepository.findByUserId(user.id);
+    const displayName = profile?.nickName || user.name;
 
-    // Update stored refresh token
-    this.refreshTokens.set(user.id, tokens.refreshToken);
+    // Generate new tokens with name
+    const tokens = this.generateTokens(user, displayName);
+
+    // Update stored refresh token in Redis with 7 days expiry
+    await this.redisService.setData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
 
     return tokens;
   }
 
-  logout(userId: string): void {
-    // Remove refresh token
-    this.refreshTokens.delete(userId);
+  async logout(userId: string): Promise<void> {
+    // Remove refresh token from Redis
+    await this.redisService.deleteData(`refresh_token:${userId}`);
   }
   
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
@@ -206,7 +213,7 @@ export class AuthService {
     } else {
       await this.memberProfileRepository.updateLastLogin(user.id);
     }
-    this.refreshTokens.set(user.id, tokens.refreshToken);
+    await this.redisService.setData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
     return tokens;
   }
 

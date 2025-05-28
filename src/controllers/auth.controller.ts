@@ -315,29 +315,18 @@ export class AuthController extends BaseController {
      *   post:
      *     tags: [Authentication]
      *     summary: Refresh access token
-     *     description: Refresh the access token using a valid refresh token
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             properties:
-     *               refreshToken:
-     *                 type: string
-     *                 description: Valid refresh token
+     *     description: Refresh the access token using the refresh token stored in HTTP-only cookies
      *     responses:
      *       200:
-     *         description: New tokens issued
+     *         description: New tokens issued and set as HTTP-only cookies
      *         content:
      *           application/json:
      *             schema:
      *               type: object
      *               properties:
-     *                 accessToken:
+     *                 message:
      *                   type: string
-     *                 refreshToken:
-     *                   type: string
+     *                   example: "Tokens renovados com sucesso."
      *       401:
      *         description: Invalid or expired refresh token
      *       500:
@@ -467,7 +456,7 @@ export class AuthController extends BaseController {
         return;
       }
 
-      this.authService.logout(req.user.id);
+      await this.authService.logout(req.user.id);
 
       // Clear cookies for accessToken and refreshToken
       const cookieOptions = {
@@ -608,11 +597,13 @@ export class AuthController extends BaseController {
 
   private async refreshToken(req: Request, res: Response): Promise<void> {
     try {
-      const { refreshToken } = req.body;
+      // Get refresh token from cookies instead of request body
+      const refreshToken = req.cookies?.refreshToken;
       if (!refreshToken) {
         res.status(401).json({ message: 'Refresh token não fornecido.' });
         return;
       }
+      
       // Decodifica o refresh token para obter o userId
       const jwt = require('jsonwebtoken');
       let payload;
@@ -622,10 +613,37 @@ export class AuthController extends BaseController {
         res.status(401).json({ message: 'Refresh token inválido ou expirado.' });
         return;
       }
+      
       const userId = payload.id;
       const tokens = await this.authService.refreshToken(userId, refreshToken);
-      res.status(200).json(tokens);
+      
+      // Set new tokens as cookies
+      const cookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 15 // 15 minutes (should match accessToken expiry)
+      };
+      const refreshCookieOptions = {
+        httpOnly: true,
+        secure: config.cookie.secure,
+        sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
+        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days (should match refreshToken expiry)
+      };
+      
+      // Only set domain in production
+      if (process.env.NODE_ENV === 'production') {
+        cookieOptions['domain'] = config.cookie.domain;
+        refreshCookieOptions['domain'] = config.cookie.domain;
+      }
+      
+      res.cookie('accessToken', tokens.accessToken, cookieOptions);
+      res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
+      
+      // Return success response (no need to return tokens in body since they're in cookies)
+      res.status(200).json({ message: 'Tokens renovados com sucesso.' });
     } catch (error) {
+      console.error('Refresh token error:', error);
       res.status(401).json({ message: 'Não foi possível renovar o token.' });
     }
   }
