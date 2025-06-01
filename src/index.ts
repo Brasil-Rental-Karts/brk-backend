@@ -7,18 +7,18 @@ import { AppDataSource } from './config/database.config';
 import { HealthController } from './controllers/health.controller';
 import { AuthController } from './controllers/auth.controller';
 import { UserController } from './controllers/user.controller';
-import { ClubController } from './controllers/club.controller';
+import { ChampionshipController } from './controllers/championship.controller';
 import { MemberProfileController } from './controllers/member-profile.controller';
 
 // Entities
 import { User } from './models/user.entity';
-import { Club } from './models/club.entity';
+import { Championship } from './models/championship.entity';
 import { MemberProfile } from './models/member-profile.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
 import { UserService } from './services/user.service';
-import { ClubService } from './services/club.service';
+import { ChampionshipService } from './services/championship.service';
 import { RedisService } from './services/redis.service';
 import { DatabaseEventsService } from './services/database-events.service';
 import { EmailService } from './services/email.service';
@@ -27,7 +27,7 @@ import { MemberProfileService } from './services/member-profile.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
-import { ClubRepository } from './repositories/club.repository';
+import { ChampionshipRepository } from './repositories/championship.repository';
 import { MemberProfileRepository } from './repositories/member-profile.repository';
 
 // Initialize database connection
@@ -37,26 +37,23 @@ AppDataSource.initialize()
     
     // Initialize repositories
     const userRepository = new UserRepository(AppDataSource.getRepository(User));
-    const clubRepository = new ClubRepository(AppDataSource.getRepository(Club));
+    const championshipRepository = new ChampionshipRepository(AppDataSource.getRepository(Championship));
     const memberProfileRepository = new MemberProfileRepository(AppDataSource.getRepository(MemberProfile));
     
     // Initialize services
     const emailService = new EmailService();
     const authService = new AuthService(userRepository, memberProfileRepository, emailService);
     const userService = new UserService(userRepository);
-    const clubService = new ClubService(clubRepository);
+    const championshipService = new ChampionshipService(championshipRepository);
     const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);
     const memberProfileService = new MemberProfileService(memberProfileRepository);
-    
-    // Set up service relationships
-    clubService.setUserService(userService);
     
     // Initialize controllers
     const controllers = [
       new HealthController(),
       new AuthController(authService, googleAuthService),
       new UserController(userService),
-      new ClubController(clubService, userService, authService),
+      new ChampionshipController(championshipService, userService, authService),
       new MemberProfileController(memberProfileService)
     ];
 

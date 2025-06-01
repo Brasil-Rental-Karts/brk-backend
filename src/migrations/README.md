@@ -7,6 +7,7 @@ This project uses TypeORM for database migrations. Initially, we had multiple mi
 ## Migration Files
 
 - `1000000000000-UnifiedMigration.ts` - The unified migration file that contains all database setup required for the application.
+- `1748500000000-RemoveClubAddChampionship.ts` - Migration that removes the Clubs table and adds the Championships table.
 
 ## Running Migrations
 
@@ -41,7 +42,10 @@ npm run migration:generate -- -n YourMigrationName
 ## Notes
 
 - The unified migration includes:
-  - Creation of the Users and Clubs tables
+  - Creation of the Users table
   - Manager role in the role enum
-  - ownerId foreign key relationship between Clubs and Users
-  - Database notification events functionality 
+  - Database notification events functionality
+- The RemoveClubAddChampionship migration:
+  - Removes the deprecated Clubs table
+  - Creates the Championships table with all required fields
+  - Sets up proper foreign key relationships and triggers 

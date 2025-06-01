@@ -87,21 +87,27 @@ export class DatabaseEventsService {
     try {
       console.log(`Processing database event: ${event.operation} on ${event.table}`);
       
-      if (event.table === 'Clubs') {
+      if (event.table === 'Championships') {
         switch (event.operation) {
           case 'INSERT':
           case 'UPDATE':
-            // Cache the club data
+            // Cache the championship basic info (only the fields from "Sobre o Campeonato")
             if (event.data && event.data.id) {
-              await this.redisService.cacheClubData(event.data);
-              console.log(`Cached club data for ID: ${event.data.id}`);
+              const basicInfo = {
+                id: event.data.id,
+                name: event.data.name,
+                shortDescription: event.data.shortDescription || '',
+                fullDescription: event.data.fullDescription || ''
+              };
+              await this.redisService.cacheChampionshipBasicInfo(event.data.id, basicInfo);
+              console.log(`Cached championship basic info for ID: ${event.data.id}`);
             }
             break;
           case 'DELETE':
             // Remove from cache
             if (event.data && event.data.id) {
-              await this.redisService.invalidateClubCache(event.data.id);
-              console.log(`Invalidated cache for club ID: ${event.data.id}`);
+              await this.redisService.invalidateChampionshipCache(event.data.id);
+              console.log(`Invalidated cache for championship ID: ${event.data.id}`);
             }
             break;
         }

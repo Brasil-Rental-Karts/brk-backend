@@ -201,27 +201,42 @@ export class RedisService {
     }
   }
 
-  async cacheClubData(clubData: any): Promise<boolean> {
+  // Championship-specific cache methods with optimized performance
+  async cacheChampionshipBasicInfo(championshipId: string, data: any): Promise<boolean> {
     try {
-      const key = `club:${clubData.id}`;
-      return await this.setData(key, clubData, 3600); // Cache for 1 hour
+      const key = `championship:${championshipId}`;
+      // Cache championship basic info for 1 hour (3600 seconds)
+      return await this.setData(key, data, 3600);
     } catch (error) {
-      console.error('Error caching club data:', error);
+      console.error('Error caching championship basic info:', error);
       return false;
     }
   }
 
-  async getCachedClub(clubId: string): Promise<any | null> {
+  async getCachedChampionshipBasicInfo(championshipId: string): Promise<any | null> {
     try {
-      const key = `club:${clubId}`;
+      const key = `championship:${championshipId}`;
       return await this.getData(key);
     } catch (error) {
-      console.error('Error getting cached club data:', error);
+      console.error('Error getting cached championship basic info:', error);
       return null;
     }
   }
 
-  async invalidateClubCache(clubId: string): Promise<boolean> {
+  async invalidateChampionshipCache(championshipId: string): Promise<boolean> {
+    try {
+      const key = `championship:${championshipId}`;
+      return await this.deleteData(key);
+    } catch (error) {
+      console.error('Error invalidating championship cache:', error);
+      return false;
+    }
+  }
+
+  // Batch operations for better performance
+  async getMultipleCachedChampionships(championshipIds: string[]): Promise<{ [key: string]: any }> {
+    const results: { [key: string]: any } = {};
+    
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -231,11 +246,58 @@ export class RedisService {
         throw new Error('Failed to create Redis client');
       }
 
-      const key = `club:${clubId}`;
-      await this.client.del(key);
+      // Use pipeline for batch operations
+      const pipeline = this.client.multi();
+      
+      championshipIds.forEach(id => {
+        const key = `championship:${id}`;
+        pipeline.get(key);
+      });
+
+      const responses = await pipeline.exec();
+      
+      if (responses) {
+        responses.forEach((response, index) => {
+          const championshipId = championshipIds[index];
+          if (response && typeof response === 'string') {
+            try {
+              results[championshipId] = JSON.parse(response);
+            } catch {
+              results[championshipId] = response;
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error getting multiple cached championships:', error);
+    }
+
+    return results;
+  }
+
+  async cacheMultipleChampionships(championshipsData: { [key: string]: any }): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      // Use pipeline for batch operations
+      const pipeline = this.client.multi();
+      
+      Object.entries(championshipsData).forEach(([championshipId, data]) => {
+        const key = `championship:${championshipId}`;
+        const valueString = JSON.stringify(data);
+        pipeline.setEx(key, 3600, valueString); // 1 hour expiration
+      });
+
+      await pipeline.exec();
       return true;
     } catch (error) {
-      console.error('Error invalidating club cache:', error);
+      console.error('Error caching multiple championships:', error);
       return false;
     }
   }
