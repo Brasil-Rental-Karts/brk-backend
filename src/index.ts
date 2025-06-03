@@ -46,7 +46,7 @@ AppDataSource.initialize()
     const userService = new UserService(userRepository);
     const championshipService = new ChampionshipService(championshipRepository);
     const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);
-    const memberProfileService = new MemberProfileService(memberProfileRepository);
+    const memberProfileService = new MemberProfileService(memberProfileRepository, userService);
     
     // Initialize controllers
     const controllers = [

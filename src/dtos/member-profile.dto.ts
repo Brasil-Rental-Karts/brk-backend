@@ -28,6 +28,16 @@ import {
  *           format: date-time
  *           description: Timestamp of the user's last login
  *           example: "2023-07-25T14:30:00Z"
+ *         name:
+ *           type: string
+ *           maxLength: 100
+ *           description: User's name
+ *           example: "John Doe"
+ *         phone:
+ *           type: string
+ *           maxLength: 20
+ *           description: User's phone number
+ *           example: "+5511999999999"
  *         nickName:
  *           type: string
  *           maxLength: 100
@@ -119,24 +129,6 @@ import {
  *           maxLength: 100
  *           description: User's preferred track
  *           example: "Interlagos"
- *       example:
- *         nickName: "SpeedRacer"
- *         birthDate: "1990-05-15"
- *         gender: 0
- *         city: "São Paulo"
- *         state: "SP"
- *         experienceTime: 2
- *         raceFrequency: 2
- *         championshipParticipation: 1
- *         competitiveLevel: 1
- *         hasOwnKart: true
- *         isTeamMember: false
- *         teamName: null
- *         usesTelemetry: true
- *         telemetryType: "AiM"
- *         attendsEvents: 0
- *         interestCategories: [0, 1]
- *         preferredTrack: "Interlagos"
  */
 export class UpsertMemberProfileDto extends BaseDto {
   @IsUUID()
@@ -145,6 +137,16 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsOptional()
   lastLoginAt?: Date;
+
+  @IsString()
+  @IsOptional()
+  @Length(1, 100)
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  @Length(1, 20)
+  phone?: string;
 
   @IsString()
   @IsOptional()
