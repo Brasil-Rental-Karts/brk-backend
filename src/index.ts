@@ -9,11 +9,13 @@ import { AuthController } from './controllers/auth.controller';
 import { UserController } from './controllers/user.controller';
 import { ChampionshipController } from './controllers/championship.controller';
 import { MemberProfileController } from './controllers/member-profile.controller';
+import { SeasonController } from './controllers/season.controller';
 
 // Entities
 import { User } from './models/user.entity';
 import { Championship } from './models/championship.entity';
 import { MemberProfile } from './models/member-profile.entity';
+import { Season } from './models/season.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
@@ -24,11 +26,13 @@ import { DatabaseEventsService } from './services/database-events.service';
 import { EmailService } from './services/email.service';
 import { GoogleAuthService } from './services/google-auth.service';
 import { MemberProfileService } from './services/member-profile.service';
+import { SeasonService } from './services/season.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
 import { ChampionshipRepository } from './repositories/championship.repository';
 import { MemberProfileRepository } from './repositories/member-profile.repository';
+import { SeasonRepository } from './repositories/season.repository';
 
 // Initialize database connection
 AppDataSource.initialize()
@@ -39,6 +43,7 @@ AppDataSource.initialize()
     const userRepository = new UserRepository(AppDataSource.getRepository(User));
     const championshipRepository = new ChampionshipRepository(AppDataSource.getRepository(Championship));
     const memberProfileRepository = new MemberProfileRepository(AppDataSource.getRepository(MemberProfile));
+    const seasonRepository = new SeasonRepository(AppDataSource.getRepository(Season));
     
     // Initialize services
     const emailService = new EmailService();
@@ -47,6 +52,7 @@ AppDataSource.initialize()
     const championshipService = new ChampionshipService(championshipRepository);
     const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);
     const memberProfileService = new MemberProfileService(memberProfileRepository, userService);
+    const seasonService = new SeasonService(seasonRepository);
     
     // Initialize controllers
     const controllers = [
@@ -54,7 +60,8 @@ AppDataSource.initialize()
       new AuthController(authService, googleAuthService),
       new UserController(userService),
       new ChampionshipController(championshipService, userService, authService),
-      new MemberProfileController(memberProfileService)
+      new MemberProfileController(memberProfileService),
+      new SeasonController(seasonService)
     ];
 
     // Initialize the app
