@@ -86,6 +86,20 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *           type: string
  *           maxLength: 15
  *           description: Telefone do responsável
+ *         sponsors:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               logoImage:
+ *                 type: string
+ *               website:
+ *                 type: string
+ *           description: Lista de patrocinadores
  *         ownerId:
  *           type: string
  *           format: uuid
@@ -468,6 +482,14 @@ export class ChampionshipController extends BaseController {
       // Adiciona o ownerId
       championshipData.ownerId = userId;
 
+      // Gerar IDs para sponsors se eles existirem
+      if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
+        championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
+          ...sponsor,
+          id: this.generateSponsorId(sponsor.name)
+        }));
+      }
+
       const championship = await this.championshipService.create(championshipData);
       res.status(201).json(championship);
     } catch (error: any) {
@@ -499,6 +521,14 @@ export class ChampionshipController extends BaseController {
 
       // Validações básicas (apenas para campos que estão sendo atualizados)
       this.validateChampionshipData(championshipData, false);
+
+      // Gerar IDs para sponsors se eles existirem
+      if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
+        championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
+          ...sponsor,
+          id: sponsor.id || this.generateSponsorId(sponsor.name)
+        }));
+      }
 
       const championship = await this.championshipService.update(id, championshipData);
       res.json(championship);
@@ -628,5 +658,33 @@ export class ChampionshipController extends BaseController {
         throw new BadRequestException('Razão social é obrigatória para pessoa jurídica');
       }
     }
+
+    // Validação dos patrocinadores
+    if (data.sponsors && Array.isArray(data.sponsors)) {
+      for (const sponsor of data.sponsors) {
+        if (!sponsor.name || sponsor.name.trim().length === 0) {
+          throw new BadRequestException('Nome do patrocinador é obrigatório');
+        }
+        if (!sponsor.logoImage || sponsor.logoImage.trim().length === 0) {
+          throw new BadRequestException('Logo do patrocinador é obrigatório');
+        }
+        if (sponsor.website && typeof sponsor.website !== 'string') {
+          throw new BadRequestException('Website do patrocinador deve ser uma string válida');
+        }
+      }
+    }
+  }
+
+  private generateSponsorId(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^\w\s-]/g, '') // Remove caracteres especiais
+      .replace(/\s+/g, '-') // Substitui espaços por hífens
+      .replace(/--+/g, '-') // Remove hífens duplos
+      .trim()
+      .slice(0, 50) // Limita o tamanho
+      + '-' + Date.now().toString(36); // Adiciona timestamp para garantir unicidade
   }
 } 

@@ -65,20 +65,6 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  *             type: string
  *             enum: [pix, cartao_debito, cartao_credito, boleto]
  *           description: Métodos de pagamento aceitos
- *         sponsors:
- *           type: array
- *           items:
- *             type: object
- *             properties:
- *               id:
- *                 type: string
- *               name:
- *                 type: string
- *               logoImage:
- *                 type: string
- *               website:
- *                 type: string
- *           description: Lista de patrocinadores
  *         championshipId:
  *           type: string
  *           format: uuid
@@ -312,7 +298,6 @@ export class SeasonController extends BaseController {
         inscriptionValue: parseFloat(req.body.inscriptionValue),
         inscriptionType: req.body.inscriptionType,
         paymentMethods: req.body.paymentMethods,
-        sponsors: req.body.sponsors || [],
         championshipId: req.body.championshipId
       };
 
@@ -343,7 +328,6 @@ export class SeasonController extends BaseController {
       if (req.body.inscriptionValue) seasonData.inscriptionValue = parseFloat(req.body.inscriptionValue);
       if (req.body.inscriptionType) seasonData.inscriptionType = req.body.inscriptionType;
       if (req.body.paymentMethods) seasonData.paymentMethods = req.body.paymentMethods;
-      if (req.body.sponsors !== undefined) seasonData.sponsors = req.body.sponsors;
 
       const season = await this.seasonService.update(id, seasonData);
 

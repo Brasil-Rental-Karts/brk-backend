@@ -22,13 +22,6 @@ export enum PaymentMethod {
   BOLETO = 'boleto'
 }
 
-export interface Sponsor {
-  id: string;
-  name: string;
-  logoImage: string;
-  website?: string;
-}
-
 @Entity('Seasons')
 export class Season extends BaseEntity {
   // Dados Gerais
@@ -67,10 +60,6 @@ export class Season extends BaseEntity {
 
   @Column({ type: 'simple-array', nullable: false })
   paymentMethods: PaymentMethod[];
-
-  // Patrocinadores
-  @Column({ type: 'jsonb', nullable: true, default: [] })
-  sponsors: Sponsor[];
 
   // Relacionamento com o campeonato
   @Column({ nullable: false })

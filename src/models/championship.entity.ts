@@ -6,6 +6,13 @@ export enum PersonType {
   JURIDICA = 1
 }
 
+export interface Sponsor {
+  id: string;
+  name: string;
+  logoImage: string;
+  website?: string;
+}
+
 @Entity('Championships')
 export class Championship extends BaseEntity {
   // Sobre o Campeonato
@@ -58,6 +65,10 @@ export class Championship extends BaseEntity {
 
   @Column({ length: 15, nullable: true })
   responsiblePhone: string;
+
+  // Patrocinadores
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  sponsors: Sponsor[];
 
   // Relacionamento com o usuário criador
   @Column({ nullable: false })
