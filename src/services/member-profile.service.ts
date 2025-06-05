@@ -84,42 +84,47 @@ export class MemberProfileService extends BaseService<MemberProfile> {
    * @returns The created or updated profile
    */
   async upsert(userId: string, data: UpsertMemberProfileDto): Promise<MemberProfile> {
-    // Extract fields that should be updated in the users table
-    const userUpdateData: { name?: string; phone?: string } = {};
-    if (data.name) userUpdateData.name = data.name;
-    if (data.phone) userUpdateData.phone = data.phone;
+    try {
+      // Extract fields that should be updated in the users table
+      const userUpdateData: { name?: string; phone?: string } = {};
+      if (data.name) userUpdateData.name = data.name;
+      if (data.phone) userUpdateData.phone = data.phone;
 
-    // Update user table if we have userService and relevant fields
-    if (this.userService && Object.keys(userUpdateData).length > 0) {
-      try {
-        await this.userService.update(userId, userUpdateData);
-      } catch (error) {
-        console.error('Failed to update user data:', error);
-        // Continue with profile update even if user update fails
+      // Update user table if we have userService and relevant fields
+      if (this.userService && Object.keys(userUpdateData).length > 0) {
+        try {
+          await this.userService.update(userId, userUpdateData);
+        } catch (error) {
+          console.error('Failed to update user data:', error);
+          // Continue with profile update even if user update fails
+        }
       }
-    }
 
-    // Check if profile exists
-    const existingProfile = await this.findByUserId(userId);
-    
-    // Create new profile if it doesn't exist
-    if (!existingProfile) {
-      // Set ID to match user ID for new profile
-      const newProfileData: DeepPartial<MemberProfile> = {
-        ...data,
-        id: userId
-      };
+      // Check if profile exists - use repository directly to avoid fake profile creation
+      const existingProfile = await (this.repository as MemberProfileRepository).findByUserId(userId);
       
-      return this.repository.create(newProfileData);
+      // Create new profile if it doesn't exist
+      if (!existingProfile) {
+        // Set ID to match user ID for new profile
+        const newProfileData: DeepPartial<MemberProfile> = {
+          ...data,
+          id: userId
+        };
+        
+        return this.repository.create(newProfileData);
+      }
+      
+      // Update existing profile
+      const updatedProfile = await this.repository.update(userId, data);
+      
+      if (!updatedProfile) {
+        throw new Error('Failed to update member profile');
+      }
+      
+      return updatedProfile;
+    } catch (error) {
+      console.error('Error in upsert method:', error);
+      throw error;
     }
-    
-    // Update existing profile
-    const updatedProfile = await this.repository.update(userId, data);
-    
-    if (!updatedProfile) {
-      throw new Error('Failed to update member profile');
-    }
-    
-    return updatedProfile;
   }
 } 

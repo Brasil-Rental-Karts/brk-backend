@@ -140,17 +140,17 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Length(1, 100)
+  @Length(0, 100)
   name?: string;
 
   @IsString()
   @IsOptional()
-  @Length(1, 20)
+  @Length(0, 20)
   phone?: string;
 
   @IsString()
   @IsOptional()
-  @Length(1, 100)
+  @Length(0, 100)
   nickName?: string;
 
   @IsOptional()
@@ -165,12 +165,12 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Length(1, 100)
+  @Length(0, 100)
   city?: string;
 
   @IsString()
   @IsOptional()
-  @Length(1, 2)
+  @Length(0, 2)
   state?: string;
 
   @IsInt()
