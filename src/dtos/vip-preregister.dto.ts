@@ -26,13 +26,13 @@ import { BaseDto } from './base.dto';
  */
 export class CreateVipPreregisterDto extends BaseDto {
   @IsString()
-  @IsNotEmpty({ message: 'Name is required' })
-  @MaxLength(255, { message: 'Name must not exceed 255 characters' })
+  @IsNotEmpty({ message: 'Nome é obrigatório' })
+  @MaxLength(255, { message: 'Nome não pode exceder 255 caracteres' })
   name!: string;
 
-  @IsEmail({}, { message: 'Please provide a valid email address' })
-  @IsNotEmpty({ message: 'Email is required' })
-  @MaxLength(255, { message: 'Email must not exceed 255 characters' })
+  @IsEmail({}, { message: 'Por favor, forneça um endereço de e-mail válido' })
+  @IsNotEmpty({ message: 'E-mail é obrigatório' })
+  @MaxLength(255, { message: 'E-mail não pode exceder 255 caracteres' })
   email!: string;
 }
 
@@ -58,10 +58,10 @@ export class CreateVipPreregisterDto extends BaseDto {
  */
 export class UpdateVipPreregisterDto extends BaseDto {
   @IsString()
-  @MaxLength(255, { message: 'Name must not exceed 255 characters' })
+  @MaxLength(255, { message: 'Nome não pode exceder 255 caracteres' })
   name?: string;
 
-  @IsEmail({}, { message: 'Please provide a valid email address' })
-  @MaxLength(255, { message: 'Email must not exceed 255 characters' })
+  @IsEmail({}, { message: 'Por favor, forneça um endereço de e-mail válido' })
+  @MaxLength(255, { message: 'E-mail não pode exceder 255 caracteres' })
   email?: string;
 } 

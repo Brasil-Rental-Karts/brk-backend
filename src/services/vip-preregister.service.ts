@@ -16,7 +16,7 @@ export class VipPreregisterService extends BaseService<VipPreregister> {
     // Check if email already exists
     const existingPreregister = await this.vipPreregisterRepository.findByEmail(data.email);
     if (existingPreregister) {
-      throw new ConflictException('This email is already registered in our VIP list');
+      throw new ConflictException('Este e-mail já está cadastrado na nossa lista VIP');
     }
 
     // Create new preregister

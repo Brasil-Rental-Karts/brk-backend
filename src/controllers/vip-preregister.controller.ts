@@ -144,7 +144,7 @@ export class VipPreregisterController extends BaseController {
       
       if (errors.length > 0) {
         res.status(400).json({
-          message: 'Validation failed',
+          message: 'Falha na validação dos dados',
           errors
         });
         return;
@@ -153,7 +153,7 @@ export class VipPreregisterController extends BaseController {
       const preregister = await this.vipPreregisterService.createPreregister(dto!);
       
       res.status(201).json({
-        message: 'Successfully registered for VIP list',
+        message: 'Cadastro realizado com sucesso na lista VIP',
         data: preregister
       });
     } catch (error) {
@@ -166,7 +166,7 @@ export class VipPreregisterController extends BaseController {
       const preregisters = await this.vipPreregisterService.getAllPreregisters();
       
       res.status(200).json({
-        message: 'VIP preregistrations retrieved successfully',
+        message: 'Lista VIP recuperada com sucesso',
         data: preregisters
       });
     } catch (error) {
@@ -180,7 +180,7 @@ export class VipPreregisterController extends BaseController {
       const preregister = await this.vipPreregisterService.findByEmail(email);
       
       res.status(200).json({
-        message: 'Email check completed',
+        message: 'Verificação de e-mail concluída',
         data: {
           exists: !!preregister,
           preregister: preregister || null
