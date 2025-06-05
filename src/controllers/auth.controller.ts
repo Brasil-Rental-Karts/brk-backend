@@ -389,8 +389,8 @@ export class AuthController extends BaseController {
       res.status(200).json({ firstLogin: !!tokens.firstLogin });
     } catch (error) {
       if (error instanceof Error && 
-          (error.message === 'Invalid email or password' || 
-           error.message === 'User account is inactive' ||
+          (error.message === 'Email ou senha incorretos' || 
+           error.message === 'Conta de usuário inativa' ||
            error.message === 'Email de confirmação expirado. Um novo e-mail foi enviado. Por favor, verifique sua caixa de entrada.' ||
            error.message === 'Sua conta ainda não foi ativada. Por favor, confirme seu e-mail para acessar a plataforma.')) {
         res.status(401).json({ message: error.message });

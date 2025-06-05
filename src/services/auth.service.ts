@@ -60,13 +60,13 @@ export class AuthService {
     const user = await this.userRepository.findByEmail(loginUserDto.email);
 
     if (!user) {
-      throw new Error('Invalid email or password');
+      throw new Error('Email ou senha incorretos');
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(loginUserDto.password, user.password);
     if (!isPasswordValid) {
-      throw new Error('Invalid email or password');
+      throw new Error('Email ou senha incorretos');
     }
 
     if (!user.active) {
@@ -87,7 +87,7 @@ export class AuthService {
           throw new Error('Sua conta ainda não foi ativada. Por favor, confirme seu e-mail para acessar a plataforma.');
         }
       }
-      throw new Error('User account is inactive');
+      throw new Error('Conta de usuário inativa');
     }
 
     // Get member profile for name
