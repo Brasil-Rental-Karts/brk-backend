@@ -207,7 +207,7 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Length(1, 100)
+  @Length(0, 100)
   teamName?: string;
 
   @IsBoolean()
@@ -216,7 +216,7 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Length(1, 100)
+  @Length(0, 100)
   telemetryType?: string;
 
   @IsInt()
@@ -234,6 +234,6 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Length(1, 100)
+  @Length(0, 100)
   preferredTrack?: string;
 } 
