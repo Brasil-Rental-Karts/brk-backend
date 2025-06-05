@@ -33,6 +33,9 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *           type: string
  *           maxLength: 90
  *           description: Nome do campeonato
+ *         championshipImage:
+ *           type: string
+ *           description: URL da imagem do campeonato
  *         shortDescription:
  *           type: string
  *           maxLength: 165

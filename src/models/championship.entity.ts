@@ -19,6 +19,9 @@ export class Championship extends BaseEntity {
   @Column({ length: 90, nullable: false })
   name: string;
 
+  @Column({ type: 'text', nullable: true })
+  championshipImage: string;
+
   @Column({ length: 165, nullable: true })
   shortDescription: string;
 
