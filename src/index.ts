@@ -10,12 +10,14 @@ import { UserController } from './controllers/user.controller';
 import { ChampionshipController } from './controllers/championship.controller';
 import { MemberProfileController } from './controllers/member-profile.controller';
 import { SeasonController } from './controllers/season.controller';
+import { VipPreregisterController } from './controllers/vip-preregister.controller';
 
 // Entities
 import { User } from './models/user.entity';
 import { Championship } from './models/championship.entity';
 import { MemberProfile } from './models/member-profile.entity';
 import { Season } from './models/season.entity';
+import { VipPreregister } from './models/vip-preregister.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
@@ -27,12 +29,14 @@ import { EmailService } from './services/email.service';
 import { GoogleAuthService } from './services/google-auth.service';
 import { MemberProfileService } from './services/member-profile.service';
 import { SeasonService } from './services/season.service';
+import { VipPreregisterService } from './services/vip-preregister.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
 import { ChampionshipRepository } from './repositories/championship.repository';
 import { MemberProfileRepository } from './repositories/member-profile.repository';
 import { SeasonRepository } from './repositories/season.repository';
+import { VipPreregisterRepository } from './repositories/vip-preregister.repository';
 
 // Initialize database connection
 AppDataSource.initialize()
@@ -44,6 +48,7 @@ AppDataSource.initialize()
     const championshipRepository = new ChampionshipRepository(AppDataSource.getRepository(Championship));
     const memberProfileRepository = new MemberProfileRepository(AppDataSource.getRepository(MemberProfile));
     const seasonRepository = new SeasonRepository(AppDataSource.getRepository(Season));
+    const vipPreregisterRepository = new VipPreregisterRepository(AppDataSource.getRepository(VipPreregister));
     
     // Initialize services
     const emailService = new EmailService();
@@ -53,6 +58,7 @@ AppDataSource.initialize()
     const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);
     const memberProfileService = new MemberProfileService(memberProfileRepository, userService);
     const seasonService = new SeasonService(seasonRepository);
+    const vipPreregisterService = new VipPreregisterService(vipPreregisterRepository);
     
     // Initialize controllers
     const controllers = [
@@ -61,7 +67,8 @@ AppDataSource.initialize()
       new UserController(userService),
       new ChampionshipController(championshipService, userService, authService),
       new MemberProfileController(memberProfileService),
-      new SeasonController(seasonService)
+      new SeasonController(seasonService),
+      new VipPreregisterController(vipPreregisterService)
     ];
 
     // Initialize the app

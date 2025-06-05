@@ -1,0 +1,36 @@
+import { BaseService } from './base.service';
+import { VipPreregister } from '../models/vip-preregister.entity';
+import { VipPreregisterRepository } from '../repositories/vip-preregister.repository';
+import { CreateVipPreregisterDto } from '../dtos/vip-preregister.dto';
+import { ConflictException } from '../exceptions/conflict.exception';
+
+export class VipPreregisterService extends BaseService<VipPreregister> {
+  private vipPreregisterRepository: VipPreregisterRepository;
+
+  constructor(vipPreregisterRepository: VipPreregisterRepository) {
+    super(vipPreregisterRepository);
+    this.vipPreregisterRepository = vipPreregisterRepository;
+  }
+
+  async createPreregister(data: CreateVipPreregisterDto): Promise<VipPreregister> {
+    // Check if email already exists
+    const existingPreregister = await this.vipPreregisterRepository.findByEmail(data.email);
+    if (existingPreregister) {
+      throw new ConflictException('This email is already registered in our VIP list');
+    }
+
+    // Create new preregister
+    return this.vipPreregisterRepository.create({
+      name: data.name,
+      email: data.email
+    });
+  }
+
+  async findByEmail(email: string): Promise<VipPreregister | null> {
+    return this.vipPreregisterRepository.findByEmail(email);
+  }
+
+  async getAllPreregisters(): Promise<VipPreregister[]> {
+    return this.vipPreregisterRepository.findAll();
+  }
+} 
