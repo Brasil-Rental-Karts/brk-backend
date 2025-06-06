@@ -3,8 +3,9 @@ import { BaseController } from './base.controller';
 import { ChampionshipService } from '../services/championship.service';
 import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { Championship, PersonType } from '../models/championship.entity';
+import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { ForbiddenException } from '../exceptions/forbidden.exception';
@@ -307,7 +308,7 @@ export class ChampionshipController extends BaseController {
      *       400:
      *         description: Dados inválidos
      */
-    this.router.post('/', authMiddleware, this.createChampionship.bind(this));
+    this.router.post('/', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.createChampionship.bind(this));
 
     /**
      * @swagger
@@ -385,7 +386,7 @@ export class ChampionshipController extends BaseController {
      *       403:
      *         description: Sem permissão para atualizar este campeonato
      */
-    this.router.put('/:id', authMiddleware, this.updateChampionship.bind(this));
+    this.router.put('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateChampionship.bind(this));
 
     /**
      * @swagger
@@ -410,7 +411,7 @@ export class ChampionshipController extends BaseController {
      *       403:
      *         description: Sem permissão para deletar este campeonato
      */
-    this.router.delete('/:id', authMiddleware, this.deleteChampionship.bind(this));
+    this.router.delete('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.deleteChampionship.bind(this));
   }
 
   private async getAllChampionships(req: Request, res: Response): Promise<void> {

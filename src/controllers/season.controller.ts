@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { SeasonService } from '../services/season.service';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { Season, SeasonStatus, InscriptionType, PaymentMethod } from '../models/season.entity';
+import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 
@@ -185,7 +186,7 @@ export class SeasonController extends BaseController {
      *       400:
      *         description: Dados inválidos
      */
-    this.router.post('/', authMiddleware, this.createSeason.bind(this));
+    this.router.post('/', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.createSeason.bind(this));
 
     /**
      * @swagger
@@ -214,7 +215,7 @@ export class SeasonController extends BaseController {
      *       404:
      *         description: Temporada não encontrada
      */
-    this.router.put('/:id', authMiddleware, this.updateSeason.bind(this));
+    this.router.put('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateSeason.bind(this));
 
     /**
      * @swagger
@@ -237,7 +238,7 @@ export class SeasonController extends BaseController {
      *       404:
      *         description: Temporada não encontrada
      */
-    this.router.delete('/:id', authMiddleware, this.deleteSeason.bind(this));
+    this.router.delete('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.deleteSeason.bind(this));
   }
 
   private async getAllSeasons(req: Request, res: Response): Promise<void> {
