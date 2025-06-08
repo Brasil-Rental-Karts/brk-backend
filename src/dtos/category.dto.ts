@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, MaxLength, IsInt, Min, IsUUID } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { BaseDto } from './base.dto';
 
 /**
@@ -62,10 +63,12 @@ export class CreateCategoryDto extends BaseDto {
   @MaxLength(10, { message: 'Lastro deve ter no máximo 10 caracteres' })
   ballast: string;
 
+  @Transform(({ value }) => parseInt(value))
   @IsInt({ message: 'Máximo de pilotos deve ser um número inteiro' })
   @Min(1, { message: 'Máximo de pilotos deve ser maior que 0' })
   maxPilots: number;
 
+  @Transform(({ value }) => parseInt(value))
   @IsInt({ message: 'Quantidade de baterias deve ser um número inteiro' })
   @Min(1, { message: 'Quantidade de baterias deve ser maior que 0' })
   batteryQuantity: number;
@@ -74,6 +77,7 @@ export class CreateCategoryDto extends BaseDto {
   @IsNotEmpty({ message: 'Formato de grid de largada é obrigatório' })
   startingGridFormat: string;
 
+  @Transform(({ value }) => parseInt(value))
   @IsInt({ message: 'Idade mínima deve ser um número inteiro' })
   @Min(1, { message: 'Idade mínima deve ser maior que 0' })
   minimumAge: number;
@@ -134,10 +138,12 @@ export class UpdateCategoryDto extends BaseDto {
   @MaxLength(10, { message: 'Lastro deve ter no máximo 10 caracteres' })
   ballast?: string;
 
+  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Máximo de pilotos deve ser um número inteiro' })
   @Min(1, { message: 'Máximo de pilotos deve ser maior que 0' })
   maxPilots?: number;
 
+  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Quantidade de baterias deve ser um número inteiro' })
   @Min(1, { message: 'Quantidade de baterias deve ser maior que 0' })
   batteryQuantity?: number;
@@ -145,6 +151,7 @@ export class UpdateCategoryDto extends BaseDto {
   @IsString()
   startingGridFormat?: string;
 
+  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Idade mínima deve ser um número inteiro' })
   @Min(1, { message: 'Idade mínima deve ser maior que 0' })
   minimumAge?: number;
