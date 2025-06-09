@@ -46,6 +46,11 @@ export class GridTypeService {
       throw new BadRequestException('Número de posições invertidas é obrigatório para tipo inverted_partial');
     }
 
+    // Validar se tipo qualifying_session tem qualifyingDuration
+    if (data.type === GridTypeEnum.QUALIFYING_SESSION && !data.qualifyingDuration) {
+      throw new BadRequestException('Duração da classificação é obrigatória para tipo qualifying_session');
+    }
+
     // Se está sendo definido como padrão, remover padrão dos outros
     if (data.isDefault) {
       await this.removeDefaultFromOthers(championshipId);
@@ -71,6 +76,14 @@ export class GridTypeService {
       const newInvertedPositions = data.invertedPositions !== undefined ? data.invertedPositions : gridType.invertedPositions;
       if (!newInvertedPositions) {
         throw new BadRequestException('Número de posições invertidas é obrigatório para tipo inverted_partial');
+      }
+    }
+
+    // Validar se tipo qualifying_session tem qualifyingDuration
+    if (newType === GridTypeEnum.QUALIFYING_SESSION) {
+      const newQualifyingDuration = data.qualifyingDuration !== undefined ? data.qualifyingDuration : gridType.qualifyingDuration;
+      if (!newQualifyingDuration) {
+        throw new BadRequestException('Duração da classificação é obrigatória para tipo qualifying_session');
       }
     }
 
@@ -211,6 +224,14 @@ export class GridTypeService {
         isActive: true,
         isDefault: false,
         invertedPositions: 10
+      },
+      {
+        name: 'Classificação 5min',
+        description: 'Sessão de classificação por tempo determinado. Posições definidas pela volta mais rápida durante a sessão',
+        type: GridTypeEnum.QUALIFYING_SESSION,
+        isActive: true,
+        isDefault: false,
+        qualifyingDuration: 5
       }
     ];
 

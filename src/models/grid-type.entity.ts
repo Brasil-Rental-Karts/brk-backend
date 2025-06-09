@@ -4,7 +4,8 @@ import { BaseEntity } from './base.entity';
 export enum GridTypeEnum {
   SUPER_POLE = 'super_pole',
   INVERTED = 'inverted',
-  INVERTED_PARTIAL = 'inverted_partial'
+  INVERTED_PARTIAL = 'inverted_partial',
+  QUALIFYING_SESSION = 'qualifying_session'
 }
 
 /**
@@ -34,7 +35,7 @@ export enum GridTypeEnum {
  *           example: "A volta mais rápida da classificação define a ordem de largada"
  *         type:
  *           type: string
- *           enum: [super_pole, inverted, inverted_partial]
+ *           enum: [super_pole, inverted, inverted_partial, qualifying_session]
  *           description: Tipo de grid
  *           example: "super_pole"
  *         isActive:
@@ -49,6 +50,10 @@ export enum GridTypeEnum {
  *           type: integer
  *           description: Número de posições invertidas (apenas para tipo inverted_partial)
  *           example: 10
+ *         qualifyingDuration:
+ *           type: integer
+ *           description: Duração da sessão de classificação em minutos (apenas para tipo qualifying_session)
+ *           example: 5
  *         championshipId:
  *           type: string
  *           format: uuid
@@ -84,6 +89,9 @@ export class GridType extends BaseEntity {
 
   @Column({ type: 'int', nullable: true })
   invertedPositions?: number;
+
+  @Column({ type: 'int', nullable: true })
+  qualifyingDuration?: number;
 
   // Relacionamento com o campeonato
   @Column({ nullable: false })

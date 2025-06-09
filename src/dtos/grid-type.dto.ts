@@ -25,7 +25,7 @@ import { GridTypeEnum } from '../models/grid-type.entity';
  *           example: "A volta mais rápida da classificação define a ordem de largada"
  *         type:
  *           type: string
- *           enum: [super_pole, inverted, inverted_partial]
+ *           enum: [super_pole, inverted, inverted_partial, qualifying_session]
  *           description: Tipo de grid
  *           example: "super_pole"
  *         isActive:
@@ -43,6 +43,11 @@ import { GridTypeEnum } from '../models/grid-type.entity';
  *           minimum: 1
  *           description: Número de posições invertidas (obrigatório para tipo inverted_partial)
  *           example: 10
+ *         qualifyingDuration:
+ *           type: integer
+ *           minimum: 1
+ *           description: Duração da sessão de classificação em minutos (obrigatório para tipo qualifying_session)
+ *           example: 5
  */
 export class CreateGridTypeDto extends BaseDto {
   @IsString()
@@ -72,6 +77,12 @@ export class CreateGridTypeDto extends BaseDto {
   @IsInt({ message: 'Número de posições invertidas deve ser um número inteiro' })
   @Min(1, { message: 'Número de posições invertidas deve ser maior que 0' })
   invertedPositions?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @IsInt({ message: 'Duração da classificação deve ser um número inteiro' })
+  @Min(1, { message: 'Duração da classificação deve ser maior que 0' })
+  qualifyingDuration?: number;
 }
 
 /**
@@ -92,7 +103,7 @@ export class CreateGridTypeDto extends BaseDto {
  *           example: "A volta mais rápida da classificação define a ordem de largada"
  *         type:
  *           type: string
- *           enum: [super_pole, inverted, inverted_partial]
+ *           enum: [super_pole, inverted, inverted_partial, qualifying_session]
  *           description: Tipo de grid
  *           example: "super_pole"
  *         isActive:
@@ -108,6 +119,11 @@ export class CreateGridTypeDto extends BaseDto {
  *           minimum: 1
  *           description: Número de posições invertidas (obrigatório para tipo inverted_partial)
  *           example: 10
+ *         qualifyingDuration:
+ *           type: integer
+ *           minimum: 1
+ *           description: Duração da sessão de classificação em minutos (obrigatório para tipo qualifying_session)
+ *           example: 5
  */
 export class UpdateGridTypeDto extends BaseDto {
   @IsOptional()
@@ -138,4 +154,10 @@ export class UpdateGridTypeDto extends BaseDto {
   @IsInt({ message: 'Número de posições invertidas deve ser um número inteiro' })
   @Min(1, { message: 'Número de posições invertidas deve ser maior que 0' })
   invertedPositions?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @IsInt({ message: 'Duração da classificação deve ser um número inteiro' })
+  @Min(1, { message: 'Duração da classificação deve ser maior que 0' })
+  qualifyingDuration?: number;
 } 
