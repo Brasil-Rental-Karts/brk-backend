@@ -12,6 +12,7 @@ import { MemberProfileController } from './controllers/member-profile.controller
 import { SeasonController } from './controllers/season.controller';
 import { VipPreregisterController } from './controllers/vip-preregister.controller';
 import { CategoryController } from './controllers/category.controller';
+import { GridTypeController } from './controllers/grid-type.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -20,6 +21,7 @@ import { MemberProfile } from './models/member-profile.entity';
 import { Season } from './models/season.entity';
 import { VipPreregister } from './models/vip-preregister.entity';
 import { Category } from './models/category.entity';
+import { GridType } from './models/grid-type.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
@@ -33,6 +35,7 @@ import { MemberProfileService } from './services/member-profile.service';
 import { SeasonService } from './services/season.service';
 import { VipPreregisterService } from './services/vip-preregister.service';
 import { CategoryService } from './services/category.service';
+import { GridTypeService } from './services/grid-type.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -75,7 +78,8 @@ AppDataSource.initialize()
       new MemberProfileController(memberProfileService),
       new SeasonController(seasonService),
       new VipPreregisterController(vipPreregisterService),
-      new CategoryController(categoryService)
+      new CategoryController(categoryService),
+      new GridTypeController()
     ];
 
     // Initialize the app

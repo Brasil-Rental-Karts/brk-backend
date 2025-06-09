@@ -1,6 +1,37 @@
-import { IsString, IsNotEmpty, MaxLength, IsInt, Min, IsUUID } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsString, IsNotEmpty, MaxLength, IsInt, Min, IsUUID, IsArray, ValidateNested, IsOptional } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { BaseDto } from './base.dto';
+import { BatteriesConfig, validateBatteriesConfig } from '../types/category.types';
+
+/**
+ * DTO para configuração de bateria individual
+ */
+export class BatteryConfigDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Nome da bateria é obrigatório' })
+  name: string;
+
+  @IsString()
+  gridType: string;
+
+  @Transform(({ value }) => parseInt(value))
+  @IsInt({ message: 'Ordem deve ser um número inteiro' })
+  @Min(1, { message: 'Ordem deve ser maior que 0' })
+  order: number;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @Transform(({ value }) => Boolean(value))
+  isRequired: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @IsInt({ message: 'Duração deve ser um número inteiro' })
+  @Min(1, { message: 'Duração deve ser maior que 0' })
+  duration?: number;
+}
 
 /**
  * @swagger
@@ -12,8 +43,7 @@ import { BaseDto } from './base.dto';
  *         - name
  *         - ballast
  *         - maxPilots
- *         - batteryQuantity
- *         - startingGridFormat
+ *         - batteriesConfig
  *         - minimumAge
  *         - seasonId
  *       properties:
@@ -32,15 +62,25 @@ import { BaseDto } from './base.dto';
  *           minimum: 1
  *           description: Máximo de pilotos
  *           example: 20
- *         batteryQuantity:
- *           type: integer
- *           minimum: 1
- *           description: Quantidade de baterias
- *           example: 2
- *         startingGridFormat:
- *           type: string
- *           description: Formato de grid de largada
- *           example: "2x2"
+ *         batteriesConfig:
+ *           type: array
+ *           description: Configuração das baterias
+ *           items:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome da bateria
+ *               gridType:
+ *                 type: string
+ *                 description: ID do tipo de grid
+ *               order:
+ *                 type: integer
+ *                 description: Ordem da bateria
+ *               isRequired:
+ *                 type: boolean
+ *                 description: Se é obrigatória
+ *           example: [{"name": "Classificação", "gridType": "uuid", "order": 1, "isRequired": true}]
  *         minimumAge:
  *           type: integer
  *           minimum: 1
@@ -68,14 +108,19 @@ export class CreateCategoryDto extends BaseDto {
   @Min(1, { message: 'Máximo de pilotos deve ser maior que 0' })
   maxPilots: number;
 
-  @Transform(({ value }) => parseInt(value))
-  @IsInt({ message: 'Quantidade de baterias deve ser um número inteiro' })
-  @Min(1, { message: 'Quantidade de baterias deve ser maior que 0' })
-  batteryQuantity: number;
-
-  @IsString()
-  @IsNotEmpty({ message: 'Formato de grid de largada é obrigatório' })
-  startingGridFormat: string;
+  @IsArray({ message: 'Configuração de baterias deve ser um array' })
+  @ValidateNested({ each: true })
+  @Type(() => BatteryConfigDto)
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      const errors = validateBatteriesConfig(value);
+      if (errors.length > 0) {
+        throw new Error(errors.join('; '));
+      }
+    }
+    return value;
+  })
+  batteriesConfig: BatteryConfigDto[];
 
   @Transform(({ value }) => parseInt(value))
   @IsInt({ message: 'Idade mínima deve ser um número inteiro' })
@@ -109,15 +154,25 @@ export class CreateCategoryDto extends BaseDto {
  *           minimum: 1
  *           description: Máximo de pilotos
  *           example: 20
- *         batteryQuantity:
- *           type: integer
- *           minimum: 1
- *           description: Quantidade de baterias
- *           example: 2
- *         startingGridFormat:
- *           type: string
- *           description: Formato de grid de largada
- *           example: "2x2"
+ *         batteriesConfig:
+ *           type: array
+ *           description: Configuração das baterias
+ *           items:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome da bateria
+ *               gridType:
+ *                 type: string
+ *                 description: ID do tipo de grid
+ *               order:
+ *                 type: integer
+ *                 description: Ordem da bateria
+ *               isRequired:
+ *                 type: boolean
+ *                 description: Se é obrigatória
+ *           example: [{"name": "Classificação", "gridType": "uuid", "order": 1, "isRequired": true}]
  *         minimumAge:
  *           type: integer
  *           minimum: 1
@@ -143,13 +198,19 @@ export class UpdateCategoryDto extends BaseDto {
   @Min(1, { message: 'Máximo de pilotos deve ser maior que 0' })
   maxPilots?: number;
 
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
-  @IsInt({ message: 'Quantidade de baterias deve ser um número inteiro' })
-  @Min(1, { message: 'Quantidade de baterias deve ser maior que 0' })
-  batteryQuantity?: number;
-
-  @IsString()
-  startingGridFormat?: string;
+  @IsArray({ message: 'Configuração de baterias deve ser um array' })
+  @ValidateNested({ each: true })
+  @Type(() => BatteryConfigDto)
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      const errors = validateBatteriesConfig(value);
+      if (errors.length > 0) {
+        throw new Error(errors.join('; '));
+      }
+    }
+    return value;
+  })
+  batteriesConfig?: BatteryConfigDto[];
 
   @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Idade mínima deve ser um número inteiro' })

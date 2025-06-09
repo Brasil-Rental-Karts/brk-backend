@@ -1,6 +1,7 @@
 import { BaseService } from './base.service';
 import { Category } from '../models/category.entity';
 import { CategoryRepository } from '../repositories/category.repository';
+import { validateBatteriesConfig } from '../types/category.types';
 
 export class CategoryService extends BaseService<Category> {
   constructor(private categoryRepository: CategoryRepository) {
@@ -44,15 +45,12 @@ export class CategoryService extends BaseService<Category> {
       }
     }
 
-    if (!isUpdate || data.batteryQuantity !== undefined) {
-      if (!Number.isInteger(data.batteryQuantity) || data.batteryQuantity < 1) {
-        errors.push('Quantidade de baterias deve ser um número inteiro maior que 0');
-      }
-    }
-
-    if (!isUpdate || data.startingGridFormat !== undefined) {
-      if (!data.startingGridFormat || typeof data.startingGridFormat !== 'string') {
-        errors.push('Formato de grid de largada é obrigatório e deve ser uma string');
+    if (!isUpdate || data.batteriesConfig !== undefined) {
+      if (!Array.isArray(data.batteriesConfig)) {
+        errors.push('Configuração de baterias deve ser um array');
+      } else {
+        const batteryErrors = validateBatteriesConfig(data.batteriesConfig);
+        errors.push(...batteryErrors);
       }
     }
 

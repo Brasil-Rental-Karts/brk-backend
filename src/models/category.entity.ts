@@ -1,5 +1,6 @@
 import { Entity, Column } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { BatteriesConfig } from '../types/category.types';
 
 @Entity('Categories')
 export class Category extends BaseEntity {
@@ -12,11 +13,8 @@ export class Category extends BaseEntity {
   @Column({ type: 'int', nullable: false })
   maxPilots: number;
 
-  @Column({ type: 'int', nullable: false })
-  batteryQuantity: number;
-
-  @Column({ type: 'varchar', length: 255, nullable: false })
-  startingGridFormat: string;
+  @Column({ type: 'jsonb', nullable: false })
+  batteriesConfig: BatteriesConfig;
 
   @Column({ type: 'int', nullable: false })
   minimumAge: number;
