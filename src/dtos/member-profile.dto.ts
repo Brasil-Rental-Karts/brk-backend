@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsBoolean, IsArray, Length, IsISO8601, IsUUID, IsNumber, IsInt, Min, Max, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { BaseDto } from './base.dto';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { 
   Gender, 
   KartExperienceYears, 
@@ -207,6 +207,7 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
+  @Transform(({ value }) => value === null ? undefined : value)
   @Length(0, 100)
   teamName?: string;
 
@@ -216,6 +217,7 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
+  @Transform(({ value }) => value === null ? undefined : value)
   @Length(0, 100)
   telemetryType?: string;
 
@@ -234,6 +236,7 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
+  @Transform(({ value }) => value === null ? undefined : value)
   @Length(0, 100)
   preferredTrack?: string;
 } 

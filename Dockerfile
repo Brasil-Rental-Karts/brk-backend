@@ -1,57 +1,102 @@
-FROM node:20-alpine AS builder
+# ===================================
+# Multi-stage build for BRK Backend
+# ===================================
 
+# Stage 1: Dependencies
+FROM node:20-alpine AS dependencies
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install all dependencies (including devDependencies for build)
+RUN npm ci --no-audit --no-fund
 
-# Copy source code and necessary files
-COPY src/ ./src/
+# ===================================
+# Stage 2: Build
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy dependencies from previous stage
+COPY --from=dependencies /app/node_modules ./node_modules
+
+# Copy source code and configuration files
+COPY package*.json ./
 COPY tsconfig.json ./
 COPY typeorm-migration.config.ts ./
 COPY typeorm.config.ts ./
+COPY src/ ./src/
 
 # Build the application
 RUN npm run build
 
 # Verify build output
-RUN ls -la dist
-RUN ls -la dist/index.js || (echo "ERROR: dist/index.js not found!" && exit 1)
+RUN if [ ! -f "dist/index.js" ]; then \
+      echo "ERROR: Build failed - dist/index.js not found!" && \
+      ls -la dist && \
+      exit 1; \
+    fi
 
-# Production stage
-FROM node:20-alpine
-
+# ===================================
+# Stage 3: Production Dependencies
+FROM node:20-alpine AS prod-dependencies
 WORKDIR /app
 
-# Set node environment
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Copy package.json and package-lock.json
+# Copy package files
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN npm ci --only=production --no-audit --no-fund && \
+    npm cache clean --force
 
-# Copy compiled code from builder stage
-COPY --from=builder /app/dist ./dist
+# ===================================
+# Stage 4: Production
+FROM node:20-alpine AS production
 
-# Copy template files
-COPY src/templates ./src/templates
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init wget
 
-# Print directory contents to debug
-RUN ls -la /app
-RUN ls -la /app/dist || echo "dist directory not found"
-RUN ls -la /app/dist/index.js || echo "index.js not found"
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
-# Expose the port
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV NPM_CONFIG_LOGLEVEL=error
+
+# Copy production dependencies
+COPY --from=prod-dependencies --chown=nodejs:nodejs /app/node_modules ./node_modules
+
+# Copy built application
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+
+# Copy necessary runtime files
+COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --chown=nodejs:nodejs src/templates ./src/templates
+
+# Copy TypeORM configuration files for migrations
+COPY --chown=nodejs:nodejs typeorm-migration.config.ts ./
+COPY --chown=nodejs:nodejs typeorm.config.ts ./
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
 EXPOSE 3000
 
-# Start the application with health check
-HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 CMD wget --no-verbose --spider http://localhost:3000/health || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
 CMD ["node", "dist/index.js"] 

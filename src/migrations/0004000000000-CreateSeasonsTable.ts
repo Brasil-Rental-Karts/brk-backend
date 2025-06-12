@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateSeasonsTable1749000000000 implements MigrationInterface {
-    name = 'CreateSeasonsTable1749000000000'
+export class CreateSeasonsTable0004000000000 implements MigrationInterface {
+    name = 'CreateSeasonsTable0004000000000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         // Create SeasonStatus enum
@@ -10,7 +10,7 @@ export class CreateSeasonsTable1749000000000 implements MigrationInterface {
         // Create InscriptionType enum  
         await queryRunner.query(`CREATE TYPE "public"."Seasons_inscriptiontype_enum" AS ENUM('mensal', 'anual', 'semestral', 'trimestral')`);
         
-        // Create Seasons table
+        // Create Seasons table with all current fields
         await queryRunner.query(`
             CREATE TABLE "Seasons" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
@@ -18,14 +18,13 @@ export class CreateSeasonsTable1749000000000 implements MigrationInterface {
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
                 "name" character varying(75) NOT NULL, 
                 "seasonImage" text NOT NULL, 
-                "description" text NOT NULL, 
+                "description" character varying(1000) NOT NULL, 
                 "startDate" TIMESTAMP WITH TIME ZONE NOT NULL, 
                 "endDate" TIMESTAMP WITH TIME ZONE NOT NULL, 
                 "status" "public"."Seasons_status_enum" NOT NULL DEFAULT 'agendado', 
                 "inscriptionValue" numeric(10,2) NOT NULL, 
                 "inscriptionType" "public"."Seasons_inscriptiontype_enum" NOT NULL, 
                 "paymentMethods" text NOT NULL, 
-                "sponsors" jsonb DEFAULT '[]', 
                 "championshipId" uuid NOT NULL, 
                 CONSTRAINT "PK_Seasons" PRIMARY KEY ("id")
             )
@@ -47,6 +46,7 @@ export class CreateSeasonsTable1749000000000 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_Seasons_startDate" ON "Seasons" ("startDate")`);
         await queryRunner.query(`CREATE INDEX "IDX_Seasons_endDate" ON "Seasons" ("endDate")`);
         await queryRunner.query(`CREATE INDEX "IDX_Seasons_inscriptionType" ON "Seasons" ("inscriptionType")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Seasons_name" ON "Seasons" ("name")`);
         
         // Create trigger for the Seasons table
         await queryRunner.query(`
@@ -61,6 +61,7 @@ export class CreateSeasonsTable1749000000000 implements MigrationInterface {
         await queryRunner.query(`DROP TRIGGER IF EXISTS seasons_notify_trigger ON "Seasons"`);
         
         // Drop indexes
+        await queryRunner.query(`DROP INDEX "IDX_Seasons_name"`);
         await queryRunner.query(`DROP INDEX "IDX_Seasons_inscriptionType"`);
         await queryRunner.query(`DROP INDEX "IDX_Seasons_endDate"`);
         await queryRunner.query(`DROP INDEX "IDX_Seasons_startDate"`);

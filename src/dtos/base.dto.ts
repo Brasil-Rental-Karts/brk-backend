@@ -15,7 +15,10 @@ export abstract class BaseDto {
     dtoClass: new () => T,
     data: Record<string, any>
   ): Promise<{ dto: T | null; errors: string[] }> {
-    const dto = plainToInstance(dtoClass, data) as T;
+    const dto = plainToInstance(dtoClass, data, {
+      enableImplicitConversion: true,
+      excludeExtraneousValues: false,
+    }) as T;
     const errors = await dto.validate();
     
     if (errors.length > 0) {

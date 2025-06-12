@@ -77,11 +77,31 @@ export class App {
     }));
     this.app.use(cors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, etc.)
+        // Allow requests with no origin (like mobile apps, curl, Swagger UI, etc.)
         if (!origin) return callback(null, true);
-        if (config.frontendUrls.includes(origin)) {
+        
+        // Always allow localhost with the same port for Swagger UI
+        const allowedOrigins = [
+          ...config.frontendUrls,
+          `http://localhost:${config.port}`,
+          `https://localhost:${config.port}`,
+          'http://localhost:3000',
+          'https://localhost:3000'
+        ];
+        
+        if (allowedOrigins.includes(origin)) {
           return callback(null, true);
         }
+        
+        // In development, be more permissive
+        if (config.nodeEnv === 'development') {
+          // Allow any localhost origin in development
+          if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
+            return callback(null, true);
+          }
+        }
+        
+        console.log(`CORS blocked origin: ${origin}`);
         return callback(new Error('Not allowed by CORS'), false);
       },
       credentials: true,

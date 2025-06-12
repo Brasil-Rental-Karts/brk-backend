@@ -49,8 +49,12 @@ export class AuthService {
       emailConfirmationExpires
     });
 
-    // Send confirmation email
-    await this.emailService.sendEmailConfirmationEmail(user.email, user.name, emailConfirmationToken);
+    // Try to send confirmation email, but don't fail registration if email fails
+    try {
+      await this.emailService.sendEmailConfirmationEmail(user.email, user.name, emailConfirmationToken);
+    } catch (error) {
+      console.warn('Failed to send email confirmation, but user registration was successful:', error instanceof Error ? error.message : error);
+    }
 
     return user;
   }

@@ -16,12 +16,272 @@ export class GridTypeController extends BaseController {
   }
 
   initializeRoutes(): void {
+    /**
+     * @swagger
+     * /championships/{championshipId}/grid-types:
+     *   get:
+     *     summary: Listar tipos de grid de um campeonato
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *     responses:
+     *       200:
+     *         description: Lista de tipos de grid
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/GridType'
+     *       401:
+     *         description: Token de acesso inválido
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.get('/championships/:championshipId/grid-types', authMiddleware, this.getByChampionship.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{championshipId}/grid-types/predefined:
+     *   post:
+     *     summary: Criar tipos de grid pré-definidos
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *     responses:
+     *       201:
+     *         description: Tipos de grid pré-definidos criados com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/GridType'
+     *       401:
+     *         description: Token de acesso inválido
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.post('/championships/:championshipId/grid-types/predefined', authMiddleware, this.createPredefined.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{championshipId}/grid-types:
+     *   post:
+     *     summary: Criar novo tipo de grid
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateGridTypeDto'
+     *     responses:
+     *       201:
+     *         description: Tipo de grid criado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/GridType'
+     *       400:
+     *         description: Dados inválidos
+     *       401:
+     *         description: Token de acesso inválido
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.post('/championships/:championshipId/grid-types', authMiddleware, validationMiddleware(CreateGridTypeDto), this.create.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{championshipId}/grid-types/{id}:
+     *   put:
+     *     summary: Atualizar tipo de grid
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do tipo de grid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateGridTypeDto'
+     *     responses:
+     *       200:
+     *         description: Tipo de grid atualizado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/GridType'
+     *       400:
+     *         description: Dados inválidos
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Tipo de grid não encontrado
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.put('/championships/:championshipId/grid-types/:id', authMiddleware, validationMiddleware(UpdateGridTypeDto), this.update.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{championshipId}/grid-types/{id}:
+     *   delete:
+     *     summary: Deletar tipo de grid
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do tipo de grid
+     *     responses:
+     *       204:
+     *         description: Tipo de grid deletado com sucesso
+     *       400:
+     *         description: Não é possível deletar este tipo de grid
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Tipo de grid não encontrado
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.delete('/championships/:championshipId/grid-types/:id', authMiddleware, this.delete.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{championshipId}/grid-types/{id}/toggle-active:
+     *   patch:
+     *     summary: Ativar/desativar tipo de grid
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do tipo de grid
+     *     responses:
+     *       200:
+     *         description: Status do tipo de grid alterado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/GridType'
+     *       400:
+     *         description: Não é possível desativar o último tipo de grid ativo
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Tipo de grid não encontrado
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.patch('/championships/:championshipId/grid-types/:id/toggle-active', authMiddleware, this.activate.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{championshipId}/grid-types/{id}/set-default:
+     *   patch:
+     *     summary: Definir tipo de grid como padrão
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do tipo de grid
+     *     responses:
+     *       200:
+     *         description: Tipo de grid definido como padrão com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/GridType'
+     *       400:
+     *         description: Não é possível definir um tipo de grid inativo como padrão
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Tipo de grid não encontrado
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.patch('/championships/:championshipId/grid-types/:id/set-default', authMiddleware, this.setAsDefault.bind(this));
   }
 

@@ -1,25 +1,20 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class RemoveClubAddChampionship1748500000000 implements MigrationInterface {
-    name = 'RemoveClubAddChampionship1748500000000'
+export class CreateChampionshipsTable0003000000000 implements MigrationInterface {
+    name = 'CreateChampionshipsTable0003000000000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        // Remove trigger from Clubs table
-        await queryRunner.query(`DROP TRIGGER IF EXISTS clubs_notify_trigger ON "Clubs"`);
-        
-        // Drop the Clubs table
-        await queryRunner.query(`DROP TABLE IF EXISTS "Clubs"`);
-        
         // Create PersonType enum
         await queryRunner.query(`CREATE TYPE "public"."Championships_persontype_enum" AS ENUM('0', '1')`);
         
-        // Create Championships table
+        // Create Championships table with all current fields including sponsors and image
         await queryRunner.query(`
             CREATE TABLE "Championships" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
                 "name" character varying(90) NOT NULL, 
+                "championshipImage" text, 
                 "shortDescription" character varying(165), 
                 "fullDescription" text, 
                 "personType" "public"."Championships_persontype_enum" NOT NULL DEFAULT '0', 
@@ -34,6 +29,7 @@ export class RemoveClubAddChampionship1748500000000 implements MigrationInterfac
                 "isResponsible" boolean NOT NULL DEFAULT true, 
                 "responsibleName" character varying(100), 
                 "responsiblePhone" character varying(15), 
+                "sponsors" jsonb DEFAULT '[]', 
                 "ownerId" uuid NOT NULL, 
                 CONSTRAINT "PK_Championships" PRIMARY KEY ("id")
             )
@@ -48,6 +44,14 @@ export class RemoveClubAddChampionship1748500000000 implements MigrationInterfac
             ON DELETE CASCADE 
             ON UPDATE NO ACTION
         `);
+
+        // Create indexes for better performance
+        await queryRunner.query(`CREATE INDEX "IDX_Championships_ownerId" ON "Championships" ("ownerId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Championships_name" ON "Championships" ("name")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Championships_personType" ON "Championships" ("personType")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Championships_state" ON "Championships" ("state")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Championships_city" ON "Championships" ("city")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Championships_document" ON "Championships" ("document")`);
         
         // Create trigger for the Championships table
         await queryRunner.query(`
@@ -61,6 +65,14 @@ export class RemoveClubAddChampionship1748500000000 implements MigrationInterfac
         // Remove trigger from Championships table
         await queryRunner.query(`DROP TRIGGER IF EXISTS championships_notify_trigger ON "Championships"`);
         
+        // Drop indexes
+        await queryRunner.query(`DROP INDEX "IDX_Championships_document"`);
+        await queryRunner.query(`DROP INDEX "IDX_Championships_city"`);
+        await queryRunner.query(`DROP INDEX "IDX_Championships_state"`);
+        await queryRunner.query(`DROP INDEX "IDX_Championships_personType"`);
+        await queryRunner.query(`DROP INDEX "IDX_Championships_name"`);
+        await queryRunner.query(`DROP INDEX "IDX_Championships_ownerId"`);
+        
         // Drop the foreign key constraint
         await queryRunner.query(`ALTER TABLE "Championships" DROP CONSTRAINT "FK_Championships_Users_ownerId"`);
         
@@ -69,37 +81,5 @@ export class RemoveClubAddChampionship1748500000000 implements MigrationInterfac
         
         // Drop the PersonType enum
         await queryRunner.query(`DROP TYPE "public"."Championships_persontype_enum"`);
-        
-        // Recreate Clubs table
-        await queryRunner.query(`
-            CREATE TABLE "Clubs" (
-                "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
-                "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
-                "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
-                "name" character varying(100) NOT NULL, 
-                "foundationDate" date, 
-                "description" text, 
-                "logoUrl" character varying(255),
-                "ownerId" uuid,
-                CONSTRAINT "PK_174e8f05d412f7c978e45a3350e" PRIMARY KEY ("id")
-            )
-        `);
-        
-        // Add foreign key constraint for club owner
-        await queryRunner.query(`
-            ALTER TABLE "Clubs" 
-            ADD CONSTRAINT "FK_Clubs_Users_ownerId" 
-            FOREIGN KEY ("ownerId") 
-            REFERENCES "Users"("id") 
-            ON DELETE SET NULL 
-            ON UPDATE NO ACTION
-        `);
-        
-        // Create trigger for the Clubs table
-        await queryRunner.query(`
-            CREATE TRIGGER clubs_notify_trigger
-            AFTER INSERT OR UPDATE OR DELETE ON "Clubs"
-            FOR EACH ROW EXECUTE FUNCTION notify_database_events();
-        `);
     }
 } 

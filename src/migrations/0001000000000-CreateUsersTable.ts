@@ -1,16 +1,16 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class UnifiedMigration1000000000000 implements MigrationInterface {
-    name = 'UnifiedMigration1000000000000'
+export class CreateUsersTable0001000000000 implements MigrationInterface {
+    name = 'CreateUsersTable0001000000000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         // Create extension for UUID generation if it doesn't exist
         await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
         
-        // Create user role enum with all roles (including Manager)
+        // Create user role enum with all roles
         await queryRunner.query(`CREATE TYPE "public"."Users_role_enum" AS ENUM('Member', 'Manager', 'Administrator')`);
         
-        // Create Users table
+        // Create Users table with all current fields
         await queryRunner.query(`
             CREATE TABLE "Users" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
@@ -25,35 +25,22 @@ export class UnifiedMigration1000000000000 implements MigrationInterface {
                 "active" boolean NOT NULL DEFAULT true, 
                 "resetPasswordToken" character varying(100),
                 "resetPasswordExpires" TIMESTAMP,
+                "googleId" character varying(100),
+                "profilePicture" character varying(255),
+                "emailConfirmed" boolean NOT NULL DEFAULT false,
+                "emailConfirmationToken" character varying(100),
+                "emailConfirmationExpires" TIMESTAMP,
                 CONSTRAINT "UQ_3c3ab3f49a87e6ddb607f3c4945" UNIQUE ("email"), 
                 CONSTRAINT "PK_16d4f7d636df336db11d87413e3" PRIMARY KEY ("id")
             )
         `);
-        
-        // Create Clubs table with ownerId column
-        await queryRunner.query(`
-            CREATE TABLE "Clubs" (
-                "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
-                "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
-                "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
-                "name" character varying(100) NOT NULL, 
-                "foundationDate" date, 
-                "description" text, 
-                "logoUrl" character varying(255),
-                "ownerId" uuid,
-                CONSTRAINT "PK_174e8f05d412f7c978e45a3350e" PRIMARY KEY ("id")
-            )
-        `);
-        
-        // Add foreign key constraint for club owner
-        await queryRunner.query(`
-            ALTER TABLE "Clubs" 
-            ADD CONSTRAINT "FK_Clubs_Users_ownerId" 
-            FOREIGN KEY ("ownerId") 
-            REFERENCES "Users"("id") 
-            ON DELETE SET NULL 
-            ON UPDATE NO ACTION
-        `);
+
+        // Create indexes for better performance
+        await queryRunner.query(`CREATE INDEX "IDX_Users_email" ON "Users" ("email")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Users_googleId" ON "Users" ("googleId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Users_role" ON "Users" ("role")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Users_active" ON "Users" ("active")`);
+        await queryRunner.query(`CREATE INDEX "IDX_Users_emailConfirmed" ON "Users" ("emailConfirmed")`);
         
         // Create the database events notification function
         await queryRunner.query(`
@@ -91,26 +78,29 @@ export class UnifiedMigration1000000000000 implements MigrationInterface {
             $$ LANGUAGE plpgsql;
         `);
 
-        // Create trigger for the Clubs table
+        // Create trigger for the Users table
         await queryRunner.query(`
-            CREATE TRIGGER clubs_notify_trigger
-            AFTER INSERT OR UPDATE OR DELETE ON "Clubs"
+            CREATE TRIGGER users_notify_trigger
+            AFTER INSERT OR UPDATE OR DELETE ON "Users"
             FOR EACH ROW EXECUTE FUNCTION notify_database_events();
         `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-        // Drop trigger from Clubs table
-        await queryRunner.query(`DROP TRIGGER IF EXISTS clubs_notify_trigger ON "Clubs"`);
+        // Drop trigger from Users table
+        await queryRunner.query(`DROP TRIGGER IF EXISTS users_notify_trigger ON "Users"`);
         
         // Drop the notification function
         await queryRunner.query(`DROP FUNCTION IF EXISTS notify_database_events()`);
         
-        // Drop the foreign key constraint
-        await queryRunner.query(`ALTER TABLE "Clubs" DROP CONSTRAINT "FK_Clubs_Users_ownerId"`);
+        // Drop indexes
+        await queryRunner.query(`DROP INDEX "IDX_Users_emailConfirmed"`);
+        await queryRunner.query(`DROP INDEX "IDX_Users_active"`);
+        await queryRunner.query(`DROP INDEX "IDX_Users_role"`);
+        await queryRunner.query(`DROP INDEX "IDX_Users_googleId"`);
+        await queryRunner.query(`DROP INDEX "IDX_Users_email"`);
         
-        // Drop tables
-        await queryRunner.query(`DROP TABLE "Clubs"`);
+        // Drop table
         await queryRunner.query(`DROP TABLE "Users"`);
         
         // Drop the role enum

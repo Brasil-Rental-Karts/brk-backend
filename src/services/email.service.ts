@@ -39,55 +39,50 @@ export class EmailService {
    */
   public async sendPasswordResetEmail(email: string, name: string, resetToken: string): Promise<void> {
     try {
-      console.log(`Preparing to send reset password email to ${email}`);
-      
-      // Create the reset password URL with the token
+      console.log(`Preparing to send password reset email to ${email}`);
       const resetUrl = `${config.frontendUrl}${config.passwordResetPath}?token=${resetToken}`;
       console.log('Reset URL generated:', resetUrl);
-      
-      // Load and prepare email template
-      let emailTemplate = this.getEmailTemplate(this.emailTemplates.passwordReset);
-      
-      // Replace template variables
-      emailTemplate = emailTemplate
-        .replace(/{{nome}}/g, name)
-        .replace(/{{resetLink}}/g, resetUrl)
-        .replace(/{{ano}}/g, new Date().getFullYear().toString());
-      
-      // Send the email
-      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-      
-      sendSmtpEmail.subject = 'Recuperação de Senha';
-      sendSmtpEmail.htmlContent = emailTemplate;
-      
-      sendSmtpEmail.sender = {
-        name: config.brevo.senderName,
-        email: config.brevo.senderEmail
-      };
-      
-      sendSmtpEmail.to = [{ name, email }];
-      
-      console.log('Email configuration prepared, attempting to send email via Brevo API');
-      
-      // In development mode, just log the email details instead of sending if no API key
-      if (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key') {
+
+      // If no valid API key in development, just log and return
+      if (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here') {
         console.log('DEVELOPMENT MODE: Email would be sent with the following details:');
         console.log('To:', email);
-        console.log('Subject:', sendSmtpEmail.subject);
+        console.log('Subject: Redefinição de Senha');
         console.log('Reset URL:', resetUrl);
         console.log('WARNING: No valid Brevo API key provided. Email not actually sent.');
         return;
       }
-      
+
+      let emailTemplate = this.getEmailTemplate(this.emailTemplates.passwordReset);
+      emailTemplate = emailTemplate
+        .replace(/{{nome}}/g, name)
+        .replace(/{{resetLink}}/g, resetUrl)
+        .replace(/{{ano}}/g, new Date().getFullYear().toString());
+
+      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+      sendSmtpEmail.subject = 'Redefinição de Senha';
+      sendSmtpEmail.htmlContent = emailTemplate;
+      sendSmtpEmail.sender = {
+        name: config.brevo.senderName,
+        email: config.brevo.senderEmail
+      };
+      sendSmtpEmail.to = [{ name, email }];
+
       await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      console.log('Reset password email sent successfully to', email);
-      
+      console.log('Password reset email sent successfully to', email);
     } catch (error) {
       console.error('Error sending password reset email:', error);
       if (error instanceof Error) {
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);
       }
+      
+      // In development mode with invalid API key, don't throw error
+      if (config.nodeEnv === 'development' && (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here')) {
+        console.warn('Development mode: Email service error ignored');
+        return;
+      }
+      
       throw new Error('Failed to send password reset email');
     }
   }
@@ -124,11 +119,23 @@ export class EmailService {
       console.log(`Preparing to send email confirmation to ${email}`);
       const confirmUrl = `${config.frontendUrl}${config.emailConfirmationPath}?token=${confirmationToken}`;
       console.log('Confirmation URL generated:', confirmUrl);
+
+      // If no valid API key in development, just log and return
+      if (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here') {
+        console.log('DEVELOPMENT MODE: Email would be sent with the following details:');
+        console.log('To:', email);
+        console.log('Subject: Confirmação de E-mail');
+        console.log('Confirmation URL:', confirmUrl);
+        console.log('WARNING: No valid Brevo API key provided. Email not actually sent.');
+        return;
+      }
+
       let emailTemplate = this.getEmailTemplate(this.emailTemplates.emailConfirmation);
       emailTemplate = emailTemplate
         .replace(/{{nome}}/g, name)
         .replace(/{{confirmLink}}/g, confirmUrl)
         .replace(/{{ano}}/g, new Date().getFullYear().toString());
+
       const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
       sendSmtpEmail.subject = 'Confirmação de E-mail';
       sendSmtpEmail.htmlContent = emailTemplate;
@@ -137,14 +144,7 @@ export class EmailService {
         email: config.brevo.senderEmail
       };
       sendSmtpEmail.to = [{ name, email }];
-      if (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key') {
-        console.log('DEVELOPMENT MODE: Email would be sent with the following details:');
-        console.log('To:', email);
-        console.log('Subject:', sendSmtpEmail.subject);
-        console.log('Confirmation URL:', confirmUrl);
-        console.log('WARNING: No valid Brevo API key provided. Email not actually sent.');
-        return;
-      }
+
       await this.apiInstance.sendTransacEmail(sendSmtpEmail);
       console.log('Email confirmation sent successfully to', email);
     } catch (error) {
@@ -153,6 +153,13 @@ export class EmailService {
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);
       }
+      
+      // In development mode with invalid API key, don't throw error
+      if (config.nodeEnv === 'development' && (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here')) {
+        console.warn('Development mode: Email service error ignored');
+        return;
+      }
+      
       throw new Error('Failed to send email confirmation');
     }
   }

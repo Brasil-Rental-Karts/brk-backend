@@ -1,10 +1,10 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateGridTypesTable1752000000000 implements MigrationInterface {
-    name = 'CreateGridTypesTable1752000000000'
+export class CreateGridTypesTable0006000000000 implements MigrationInterface {
+    name = 'CreateGridTypesTable0006000000000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create GridTypes table
+        // Create GridTypes table with all current fields including qualifyingDuration
         await queryRunner.query(`
             CREATE TABLE "GridTypes" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
@@ -12,10 +12,11 @@ export class CreateGridTypesTable1752000000000 implements MigrationInterface {
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), 
                 "name" character varying(100) NOT NULL, 
                 "description" text NOT NULL, 
-                "type" character varying NOT NULL CHECK ("type" IN ('super_pole', 'inverted', 'inverted_partial')), 
+                "type" character varying NOT NULL CHECK ("type" IN ('super_pole', 'inverted', 'inverted_partial', 'qualifying_session')), 
                 "isActive" boolean NOT NULL DEFAULT true, 
                 "isDefault" boolean NOT NULL DEFAULT false, 
                 "invertedPositions" integer, 
+                "qualifyingDuration" integer, 
                 "championshipId" uuid NOT NULL, 
                 CONSTRAINT "PK_GridTypes" PRIMARY KEY ("id")
             )
@@ -40,6 +41,7 @@ export class CreateGridTypesTable1752000000000 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_GridTypes_type" ON "GridTypes" ("type")`);
         await queryRunner.query(`CREATE INDEX "IDX_GridTypes_isActive" ON "GridTypes" ("isActive")`);
         await queryRunner.query(`CREATE INDEX "IDX_GridTypes_isDefault" ON "GridTypes" ("isDefault")`);
+        await queryRunner.query(`CREATE INDEX "IDX_GridTypes_name" ON "GridTypes" ("name")`);
         
         // Create trigger for the GridTypes table
         await queryRunner.query(`
@@ -91,6 +93,21 @@ export class CreateGridTypesTable1752000000000 implements MigrationInterface {
                 NOW() as "updatedAt"
             FROM "Championships" c
         `);
+
+        await queryRunner.query(`
+            INSERT INTO "GridTypes" ("name", "description", "type", "isActive", "isDefault", "qualifyingDuration", "championshipId", "createdAt", "updatedAt")
+            SELECT 
+                'Classificação 5min' as "name",
+                'Sessão de classificação por tempo determinado. Posições definidas pela volta mais rápida durante a sessão' as "description",
+                'qualifying_session' as "type",
+                true as "isActive",
+                false as "isDefault",
+                5 as "qualifyingDuration",
+                c."id" as "championshipId",
+                NOW() as "createdAt",
+                NOW() as "updatedAt"
+            FROM "Championships" c
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -98,6 +115,7 @@ export class CreateGridTypesTable1752000000000 implements MigrationInterface {
         await queryRunner.query(`DROP TRIGGER IF EXISTS grid_types_notify_trigger ON "GridTypes"`);
         
         // Drop indexes
+        await queryRunner.query(`DROP INDEX "IDX_GridTypes_name"`);
         await queryRunner.query(`DROP INDEX "IDX_GridTypes_isDefault"`);
         await queryRunner.query(`DROP INDEX "IDX_GridTypes_isActive"`);
         await queryRunner.query(`DROP INDEX "IDX_GridTypes_type"`);
