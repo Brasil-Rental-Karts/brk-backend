@@ -135,10 +135,6 @@ services:
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
       
-      # File Upload Configuration
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
-      UPLOAD_PATH: ${UPLOAD_PATH:-/tmp/uploads}
-      
     ports:
       - "${PORT:-3000}:3000"
     networks:
