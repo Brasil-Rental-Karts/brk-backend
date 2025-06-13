@@ -80,7 +80,7 @@ AppDataSource.initialize()
       new HealthController(),
       new AuthController(authService, googleAuthService),
       new UserController(userService),
-      new ChampionshipController(championshipService, userService, authService),
+      new ChampionshipController(championshipService, userService, authService, memberProfileService),
       new MemberProfileController(memberProfileService),
       new SeasonController(seasonService),
       new VipPreregisterController(vipPreregisterService),

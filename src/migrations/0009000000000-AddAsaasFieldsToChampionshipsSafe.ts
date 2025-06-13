@@ -87,7 +87,7 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           name: 'responsibleBirthDate',
           type: 'date',
           isNullable: true,
-          comment: 'Data de nascimento do responsável (obrigatório para pessoa física)'
+          comment: 'Data de nascimento do responsável'
         })
       }
     ];

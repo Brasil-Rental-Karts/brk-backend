@@ -3,6 +3,8 @@ import { BaseController } from './base.controller';
 import { ChampionshipService } from '../services/championship.service';
 import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
+import { MemberProfileService } from '../services/member-profile.service';
+import { AsaasException } from '../exceptions/asaas.exception';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { Championship, PersonType } from '../models/championship.entity';
 import { UserRole } from '../models/user.entity';
@@ -169,7 +171,8 @@ export class ChampionshipController extends BaseController {
   constructor(
     private championshipService: ChampionshipService,
     private userService: UserService,
-    private authService: AuthService
+    private authService: AuthService,
+    private memberProfileService: MemberProfileService
   ) {
     super('/championships');
     this.initializeRoutes();
@@ -647,6 +650,11 @@ export class ChampionshipController extends BaseController {
       // Adiciona o ownerId
       championshipData.ownerId = userId;
 
+      // Preenchimento automático dos campos responsáveis se isResponsible for true
+      if (championshipData.isResponsible === true) {
+        await this.fillResponsibleDataFromUser(championshipData, userId);
+      }
+
       // Gerar IDs para sponsors se eles existirem
       if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
         championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
@@ -686,6 +694,11 @@ export class ChampionshipController extends BaseController {
 
       // Validações básicas (apenas para campos que estão sendo atualizados)
       this.validateChampionshipData(championshipData, false);
+
+      // Preenchimento automático dos campos responsáveis se isResponsible for true
+      if (championshipData.isResponsible === true) {
+        await this.fillResponsibleDataFromUser(championshipData, userId);
+      }
 
       // Gerar IDs para sponsors se eles existirem
       if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
@@ -840,6 +853,40 @@ export class ChampionshipController extends BaseController {
     }
   }
 
+  /**
+   * Preenche automaticamente os dados do responsável com informações do usuário logado
+   */
+  private async fillResponsibleDataFromUser(championshipData: any, userId: string): Promise<void> {
+    try {
+      // Buscar dados do usuário
+      const user = await this.userService.findById(userId);
+      if (!user) {
+        console.warn(`User not found for ID: ${userId}`);
+        return;
+      }
+
+      // Buscar dados do member profile
+      const memberProfile = await this.memberProfileService.findByUserId(userId);
+
+      // Preencher campos responsáveis com dados do usuário
+      championshipData.responsibleName = user.name || '';
+      championshipData.responsiblePhone = user.phone || '';
+      
+      // Email: usar do user (sempre disponível)
+      championshipData.responsibleEmail = user.email || '';
+      
+      // Data de nascimento: usar do member profile se disponível
+      if (memberProfile && memberProfile.birthDate) {
+        championshipData.responsibleBirthDate = memberProfile.birthDate;
+      }
+
+      console.log(`Auto-filled responsible data for user ${userId}: name=${user.name}, phone=${user.phone}, email=${user.email}, birthDate=${memberProfile?.birthDate}`);
+    } catch (error) {
+      console.error('Error filling responsible data from user:', error);
+      // Não falha a criação do campeonato se não conseguir buscar os dados do usuário
+    }
+  }
+
   private generateSponsorId(name: string): string {
     return name
       .toLowerCase()
@@ -885,6 +932,12 @@ export class ChampionshipController extends BaseController {
       }
     } catch (error: any) {
       console.error('Error creating Asaas account:', error);
+      
+      // Verifica se é uma exceção específica do Asaas
+      if (error instanceof AsaasException) {
+        res.status(error.httpStatus).json(error.toResponse());
+        return;
+      }
       
       if (error.message.includes('não encontrado') || error.message.includes('not found')) {
         res.status(404).json({ message: error.message });
