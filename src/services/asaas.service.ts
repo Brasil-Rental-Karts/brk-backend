@@ -116,6 +116,51 @@ export interface AsaasPaymentResponse {
   };
 }
 
+export interface AsaasSubAccount {
+  id?: string;
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  birthDate?: string;
+  companyType?: 'MEI' | 'LIMITED' | 'INDIVIDUAL' | 'ASSOCIATION';
+  phone?: string;
+  mobilePhone?: string;
+  site?: string;
+  incomeValue?: number;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  postalCode?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
+export interface AsaasSubAccountResponse {
+  object: string;
+  id: string;
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  birthDate: string;
+  companyType: string;
+  phone: string;
+  mobilePhone: string;
+  address: string;
+  addressNumber: string;
+  complement: string;
+  province: string;
+  postalCode: string;
+  city: string;
+  state: string;
+  country: string;
+  walletId: string;
+  apiKey: string;
+  status: string;
+  dateCreated: string;
+}
+
 export class AsaasService {
   private apiClient: AxiosInstance;
 
@@ -305,5 +350,181 @@ export class AsaasService {
     // Implementar validação de webhook conforme documentação da Asaas
     // Por enquanto, retorna true para permitir o desenvolvimento
     return true;
+  }
+
+  /**
+   * Busca uma subconta por CPF/CNPJ
+   */
+  async findSubAccountByCpfCnpj(cpfCnpj: string): Promise<AsaasSubAccountResponse | null> {
+    try {
+      console.log(`[ASAAS] Buscando subconta para CPF/CNPJ: ${cpfCnpj}`);
+      
+      const response: AxiosResponse<{ data: AsaasSubAccountResponse[] }> = await this.apiClient.get(
+        `/accounts?cpfCnpj=${cpfCnpj}`
+      );
+      
+      const subAccount = response.data.data.length > 0 ? response.data.data[0] : null;
+      
+      if (subAccount) {
+        console.log(`[ASAAS] Subconta encontrada: ${subAccount.id} - WalletID: ${subAccount.walletId}`);
+      } else {
+        console.log(`[ASAAS] Nenhuma subconta encontrada para CPF/CNPJ: ${cpfCnpj}`);
+      }
+      
+      return subAccount;
+    } catch (error: any) {
+      console.error('[ASAAS] Error finding subaccount:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Cria uma nova subconta não white label no Asaas
+   */
+  async createSubAccount(subAccountData: AsaasSubAccount): Promise<AsaasSubAccountResponse> {
+    try {
+      console.log(`[ASAAS] Criando subconta não white label para: ${subAccountData.name} (${subAccountData.cpfCnpj})`);
+      
+      // Dados específicos para subconta não white label
+      const nonWhiteLabelData = {
+        ...subAccountData,
+        // Força a criação como subconta não white label
+        // removendo campos que podem tornar a conta white label
+        site: undefined,
+        // Garantindo que seja uma subconta padrão
+        walletId: undefined // será gerado automaticamente pelo Asaas
+      };
+      
+      const response: AxiosResponse<AsaasSubAccountResponse> = await this.apiClient.post(
+        '/accounts',
+        nonWhiteLabelData
+      );
+      
+      console.log(`[ASAAS] Subconta não white label criada com sucesso: ${response.data.id} - WalletID: ${response.data.walletId}`);
+      console.log(`[ASAAS] Dados da subconta:`, {
+        id: response.data.id,
+        walletId: response.data.walletId,
+        status: response.data.status,
+        name: response.data.name,
+        cpfCnpj: response.data.cpfCnpj
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('[ASAAS] Error creating non-white-label subaccount:', error.response?.data || error.message);
+      throw new BadRequestException(
+        `Erro ao criar subconta não white label no Asaas: ${error.response?.data?.errors?.[0]?.description || error.message}`
+      );
+    }
+  }
+
+  /**
+   * Busca ou cria uma subconta não white label e retorna o walletId
+   */
+  async getOrCreateSubAccountWallet(subAccountData: AsaasSubAccount): Promise<{ subAccountId: string; walletId: string }> {
+    try {
+      console.log(`[ASAAS] Verificando/criando subconta não white label para CPF/CNPJ: ${subAccountData.cpfCnpj}`);
+      
+      // Primeiro, tenta buscar uma subconta existente
+      let subAccount = await this.findSubAccountByCpfCnpj(subAccountData.cpfCnpj);
+      
+      if (subAccount) {
+        console.log(`[ASAAS] Subconta existente encontrada: ${subAccount.id} - WalletID: ${subAccount.walletId}`);
+        console.log(`[ASAAS] Verificando se a subconta existente é adequada...`);
+        
+        return {
+          subAccountId: subAccount.id,
+          walletId: subAccount.walletId
+        };
+      }
+      
+      // Se não encontrou, cria uma nova subconta não white label
+      console.log(`[ASAAS] Criando nova subconta não white label para: ${subAccountData.name}`);
+      subAccount = await this.createSubAccount(subAccountData);
+      
+      // Validação adicional para garantir que a subconta foi criada corretamente
+      if (!subAccount.walletId) {
+        throw new Error('Subconta criada mas walletId não foi gerado');
+      }
+      
+      console.log(`[ASAAS] Subconta não white label configurada com sucesso - ID: ${subAccount.id}, WalletID: ${subAccount.walletId}`);
+      
+      return {
+        subAccountId: subAccount.id,
+        walletId: subAccount.walletId
+      };
+    } catch (error: any) {
+      console.error('[ASAAS] Error getting/creating non-white-label subaccount wallet:', error.response?.data || error.message);
+      throw new BadRequestException(
+        `Erro ao obter/criar carteira da subconta não white label: ${error.response?.data?.errors?.[0]?.description || error.message}`
+      );
+    }
+  }
+
+  /**
+   * Prepara dados da subconta não white label a partir dos dados do campeonato
+   */
+  prepareSubAccountData(championshipData: any): AsaasSubAccount {
+    const isCompany = championshipData.personType === 1;
+    
+    console.log(`[ASAAS] Preparando dados para subconta não white label - Tipo: ${isCompany ? 'Jurídica' : 'Física'}`);
+    
+    // Aplicar regras de preenchimento para o Asaas
+    let name: string;
+    let email: string;
+    let mobilePhone: string;
+    let birthDate: string | undefined;
+    
+    if (isCompany) {
+      // Pessoa Jurídica: Usar razão social
+      name = championshipData.socialReason || championshipData.name;
+      mobilePhone = championshipData.responsiblePhone || '';
+      email = championshipData.responsibleEmail || `organizador-${championshipData.document}@brk.com.br`;
+    } else {
+      // Pessoa Física: Nome e telefone do responsável
+      name = championshipData.responsibleName || 'Organizador';
+      mobilePhone = championshipData.responsiblePhone || '';
+      email = championshipData.responsibleEmail || `organizador-${championshipData.document}@brk.com.br`;
+      
+      // Data de nascimento: usar apenas responsibleBirthDate
+      if (championshipData.responsibleBirthDate) {
+        birthDate = new Date(championshipData.responsibleBirthDate).toISOString().split('T')[0];
+      }
+    }
+    
+    const subAccountData: AsaasSubAccount = {
+      name: name,
+      email: email,
+      cpfCnpj: championshipData.document,
+      birthDate: birthDate,
+      companyType: isCompany ? (championshipData.companyType || 'LIMITED') : undefined,
+      phone: mobilePhone,
+      mobilePhone: mobilePhone,
+      incomeValue: championshipData.incomeValue || undefined,
+      address: championshipData.fullAddress,
+      addressNumber: championshipData.number,
+      complement: championshipData.complement,
+      province: championshipData.province, // Bairro
+      postalCode: championshipData.cep?.replace(/\D/g, ''), // Remove formatação do CEP
+      city: championshipData.city,
+      state: championshipData.state,
+      country: 'Brasil',
+      // Campos específicos para garantir que seja não white label
+      site: undefined, // Não informamos site para evitar white label
+    };
+
+    console.log(`[ASAAS] Dados preparados:`, {
+      name: subAccountData.name,
+      email: subAccountData.email,
+      cpfCnpj: subAccountData.cpfCnpj,
+      companyType: subAccountData.companyType,
+      birthDate: subAccountData.birthDate,
+      incomeValue: subAccountData.incomeValue,
+      city: subAccountData.city,
+      state: subAccountData.state,
+      province: subAccountData.province
+    });
+
+    return subAccountData;
   }
 } 

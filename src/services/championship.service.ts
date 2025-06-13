@@ -2,6 +2,7 @@ import { Championship } from '../models/championship.entity';
 import { ChampionshipRepository } from '../repositories/championship.repository';
 import { BaseService } from './base.service';
 import { RedisService } from './redis.service';
+import { AsaasService } from './asaas.service';
 
 export interface ChampionshipCacheData {
   id: string;
@@ -13,15 +14,20 @@ export interface ChampionshipCacheData {
 export class ChampionshipService extends BaseService<Championship> {
   private redisService: RedisService;
   private championshipRepository: ChampionshipRepository;
+  private asaasService: AsaasService;
 
   constructor(championshipRepository: ChampionshipRepository) {
     super(championshipRepository);
     this.championshipRepository = championshipRepository;
     this.redisService = RedisService.getInstance();
+    this.asaasService = new AsaasService();
   }
 
   async create(championshipData: Partial<Championship>): Promise<Championship> {
     const championship = await super.create(championshipData);
+    
+    console.log(`[CHAMPIONSHIP] Criado campeonato ${championship.id} - splitEnabled: ${championship.splitEnabled}, document: ${championship.document}`);
+    console.log(`[CHAMPIONSHIP] Subconta Asaas será configurada manualmente através das configurações`);
     
     // Cache no Redis apenas os campos da seção "Sobre o Campeonato"
     await this.cacheChampionshipData(championship);
@@ -191,5 +197,169 @@ export class ChampionshipService extends BaseService<Championship> {
     }
 
     return results;
+  }
+
+  /**
+   * Configura a subconta não white label no Asaas para split payment
+   */
+  private async setupAsaasSubAccount(championship: Championship): Promise<void> {
+    try {
+      console.log(`[CHAMPIONSHIP] Configurando subconta não white label no Asaas para campeonato: ${championship.id}`);
+      console.log(`[CHAMPIONSHIP] Dados do campeonato:`, {
+        id: championship.id,
+        name: championship.name,
+        document: championship.document,
+        personType: championship.personType,
+        splitEnabled: championship.splitEnabled
+      });
+      
+      // Prepara os dados da subconta não white label
+      const subAccountData = this.asaasService.prepareSubAccountData(championship);
+      
+      // Busca ou cria a subconta não white label e obtém o walletId
+      const { subAccountId, walletId } = await this.asaasService.getOrCreateSubAccountWallet(subAccountData);
+      
+      console.log(`[CHAMPIONSHIP] Subconta obtida/criada - CustomerID: ${subAccountId}, WalletID: ${walletId}`);
+      
+      // Atualiza o campeonato com os dados da subconta
+      const updatedChampionship = await this.update(championship.id, {
+        asaasCustomerId: subAccountId,
+        asaasWalletId: walletId
+      });
+      
+      if (updatedChampionship) {
+        console.log(`[CHAMPIONSHIP] Campeonato atualizado com dados da subconta não white label:`);
+        console.log(`[CHAMPIONSHIP] - CustomerID: ${updatedChampionship.asaasCustomerId}`);
+        console.log(`[CHAMPIONSHIP] - WalletID: ${updatedChampionship.asaasWalletId}`);
+        console.log(`[CHAMPIONSHIP] - Split Payment: ${updatedChampionship.splitEnabled ? 'HABILITADO' : 'DESABILITADO'}`);
+      } else {
+        throw new Error('Falha ao atualizar campeonato com dados da subconta');
+      }
+      
+      console.log(`[CHAMPIONSHIP] Subconta não white label configurada com sucesso para campeonato: ${championship.id}`);
+    } catch (error) {
+      console.error('[CHAMPIONSHIP] Erro ao configurar subconta não white label no Asaas:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cria a subconta Asaas manualmente (chamado através das configurações)
+   */
+  async createAsaasSubAccount(championshipId: string): Promise<Championship | null> {
+    const championship = await this.findById(championshipId);
+    
+    if (!championship) {
+      throw new Error('Campeonato não encontrado');
+    }
+    
+    if (!championship.splitEnabled) {
+      throw new Error('Split payment não está habilitado para este campeonato');
+    }
+    
+    if (!championship.document) {
+      throw new Error('Documento (CPF/CNPJ) é obrigatório para criar a subconta Asaas');
+    }
+    
+    if (championship.asaasWalletId && championship.asaasCustomerId) {
+      console.log(`[CHAMPIONSHIP] Subconta Asaas já existe - CustomerID: ${championship.asaasCustomerId}, WalletID: ${championship.asaasWalletId}`);
+      return championship;
+    }
+    
+    console.log(`[CHAMPIONSHIP] Criando subconta Asaas para campeonato: ${championshipId}`);
+    await this.setupAsaasSubAccount(championship);
+    
+    // Busca o campeonato atualizado para confirmar que os dados foram salvos
+    const updatedChampionship = await this.findById(championshipId);
+    
+    if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
+      console.log(`[CHAMPIONSHIP] Subconta Asaas criada com sucesso:`);
+      console.log(`[CHAMPIONSHIP] - CustomerID: ${updatedChampionship.asaasCustomerId}`);
+      console.log(`[CHAMPIONSHIP] - WalletID: ${updatedChampionship.asaasWalletId}`);
+    } else {
+      console.error(`[CHAMPIONSHIP] Falha na criação - dados não foram salvos corretamente`);
+    }
+    
+    return updatedChampionship;
+  }
+
+  /**
+   * Reconfigura a subconta não white label no Asaas (útil para retry em caso de falha)
+   */
+  async retryAsaasSubAccountSetup(championshipId: string): Promise<Championship | null> {
+    const championship = await this.findById(championshipId);
+    
+    if (!championship) {
+      throw new Error('Campeonato não encontrado');
+    }
+    
+    if (!championship.splitEnabled) {
+      throw new Error('Split payment não está habilitado para este campeonato');
+    }
+    
+    if (championship.asaasWalletId && championship.asaasCustomerId) {
+      console.log(`[CHAMPIONSHIP] Subconta não white label já configurada - CustomerID: ${championship.asaasCustomerId}, WalletID: ${championship.asaasWalletId}`);
+      return championship;
+    }
+    
+    console.log(`[CHAMPIONSHIP] Forçando reconfiguração da subconta não white label para campeonato: ${championshipId}`);
+    await this.setupAsaasSubAccount(championship);
+    
+    // Busca o campeonato atualizado para confirmar que os dados foram salvos
+    const updatedChampionship = await this.findById(championshipId);
+    
+    if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
+      console.log(`[CHAMPIONSHIP] Reconfiguração concluída com sucesso:`);
+      console.log(`[CHAMPIONSHIP] - CustomerID: ${updatedChampionship.asaasCustomerId}`);
+      console.log(`[CHAMPIONSHIP] - WalletID: ${updatedChampionship.asaasWalletId}`);
+    } else {
+      console.error(`[CHAMPIONSHIP] Falha na reconfiguração - dados não foram salvos corretamente`);
+    }
+    
+    return updatedChampionship;
+  }
+
+  /**
+   * Valida se a subconta não white label está configurada corretamente
+   */
+  async validateAsaasSubAccountSetup(championshipId: string): Promise<{ 
+    configured: boolean; 
+    hasCustomerId: boolean; 
+    hasWalletId: boolean; 
+    details: any 
+  }> {
+    const championship = await this.findById(championshipId);
+    
+    if (!championship) {
+      throw new Error('Campeonato não encontrado');
+    }
+    
+    const hasCustomerId = !!(championship.asaasCustomerId);
+    const hasWalletId = !!(championship.asaasWalletId);
+    const configured = hasCustomerId && hasWalletId;
+    
+    const details = {
+      championshipId: championship.id,
+      name: championship.name,
+      splitEnabled: championship.splitEnabled,
+      asaasCustomerId: championship.asaasCustomerId,
+      asaasWalletId: championship.asaasWalletId,
+      document: championship.document,
+      personType: championship.personType
+    };
+    
+    console.log(`[CHAMPIONSHIP] Validação da subconta não white label:`, {
+      configured,
+      hasCustomerId,
+      hasWalletId,
+      details
+    });
+    
+    return {
+      configured,
+      hasCustomerId,
+      hasWalletId,
+      details
+    };
   }
 } 
