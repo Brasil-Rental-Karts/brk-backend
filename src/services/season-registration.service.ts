@@ -27,6 +27,7 @@ export interface RegistrationPaymentData {
   dueDate: string;
   invoiceUrl?: string | null;
   bankSlipUrl?: string | null;
+  paymentLink?: string | null;
   pixQrCode?: string | null;
   pixCopyPaste?: string | null;
 }
@@ -222,6 +223,8 @@ export class SeasonRegistrationService {
         dueDate: this.asaasService.formatDateForAsaas(dueDate),
         invoiceUrl: asaasPaymentResponse.invoiceUrl,
         bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
+        // Para cartão de crédito, se paymentLink for null, usar invoiceUrl
+        paymentLink: asaasPaymentResponse.paymentLink || (asaasBillingType === 'CREDIT_CARD' ? asaasPaymentResponse.invoiceUrl : null),
         pixQrCode: asaasPayment.pixQrCode || undefined,
         pixCopyPaste: asaasPayment.pixCopyPaste || undefined
       };
@@ -473,6 +476,8 @@ export class SeasonRegistrationService {
       dueDate: dueDateString,
       invoiceUrl: asaasPayment.invoiceUrl || undefined,
       bankSlipUrl: asaasPayment.bankSlipUrl || undefined,
+      // Para cartão de crédito, se paymentLink for null, usar invoiceUrl
+      paymentLink: asaasPayment.rawResponse?.paymentLink || (asaasPayment.billingType === 'CREDIT_CARD' ? asaasPayment.invoiceUrl : null),
       pixQrCode: asaasPayment.pixQrCode || undefined,
       pixCopyPaste: asaasPayment.pixCopyPaste || undefined
     };
