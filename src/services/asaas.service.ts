@@ -1,7 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { BadRequestException } from '../exceptions/bad-request.exception';
-import { AsaasException } from '../exceptions/asaas.exception';
-import { mapAsaasErrorToUserFriendly } from '../utils/asaas-error-mapper';
 
 export interface AsaasCustomer {
   id?: string;
@@ -210,23 +208,6 @@ export class AsaasService {
   }
 
   /**
-   * Trata erros do Asaas de forma consistente
-   */
-  private handleAsaasError(error: any, context: string): never {
-    console.error(`[ASAAS] Error in ${context}:`, error.response?.data || error.message);
-    
-    const errorMapping = mapAsaasErrorToUserFriendly(error);
-    
-    throw new AsaasException(
-      errorMapping.userFriendlyMessage,
-      errorMapping.technicalMessage,
-      errorMapping.suggestions,
-      errorMapping.errorCode,
-      error.response?.status || 400
-    );
-  }
-
-  /**
    * Cria ou atualiza um cliente no Asaas
    */
   async createOrUpdateCustomer(customerData: AsaasCustomer): Promise<AsaasCustomer> {
@@ -250,7 +231,10 @@ export class AsaasService {
         return response.data;
       }
     } catch (error: any) {
-      this.handleAsaasError(error, 'createOrUpdateCustomer');
+      console.error('[ASAAS] Error creating/updating customer:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || error.message
+      );
     }
   }
 
@@ -281,7 +265,10 @@ export class AsaasService {
       );
       return response.data;
     } catch (error: any) {
-      this.handleAsaasError(error, 'createPayment');
+      console.error('[ASAAS] Error creating payment:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || error.message
+      );
     }
   }
 
@@ -295,7 +282,10 @@ export class AsaasService {
       );
       return response.data;
     } catch (error: any) {
-      this.handleAsaasError(error, 'getPayment');
+      console.error('[ASAAS] Error getting payment:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || error.message
+      );
     }
   }
 
@@ -309,7 +299,10 @@ export class AsaasService {
       );
       return response.data;
     } catch (error: any) {
-      this.handleAsaasError(error, 'cancelPayment');
+      console.error('[ASAAS] Error canceling payment:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || error.message
+      );
     }
   }
 
@@ -322,7 +315,10 @@ export class AsaasService {
         await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
       return response.data;
     } catch (error: any) {
-      this.handleAsaasError(error, 'getPixQrCode');
+      console.error('[ASAAS] Error getting PIX QR Code:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || error.message
+      );
     }
   }
 
@@ -415,7 +411,10 @@ export class AsaasService {
       
       return response.data;
     } catch (error: any) {
-      this.handleAsaasError(error, 'createSubAccount');
+      console.error('[ASAAS] Error creating non-white-label subaccount:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || error.message
+      );
     }
   }
 
@@ -455,7 +454,10 @@ export class AsaasService {
         walletId: subAccount.walletId
       };
     } catch (error: any) {
-      this.handleAsaasError(error, 'getOrCreateSubAccountWallet');
+      console.error('[ASAAS] Error getting/creating non-white-label subaccount wallet:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || error.message
+      );
     }
   }
 

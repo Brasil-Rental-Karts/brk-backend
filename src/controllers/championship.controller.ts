@@ -4,7 +4,6 @@ import { ChampionshipService } from '../services/championship.service';
 import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
 import { MemberProfileService } from '../services/member-profile.service';
-import { AsaasException } from '../exceptions/asaas.exception';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { Championship, PersonType } from '../models/championship.entity';
 import { UserRole } from '../models/user.entity';
@@ -933,15 +932,11 @@ export class ChampionshipController extends BaseController {
     } catch (error: any) {
       console.error('Error creating Asaas account:', error);
       
-      // Verifica se é uma exceção específica do Asaas
-      if (error instanceof AsaasException) {
-        res.status(error.httpStatus).json(error.toResponse());
-        return;
-      }
-      
       if (error.message.includes('não encontrado') || error.message.includes('not found')) {
         res.status(404).json({ message: error.message });
       } else if (error.message.includes('não está habilitado') || error.message.includes('obrigatório')) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof BadRequestException || error.status === 400) {
         res.status(400).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Erro interno do servidor ao criar subconta Asaas' });
@@ -986,6 +981,8 @@ export class ChampionshipController extends BaseController {
       } else if (error.message === 'Split payment não está habilitado para este campeonato') {
         res.status(400).json({ message: error.message });
       } else if (error.message.includes('Subconta já configurada')) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof BadRequestException || error.status === 400) {
         res.status(400).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Erro interno do servidor ao configurar subconta' });
