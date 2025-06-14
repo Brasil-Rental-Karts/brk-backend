@@ -1,7 +1,8 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index, OneToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
 import { Season } from './season.entity';
+import { SeasonRegistrationCategory } from './season-registration-category.entity';
 
 export enum RegistrationStatus {
   PENDING = 'pending',
@@ -66,4 +67,7 @@ export class SeasonRegistration extends BaseEntity {
   @ManyToOne(() => Season, { eager: true })
   @JoinColumn({ name: 'seasonId' })
   season: Season;
+
+  @OneToMany(() => SeasonRegistrationCategory, regCategory => regCategory.registration)
+  categories: SeasonRegistrationCategory[];
 } 

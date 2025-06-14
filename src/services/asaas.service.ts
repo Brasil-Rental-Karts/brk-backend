@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { BadRequestException } from '../exceptions/bad-request.exception';
+import { removeDocumentMask } from '../utils/document.util';
 
 export interface AsaasCustomer {
   id?: string;
@@ -27,7 +28,7 @@ export interface AsaasCustomer {
 export interface AsaasPayment {
   id?: string;
   customer: string;
-  billingType: 'BOLETO' | 'CREDIT_CARD' | 'PIX' | 'DEBIT_CARD';
+  billingType: 'BOLETO' | 'CREDIT_CARD' | 'PIX';
   value: number;
   dueDate: string;
   description?: string;
@@ -213,21 +214,27 @@ export class AsaasService {
    */
   async createOrUpdateCustomer(customerData: AsaasCustomer): Promise<AsaasCustomer> {
     try {
+      // Remove máscara do CPF/CNPJ antes de enviar
+      const cleanCustomerData = {
+        ...customerData,
+        cpfCnpj: removeDocumentMask(customerData.cpfCnpj)
+      };
+      
       // Primeiro, tenta buscar o cliente por CPF/CNPJ
-      const existingCustomer = await this.findCustomerByCpfCnpj(customerData.cpfCnpj);
+      const existingCustomer = await this.findCustomerByCpfCnpj(cleanCustomerData.cpfCnpj);
       
       if (existingCustomer) {
         // Se encontrou, atualiza o cliente
         const response: AxiosResponse<AsaasCustomer> = await this.apiClient.put(
           `/customers/${existingCustomer.id}`,
-          customerData
+          cleanCustomerData
         );
         return response.data;
       } else {
         // Se não encontrou, cria um novo cliente
         const response: AxiosResponse<AsaasCustomer> = await this.apiClient.post(
           '/customers',
-          customerData
+          cleanCustomerData
         );
         return response.data;
       }
@@ -244,8 +251,10 @@ export class AsaasService {
    */
   async findCustomerByCpfCnpj(cpfCnpj: string): Promise<AsaasCustomer | null> {
     try {
+      // Remove máscara do CPF/CNPJ antes de buscar
+      const cleanCpfCnpj = removeDocumentMask(cpfCnpj);
       const response: AxiosResponse<{ data: AsaasCustomer[] }> = await this.apiClient.get(
-        `/customers?cpfCnpj=${cpfCnpj}`
+        `/customers?cpfCnpj=${cleanCpfCnpj}`
       );
       
       return response.data.data.length > 0 ? response.data.data[0] : null;
@@ -326,15 +335,14 @@ export class AsaasService {
   /**
    * Mapeia os métodos de pagamento do sistema interno para os aceitos pela Asaas
    */
-  mapPaymentMethodToAsaas(paymentMethod: string): 'BOLETO' | 'CREDIT_CARD' | 'PIX' | 'DEBIT_CARD' {
-    const mapping: Record<string, 'BOLETO' | 'CREDIT_CARD' | 'PIX' | 'DEBIT_CARD'> = {
+  mapPaymentMethodToAsaas(paymentMethod: string): 'BOLETO' | 'CREDIT_CARD' | 'PIX' {
+    const mapping: Record<string, 'BOLETO' | 'CREDIT_CARD' | 'PIX'> = {
       'boleto': 'BOLETO',
       'cartao_credito': 'CREDIT_CARD',
-      'pix': 'PIX',
-      'cartao_debito': 'DEBIT_CARD'
+      'pix': 'PIX'
     };
 
-    return mapping[paymentMethod] || 'BOLETO';
+    return mapping[paymentMethod] || 'PIX';
   }
 
   /**
@@ -358,10 +366,12 @@ export class AsaasService {
    */
   async findSubAccountByCpfCnpj(cpfCnpj: string): Promise<AsaasSubAccountResponse | null> {
     try {
-      console.log(`[ASAAS] Buscando subconta para CPF/CNPJ: ${cpfCnpj}`);
+      // Remove máscara do CPF/CNPJ antes de buscar
+      const cleanCpfCnpj = removeDocumentMask(cpfCnpj);
+      console.log(`[ASAAS] Buscando subconta para CPF/CNPJ: ${cleanCpfCnpj}`);
       
       const response: AxiosResponse<{ data: AsaasSubAccountResponse[] }> = await this.apiClient.get(
-        `/accounts?cpfCnpj=${cpfCnpj}`
+        `/accounts?cpfCnpj=${cleanCpfCnpj}`
       );
       
       const subAccount = response.data.data.length > 0 ? response.data.data[0] : null;
@@ -369,7 +379,7 @@ export class AsaasService {
       if (subAccount) {
         console.log(`[ASAAS] Subconta encontrada: ${subAccount.id} - WalletID: ${subAccount.walletId}`);
       } else {
-        console.log(`[ASAAS] Nenhuma subconta encontrada para CPF/CNPJ: ${cpfCnpj}`);
+        console.log(`[ASAAS] Nenhuma subconta encontrada para CPF/CNPJ: ${cleanCpfCnpj}`);
       }
       
       return subAccount;
@@ -384,11 +394,14 @@ export class AsaasService {
    */
   async createSubAccount(subAccountData: AsaasSubAccount): Promise<AsaasSubAccountResponse> {
     try {
-      console.log(`[ASAAS] Criando subconta não white label para: ${subAccountData.name} (${subAccountData.cpfCnpj})`);
+      // Remove máscara do CPF/CNPJ antes de enviar
+      const cleanCpfCnpj = removeDocumentMask(subAccountData.cpfCnpj);
+      console.log(`[ASAAS] Criando subconta não white label para: ${subAccountData.name} (${cleanCpfCnpj})`);
       
       // Dados específicos para subconta não white label
       const nonWhiteLabelData = {
         ...subAccountData,
+        cpfCnpj: cleanCpfCnpj,
         // Força a criação como subconta não white label
         // removendo campos que podem tornar a conta white label
         site: undefined,
@@ -496,7 +509,7 @@ export class AsaasService {
     const subAccountData: AsaasSubAccount = {
       name: name,
       email: email,
-      cpfCnpj: championshipData.document,
+      cpfCnpj: removeDocumentMask(championshipData.document), // Remove máscara do CPF/CNPJ
       birthDate: birthDate,
       companyType: isCompany ? (championshipData.companyType || 'LIMITED') : undefined,
       phone: mobilePhone,

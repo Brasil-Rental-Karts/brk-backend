@@ -14,15 +14,23 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  *       type: object
  *       required:
  *         - seasonId
+ *         - categoryIds
  *         - paymentMethod
  *       properties:
  *         seasonId:
  *           type: string
  *           format: uuid
  *           description: ID da temporada
+ *         categoryIds:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: uuid
+ *           description: IDs das categorias selecionadas
+ *           minItems: 1
  *         paymentMethod:
  *           type: string
- *           enum: [boleto, pix, cartao_credito, cartao_debito]
+ *           enum: [boleto, pix, cartao_credito]
  *           description: Método de pagamento desejado
  *         userDocument:
  *           type: string
@@ -59,7 +67,7 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  *               format: uuid
  *             billingType:
  *               type: string
- *               enum: [BOLETO, CREDIT_CARD, PIX, DEBIT_CARD]
+ *               enum: [BOLETO, CREDIT_CARD, PIX]
  *             value:
  *               type: number
  *             dueDate:
@@ -232,6 +240,27 @@ export class SeasonRegistrationController extends BaseController {
 
     /**
      * @swagger
+     * /season-registrations/championship/{championshipId}:
+     *   get:
+     *     summary: Listar todas as inscrições de um campeonato (Admin/Manager)
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Lista de inscrições do campeonato
+     */
+    this.router.get('/championship/:championshipId', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.getRegistrationsByChampionship.bind(this));
+
+    /**
+     * @swagger
      * /season-registrations/championship/{championshipId}/split-status:
      *   get:
      *     summary: Verificar status de configuração de split de um campeonato
@@ -267,15 +296,19 @@ export class SeasonRegistrationController extends BaseController {
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
     try {
-      const { seasonId, paymentMethod, userDocument } = req.body;
+      const { seasonId, categoryIds, paymentMethod, userDocument } = req.body;
       const userId = req.user!.id;
 
       // Validar dados de entrada
-      if (!seasonId || !paymentMethod) {
-        throw new BadRequestException('seasonId e paymentMethod são obrigatórios');
+      if (!seasonId || !paymentMethod || !categoryIds) {
+        throw new BadRequestException('seasonId, categoryIds e paymentMethod são obrigatórios');
       }
 
-      const validPaymentMethods = ['boleto', 'pix', 'cartao_credito', 'cartao_debito'];
+      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        throw new BadRequestException('Pelo menos uma categoria deve ser selecionada');
+      }
+
+      const validPaymentMethods = ['boleto', 'pix', 'cartao_credito'];
       if (!validPaymentMethods.includes(paymentMethod)) {
         throw new BadRequestException('Método de pagamento inválido');
       }
@@ -283,6 +316,7 @@ export class SeasonRegistrationController extends BaseController {
       const registrationData: CreateRegistrationData = {
         userId,
         seasonId,
+        categoryIds,
         paymentMethod,
         userDocument
       };
@@ -293,9 +327,9 @@ export class SeasonRegistrationController extends BaseController {
         message: 'Inscrição criada com sucesso',
         data: result
       });
-    } catch (error) {
-      console.error('Error creating registration:', error);
-      res.status(error instanceof BadRequestException ? 400 : 500).json({
+          } catch (error) {
+        console.error('Error creating registration:', error);
+        res.status(error instanceof BadRequestException ? 400 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
     }
@@ -433,6 +467,23 @@ export class SeasonRegistrationController extends BaseController {
       });
     } catch (error) {
       console.error('Error getting season registrations:', error);
+      res.status(500).json({
+        message: 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async getRegistrationsByChampionship(req: Request, res: Response): Promise<void> {
+    try {
+      const { championshipId } = req.params;
+      const registrations = await this.registrationService.findByChampionshipId(championshipId);
+
+      res.json({
+        message: 'Inscrições do campeonato recuperadas com sucesso',
+        data: registrations
+      });
+    } catch (error) {
+      console.error('Error getting championship registrations:', error);
       res.status(500).json({
         message: 'Erro interno do servidor'
       });

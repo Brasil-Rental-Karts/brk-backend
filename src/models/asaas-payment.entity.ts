@@ -5,8 +5,7 @@ import { SeasonRegistration } from './season-registration.entity';
 export enum AsaasBillingType {
   BOLETO = 'BOLETO',
   CREDIT_CARD = 'CREDIT_CARD',
-  PIX = 'PIX',
-  DEBIT_CARD = 'DEBIT_CARD'
+  PIX = 'PIX'
 }
 
 export enum AsaasPaymentStatus {

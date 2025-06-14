@@ -17,8 +17,7 @@ export enum InscriptionType {
 
 export enum PaymentMethod {
   PIX = 'pix',
-  CARTAO_DEBITO = 'cartao_debito',
-  CARTAO_CREDITO = 'cartao_credito', 
+  CARTAO_CREDITO = 'cartao_credito',
   BOLETO = 'boleto'
 }
 

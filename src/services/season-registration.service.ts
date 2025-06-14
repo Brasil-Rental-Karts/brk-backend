@@ -1,18 +1,22 @@
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { AppDataSource } from '../config/database.config';
 import { SeasonRegistration, RegistrationStatus, PaymentStatus } from '../models/season-registration.entity';
 import { AsaasPayment, AsaasPaymentStatus } from '../models/asaas-payment.entity';
 import { User } from '../models/user.entity';
 import { Season } from '../models/season.entity';
 import { Championship } from '../models/championship.entity';
+import { Category } from '../models/category.entity';
+import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
 import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from './asaas.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { removeDocumentMask } from '../utils/document.util';
 
 export interface CreateRegistrationData {
   userId: string;
   seasonId: string;
-  paymentMethod: 'boleto' | 'pix' | 'cartao_credito' | 'cartao_debito';
+  categoryIds: string[]; // Array de IDs das categorias selecionadas
+  paymentMethod: 'boleto' | 'pix' | 'cartao_credito';
   userDocument?: string; // CPF do usuário para o Asaas
 }
 
@@ -33,6 +37,8 @@ export class SeasonRegistrationService {
   private userRepository: Repository<User>;
   private seasonRepository: Repository<Season>;
   private championshipRepository: Repository<Championship>;
+  private categoryRepository: Repository<Category>;
+  private registrationCategoryRepository: Repository<SeasonRegistrationCategory>;
   private asaasService: AsaasService;
 
   constructor() {
@@ -41,6 +47,8 @@ export class SeasonRegistrationService {
     this.userRepository = AppDataSource.getRepository(User);
     this.seasonRepository = AppDataSource.getRepository(Season);
     this.championshipRepository = AppDataSource.getRepository(Championship);
+    this.categoryRepository = AppDataSource.getRepository(Category);
+    this.registrationCategoryRepository = AppDataSource.getRepository(SeasonRegistrationCategory);
     this.asaasService = new AsaasService();
   }
 
@@ -61,6 +69,22 @@ export class SeasonRegistrationService {
     const season = await this.seasonRepository.findOne({ where: { id: data.seasonId } });
     if (!season) {
       throw new NotFoundException('Temporada não encontrada');
+    }
+
+    // Validar se as categorias existem e pertencem à temporada
+    if (!data.categoryIds || data.categoryIds.length === 0) {
+      throw new BadRequestException('Pelo menos uma categoria deve ser selecionada');
+    }
+
+    const categories = await this.categoryRepository.find({
+      where: { 
+        id: In(data.categoryIds),
+        seasonId: data.seasonId
+      }
+    });
+
+    if (categories.length !== data.categoryIds.length) {
+      throw new BadRequestException('Uma ou mais categorias são inválidas ou não pertencem a esta temporada');
     }
 
     // Buscar o campeonato para verificar configurações de split payment
@@ -91,23 +115,36 @@ export class SeasonRegistrationService {
       throw new BadRequestException(`Método de pagamento ${data.paymentMethod} não aceito para esta temporada`);
     }
 
+    // Calcular o valor total baseado na quantidade de categorias
+    const totalAmount = Number(season.inscriptionValue) * categories.length;
+
     // Criar a inscrição no banco
     const registration = this.registrationRepository.create({
       userId: data.userId,
       seasonId: data.seasonId,
-      amount: season.inscriptionValue,
+      amount: totalAmount,
       status: RegistrationStatus.PAYMENT_PENDING,
       paymentStatus: PaymentStatus.PENDING
     });
 
     const savedRegistration = await this.registrationRepository.save(registration);
 
+    // Salvar as categorias selecionadas
+    const registrationCategories = categories.map(category => 
+      this.registrationCategoryRepository.create({
+        registrationId: savedRegistration.id,
+        categoryId: category.id
+      })
+    );
+    
+    await this.registrationCategoryRepository.save(registrationCategories);
+
     try {
       // Criar ou atualizar cliente no Asaas
       const asaasCustomerData: AsaasCustomer = {
         name: user.name,
         email: user.email,
-        cpfCnpj: data.userDocument || user.email.replace('@', '_'), // Fallback se não tiver CPF
+        cpfCnpj: data.userDocument ? removeDocumentMask(data.userDocument) : user.email.replace('@', '_'), // Remove máscara do CPF/CNPJ
         notificationDisabled: false
       };
 
@@ -118,29 +155,29 @@ export class SeasonRegistrationService {
       dueDate.setDate(dueDate.getDate() + 7);
 
       // Criar cobrança no Asaas com split payment
+      const categoriesNames = categories.map(c => c.name).join(', ');
       const asaasPaymentData: AsaasPaymentData = {
         customer: asaasCustomer.id!,
         billingType: asaasBillingType,
-        value: Number(season.inscriptionValue),
+        value: totalAmount,
         dueDate: this.asaasService.formatDateForAsaas(dueDate),
-        description: `Inscrição de ${user.name} na temporada: ${season.name}`,
+        description: `Inscrição de ${user.name} na temporada: ${season.name} - Categorias: ${categoriesNames}`,
         externalReference: savedRegistration.id,
       };
 
       // Aplicar split payment se estiver habilitado e configurado
       if (championship.splitEnabled && championship.asaasWalletId) {
-        const totalValue = Number(season.inscriptionValue);
         const platformCommission = Number(championship.platformCommissionPercentage) || 10;
         const championshipPercentage = 100 - platformCommission;
         
         console.log(`[SPLIT PAYMENT] Aplicando split para ${user.name}: ${platformCommission}% plataforma, ${championshipPercentage}% campeonato`);
-        console.log(`[SPLIT PAYMENT] Temporada: ${season.name}, Valor total: R$ ${totalValue}, WalletID: ${championship.asaasWalletId}`);
+        console.log(`[SPLIT PAYMENT] Temporada: ${season.name}, Valor total: R$ ${totalAmount}, WalletID: ${championship.asaasWalletId}`);
         
         asaasPaymentData.split = [
           {
             walletId: championship.asaasWalletId,
             percentualValue: championshipPercentage,
-            description: `Pagamento de ${user.name} para temporada ${season.name} do campeonato ${championship.name}`
+            description: `Pagamento de ${user.name} para temporada ${season.name} do campeonato ${championship.name} - ${categories.length} categoria(s)`
           }
         ];
       } else {
@@ -156,7 +193,7 @@ export class SeasonRegistrationService {
       asaasPayment.asaasCustomerId = asaasCustomer.id!;
              asaasPayment.billingType = asaasBillingType as any;
       asaasPayment.status = AsaasPaymentStatus.PENDING;
-      asaasPayment.value = Number(season.inscriptionValue);
+      asaasPayment.value = totalAmount;
       asaasPayment.netValue = asaasPaymentResponse.netValue;
       asaasPayment.dueDate = new Date(asaasPaymentResponse.dueDate);
              asaasPayment.description = asaasPaymentResponse.description || null;
@@ -181,7 +218,7 @@ export class SeasonRegistrationService {
       const paymentData: RegistrationPaymentData = {
         registrationId: savedRegistration.id,
         billingType: asaasBillingType,
-        value: Number(season.inscriptionValue),
+        value: totalAmount,
         dueDate: this.asaasService.formatDateForAsaas(dueDate),
         invoiceUrl: asaasPaymentResponse.invoiceUrl,
         bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
@@ -247,7 +284,7 @@ export class SeasonRegistrationService {
   async findById(id: string): Promise<SeasonRegistration | null> {
     return await this.registrationRepository.findOne({
       where: { id },
-      relations: ['user', 'season']
+      relations: ['user', 'season', 'categories', 'categories.category']
     });
   }
 
@@ -257,7 +294,7 @@ export class SeasonRegistrationService {
   async findByUserId(userId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { userId },
-      relations: ['season'],
+      relations: ['season', 'categories', 'categories.category'],
       order: { createdAt: 'DESC' }
     });
   }
@@ -268,7 +305,31 @@ export class SeasonRegistrationService {
   async findBySeasonId(seasonId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { seasonId },
-      relations: ['user'],
+      relations: ['user', 'categories', 'categories.category'],
+      order: { createdAt: 'DESC' }
+    });
+  }
+
+  /**
+   * Lista todas as inscrições de um campeonato (busca por todas as temporadas do campeonato)
+   */
+  async findByChampionshipId(championshipId: string): Promise<SeasonRegistration[]> {
+    // Buscar temporadas do campeonato
+    const seasons = await this.seasonRepository.find({
+      where: { championshipId },
+      select: ['id']
+    });
+
+    if (seasons.length === 0) {
+      return [];
+    }
+
+    const seasonIds = seasons.map(season => season.id);
+
+    // Buscar registrações de todas as temporadas
+    return await this.registrationRepository.find({
+      where: { seasonId: In(seasonIds) },
+      relations: ['user', 'season', 'categories', 'categories.category'],
       order: { createdAt: 'DESC' }
     });
   }
