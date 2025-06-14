@@ -4,6 +4,7 @@ import { SeasonRegistration, RegistrationStatus, PaymentStatus } from '../models
 import { AsaasPayment, AsaasPaymentStatus } from '../models/asaas-payment.entity';
 import { User } from '../models/user.entity';
 import { Season } from '../models/season.entity';
+import { Championship } from '../models/championship.entity';
 import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from './asaas.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
@@ -31,6 +32,7 @@ export class SeasonRegistrationService {
   private paymentRepository: Repository<AsaasPayment>;
   private userRepository: Repository<User>;
   private seasonRepository: Repository<Season>;
+  private championshipRepository: Repository<Championship>;
   private asaasService: AsaasService;
 
   constructor() {
@@ -38,6 +40,7 @@ export class SeasonRegistrationService {
     this.paymentRepository = AppDataSource.getRepository(AsaasPayment);
     this.userRepository = AppDataSource.getRepository(User);
     this.seasonRepository = AppDataSource.getRepository(Season);
+    this.championshipRepository = AppDataSource.getRepository(Championship);
     this.asaasService = new AsaasService();
   }
 
@@ -58,6 +61,17 @@ export class SeasonRegistrationService {
     const season = await this.seasonRepository.findOne({ where: { id: data.seasonId } });
     if (!season) {
       throw new NotFoundException('Temporada não encontrada');
+    }
+
+    // Buscar o campeonato para verificar configurações de split payment
+    const championship = await this.championshipRepository.findOne({ where: { id: season.championshipId } });
+    if (!championship) {
+      throw new NotFoundException('Campeonato não encontrado');
+    }
+
+    // Verificar se o split payment está configurado corretamente
+    if (championship.splitEnabled && !championship.asaasWalletId) {
+      throw new BadRequestException('Campeonato com split habilitado deve ter uma subconta Asaas configurada. Entre em contato com o organizador do campeonato.');
     }
 
     // Verificar se já existe uma inscrição para este usuário nesta temporada
@@ -103,15 +117,35 @@ export class SeasonRegistrationService {
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 7);
 
-      // Criar cobrança no Asaas
+      // Criar cobrança no Asaas com split payment
       const asaasPaymentData: AsaasPaymentData = {
         customer: asaasCustomer.id!,
         billingType: asaasBillingType,
         value: Number(season.inscriptionValue),
         dueDate: this.asaasService.formatDateForAsaas(dueDate),
-        description: `Inscrição na temporada: ${season.name}`,
+        description: `Inscrição de ${user.name} na temporada: ${season.name}`,
         externalReference: savedRegistration.id,
       };
+
+      // Aplicar split payment se estiver habilitado e configurado
+      if (championship.splitEnabled && championship.asaasWalletId) {
+        const totalValue = Number(season.inscriptionValue);
+        const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+        const championshipPercentage = 100 - platformCommission;
+        
+        console.log(`[SPLIT PAYMENT] Aplicando split para ${user.name}: ${platformCommission}% plataforma, ${championshipPercentage}% campeonato`);
+        console.log(`[SPLIT PAYMENT] Temporada: ${season.name}, Valor total: R$ ${totalValue}, WalletID: ${championship.asaasWalletId}`);
+        
+        asaasPaymentData.split = [
+          {
+            walletId: championship.asaasWalletId,
+            percentualValue: championshipPercentage,
+            description: `Pagamento de ${user.name} para temporada ${season.name} do campeonato ${championship.name}`
+          }
+        ];
+      } else {
+        console.warn(`[SPLIT PAYMENT] Split não aplicado - Habilitado: ${championship.splitEnabled}, WalletID: ${championship.asaasWalletId}`);
+      }
 
       const asaasPaymentResponse = await this.asaasService.createPayment(asaasPaymentData);
 
@@ -165,6 +199,46 @@ export class SeasonRegistrationService {
       await this.registrationRepository.remove(savedRegistration);
       throw error;
     }
+  }
+
+  /**
+   * Verifica se um campeonato tem configuração de split válida
+   */
+  async validateChampionshipSplitConfiguration(championshipId: string): Promise<{
+    isValid: boolean;
+    errors: string[];
+    championship?: Championship;
+  }> {
+    const championship = await this.championshipRepository.findOne({ where: { id: championshipId } });
+    
+    if (!championship) {
+      return {
+        isValid: false,
+        errors: ['Campeonato não encontrado']
+      };
+    }
+
+    const errors: string[] = [];
+
+    if (championship.splitEnabled) {
+      if (!championship.asaasCustomerId) {
+        errors.push('Subconta Asaas não configurada (asaasCustomerId ausente)');
+      }
+      
+      if (!championship.asaasWalletId) {
+        errors.push('Wallet ID não configurado (asaasWalletId ausente)');
+      }
+      
+      if (!championship.document) {
+        errors.push('Documento (CPF/CNPJ) não informado');
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      championship
+    };
   }
 
   /**

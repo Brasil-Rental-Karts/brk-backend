@@ -53,6 +53,7 @@ export interface AsaasPayment {
     fixedValue?: number;
     percentualValue?: number;
     totalFixedValue?: number;
+    description?: string;
   }>;
   callback?: {
     successUrl?: string;

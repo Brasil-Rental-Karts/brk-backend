@@ -229,6 +229,40 @@ export class SeasonRegistrationController extends BaseController {
      *         description: Lista de inscrições da temporada
      */
     this.router.get('/season/:seasonId', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.getRegistrationsBySeason.bind(this));
+
+    /**
+     * @swagger
+     * /season-registrations/championship/{championshipId}/split-status:
+     *   get:
+     *     summary: Verificar status de configuração de split de um campeonato
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Status de configuração do split
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 isValid:
+     *                   type: boolean
+     *                 errors:
+     *                   type: array
+     *                   items:
+     *                     type: string
+     *                 championship:
+     *                   type: object
+     */
+    this.router.get('/championship/:championshipId/split-status', authMiddleware, this.checkChampionshipSplitStatus.bind(this));
   }
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
@@ -401,6 +435,24 @@ export class SeasonRegistrationController extends BaseController {
       console.error('Error getting season registrations:', error);
       res.status(500).json({
         message: 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async checkChampionshipSplitStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { championshipId } = req.params;
+      
+      const splitStatus = await this.registrationService.validateChampionshipSplitConfiguration(championshipId);
+      
+      res.json({
+        message: 'Status de configuração de split verificado',
+        data: splitStatus
+      });
+    } catch (error) {
+      console.error('Error checking championship split status:', error);
+      res.status(500).json({
+        message: 'Erro interno do servidor ao verificar status de split'
       });
     }
   }
