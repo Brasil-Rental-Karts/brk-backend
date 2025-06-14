@@ -166,6 +166,15 @@ export class SeasonRegistrationService {
         externalReference: savedRegistration.id,
       };
 
+      // Configurações específicas para cartão de crédito
+      if (asaasBillingType === 'CREDIT_CARD') {
+        // Para cartão de crédito, adicionar callback para retornar à página de pagamento
+        asaasPaymentData.callback = {
+          successUrl: `${process.env.FRONTEND_URL}/registration/${savedRegistration.id}/payment?success=true`,
+          autoRedirect: true
+        };
+      }
+
       // Aplicar split payment se estiver habilitado e configurado
       if (championship.splitEnabled && championship.asaasWalletId) {
         const platformCommission = Number(championship.platformCommissionPercentage) || 10;
