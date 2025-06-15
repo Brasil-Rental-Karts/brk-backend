@@ -20,7 +20,7 @@ export const dbConfig: DataSourceOptions = {
   connectTimeoutMS: 10000,
   // Only use synchronize in development, never in production
   synchronize: false,
-  logging: process.env.NODE_ENV === 'development',
+  logging: false,
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   // Configure migrations
   migrationsRun: process.env.NODE_ENV === 'production', // Auto-run migrations in production

@@ -64,7 +64,7 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  *           type: array
  *           items:
  *             type: string
- *             enum: [pix, cartao_debito, cartao_credito, boleto]
+ *             enum: [pix, cartao_credito, boleto]
  *           description: Métodos de pagamento aceitos
  *         championshipId:
  *           type: string

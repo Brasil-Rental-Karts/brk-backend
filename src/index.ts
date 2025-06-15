@@ -13,6 +13,9 @@ import { SeasonController } from './controllers/season.controller';
 import { VipPreregisterController } from './controllers/vip-preregister.controller';
 import { CategoryController } from './controllers/category.controller';
 import { GridTypeController } from './controllers/grid-type.controller';
+import { ScoringSystemController } from './controllers/scoring-system.controller';
+import { SeasonRegistrationController } from './controllers/season-registration.controller';
+import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -36,6 +39,9 @@ import { SeasonService } from './services/season.service';
 import { VipPreregisterService } from './services/vip-preregister.service';
 import { CategoryService } from './services/category.service';
 import { GridTypeService } from './services/grid-type.service';
+import { ScoringSystemService } from './services/scoring-system.service';
+import { SeasonRegistrationService } from './services/season-registration.service';
+import { AsaasService } from './services/asaas.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -68,18 +74,24 @@ AppDataSource.initialize()
     const seasonService = new SeasonService(seasonRepository);
     const vipPreregisterService = new VipPreregisterService(vipPreregisterRepository);
     const categoryService = new CategoryService(categoryRepository);
+    const scoringSystemService = new ScoringSystemService();
+    const asaasService = new AsaasService();
+    const seasonRegistrationService = new SeasonRegistrationService();
     
     // Initialize controllers
     const controllers = [
       new HealthController(),
       new AuthController(authService, googleAuthService),
       new UserController(userService),
-      new ChampionshipController(championshipService, userService, authService),
+      new ChampionshipController(championshipService, userService, authService, memberProfileService),
       new MemberProfileController(memberProfileService),
       new SeasonController(seasonService),
       new VipPreregisterController(vipPreregisterService),
       new CategoryController(categoryService),
-      new GridTypeController()
+      new GridTypeController(),
+      new ScoringSystemController(scoringSystemService, championshipService),
+      new SeasonRegistrationController(seasonRegistrationService),
+      new AsaasWebhookController(seasonRegistrationService, asaasService)
     ];
 
     // Initialize the app

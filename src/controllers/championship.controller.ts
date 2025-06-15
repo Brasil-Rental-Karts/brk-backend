@@ -3,6 +3,7 @@ import { BaseController } from './base.controller';
 import { ChampionshipService } from '../services/championship.service';
 import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
+import { MemberProfileService } from '../services/member-profile.service';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { Championship, PersonType } from '../models/championship.entity';
 import { UserRole } from '../models/user.entity';
@@ -79,6 +80,10 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *           type: string
  *           maxLength: 100
  *           description: Complemento do endereço
+ *         province:
+ *           type: string
+ *           maxLength: 100
+ *           description: Bairro
  *         isResponsible:
  *           type: boolean
  *           description: Se o usuário é o responsável pelo campeonato
@@ -90,6 +95,22 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *           type: string
  *           maxLength: 15
  *           description: Telefone do responsável
+ *         responsibleEmail:
+ *           type: string
+ *           maxLength: 100
+ *           description: E-mail do responsável (quando não é responsável)
+ *         responsibleBirthDate:
+ *           type: string
+ *           format: date
+ *           description: Data de nascimento do responsável (quando não é responsável)
+ *         companyType:
+ *           type: string
+ *           enum: [MEI, LIMITED, INDIVIDUAL, ASSOCIATION]
+ *           description: Tipo de empresa (apenas para pessoa jurídica)
+ *         incomeValue:
+ *           type: number
+ *           format: decimal
+ *           description: Faturamento/Renda mensal em reais
  *         sponsors:
  *           type: array
  *           items:
@@ -104,6 +125,23 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *               website:
  *                 type: string
  *           description: Lista de patrocinadores
+ *         asaasCustomerId:
+ *           type: string
+ *           description: ID do cliente/subconta no Asaas
+ *         asaasWalletId:
+ *           type: string
+ *           description: ID da carteira (wallet) no Asaas para split payment
+ *         platformCommissionPercentage:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           maximum: 100
+ *           default: 10.00
+ *           description: Percentual de comissão da plataforma BRK
+ *         splitEnabled:
+ *           type: boolean
+ *           default: true
+ *           description: Indica se o split payment está habilitado
  *         ownerId:
  *           type: string
  *           format: uuid
@@ -132,7 +170,8 @@ export class ChampionshipController extends BaseController {
   constructor(
     private championshipService: ChampionshipService,
     private userService: UserService,
-    private authService: AuthService
+    private authService: AuthService,
+    private memberProfileService: MemberProfileService
   ) {
     super('/championships');
     this.initializeRoutes();
@@ -412,6 +451,130 @@ export class ChampionshipController extends BaseController {
      *         description: Sem permissão para deletar este campeonato
      */
     this.router.delete('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.deleteChampionship.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{id}/create-asaas-account:
+     *   post:
+     *     summary: Criar subconta Asaas manualmente
+     *     description: Cria a subconta Asaas para o campeonato através das configurações
+     *     tags: [Championships]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *     responses:
+     *       200:
+     *         description: Subconta Asaas criada com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                 asaasCustomerId:
+     *                   type: string
+     *                 asaasWalletId:
+     *                   type: string
+     *       400:
+     *         description: Erro na criação da subconta (dados inválidos, split desabilitado, etc.)
+     *       404:
+     *         description: Campeonato não encontrado
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/:id/create-asaas-account', authMiddleware, this.createAsaasAccount.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{id}/retry-asaas-setup:
+     *   post:
+     *     summary: Força a configuração da subconta Asaas para o campeonato
+     *     tags: [Championships]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *     responses:
+     *       200:
+     *         description: Subconta configurada com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Championship'
+     *       400:
+     *         description: Erro de validação ou campeonato já configurado
+     *       401:
+     *         description: Token não fornecido ou inválido
+     *       403:
+     *         description: Usuário sem permissão para acessar este campeonato
+     *       404:
+     *         description: Campeonato não encontrado
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/:id/retry-asaas-setup', authMiddleware, this.retryAsaasSetup.bind(this));
+
+    /**
+        * @swagger
+   * /championships/{id}/asaas-status:
+   *   get:
+   *     summary: Verifica o status da configuração Asaas do campeonato
+   *     description: Permite verificar o status da configuração Asaas. Acessível pelo owner do campeonato ou usuários com role Administrator/Manager.
+   *     tags: [Championships]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: ID do campeonato
+   *     responses:
+   *       200:
+   *         description: Status da configuração Asaas
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 championshipId:
+   *                   type: string
+   *                 splitEnabled:
+   *                   type: boolean
+   *                 asaasCustomerId:
+   *                   type: string
+   *                   nullable: true
+   *                 asaasWalletId:
+   *                   type: string
+   *                   nullable: true
+   *                 configured:
+   *                   type: boolean
+   *                 canRetry:
+   *                   type: boolean
+   *                 document:
+   *                   type: string
+   *       403:
+   *         description: Usuário sem permissão (apenas owner, Administrator ou Manager)
+   *       404:
+   *         description: Campeonato não encontrado
+     */
+    this.router.get('/:id/asaas-status', authMiddleware, this.checkAsaasStatus.bind(this));
   }
 
   private async getAllChampionships(req: Request, res: Response): Promise<void> {
@@ -486,6 +649,11 @@ export class ChampionshipController extends BaseController {
       // Adiciona o ownerId
       championshipData.ownerId = userId;
 
+      // Preenchimento automático dos campos responsáveis se isResponsible for true
+      if (championshipData.isResponsible === true) {
+        await this.fillResponsibleDataFromUser(championshipData, userId);
+      }
+
       // Gerar IDs para sponsors se eles existirem
       if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
         championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
@@ -525,6 +693,11 @@ export class ChampionshipController extends BaseController {
 
       // Validações básicas (apenas para campos que estão sendo atualizados)
       this.validateChampionshipData(championshipData, false);
+
+      // Preenchimento automático dos campos responsáveis se isResponsible for true
+      if (championshipData.isResponsible === true) {
+        await this.fillResponsibleDataFromUser(championshipData, userId);
+      }
 
       // Gerar IDs para sponsors se eles existirem
       if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
@@ -679,6 +852,40 @@ export class ChampionshipController extends BaseController {
     }
   }
 
+  /**
+   * Preenche automaticamente os dados do responsável com informações do usuário logado
+   */
+  private async fillResponsibleDataFromUser(championshipData: any, userId: string): Promise<void> {
+    try {
+      // Buscar dados do usuário
+      const user = await this.userService.findById(userId);
+      if (!user) {
+        console.warn(`User not found for ID: ${userId}`);
+        return;
+      }
+
+      // Buscar dados do member profile
+      const memberProfile = await this.memberProfileService.findByUserId(userId);
+
+      // Preencher campos responsáveis com dados do usuário
+      championshipData.responsibleName = user.name || '';
+      championshipData.responsiblePhone = user.phone || '';
+      
+      // Email: usar do user (sempre disponível)
+      championshipData.responsibleEmail = user.email || '';
+      
+      // Data de nascimento: usar do member profile se disponível
+      if (memberProfile && memberProfile.birthDate) {
+        championshipData.responsibleBirthDate = memberProfile.birthDate;
+      }
+
+      console.log(`Auto-filled responsible data for user ${userId}: name=${user.name}, phone=${user.phone}, email=${user.email}, birthDate=${memberProfile?.birthDate}`);
+    } catch (error) {
+      console.error('Error filling responsible data from user:', error);
+      // Não falha a criação do campeonato se não conseguir buscar os dados do usuário
+    }
+  }
+
   private generateSponsorId(name: string): string {
     return name
       .toLowerCase()
@@ -690,5 +897,138 @@ export class ChampionshipController extends BaseController {
       .trim()
       .slice(0, 50) // Limita o tamanho
       + '-' + Date.now().toString(36); // Adiciona timestamp para garantir unicidade
+  }
+
+  private async createAsaasAccount(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).user.id;
+
+      // Verifica se o campeonato existe
+      const championship = await this.championshipService.findById(id);
+      if (!championship) {
+        res.status(404).json({ message: 'Campeonato não encontrado' });
+        return;
+      }
+
+      // Verifica se o usuário é o proprietário
+      if (championship.ownerId !== userId) {
+        res.status(403).json({ message: 'Você não tem permissão para configurar este campeonato' });
+        return;
+      }
+
+      // Cria a subconta Asaas
+      const updatedChampionship = await this.championshipService.createAsaasSubAccount(id);
+
+      if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
+        res.json({
+          message: 'Subconta Asaas criada com sucesso',
+          asaasCustomerId: updatedChampionship.asaasCustomerId,
+          asaasWalletId: updatedChampionship.asaasWalletId
+        });
+      } else {
+        res.status(500).json({ message: 'Erro ao criar subconta Asaas' });
+      }
+    } catch (error: any) {
+      console.error('Error creating Asaas account:', error);
+      
+      if (error.message.includes('não encontrado') || error.message.includes('not found')) {
+        res.status(404).json({ message: error.message });
+      } else if (error.message.includes('não está habilitado') || error.message.includes('obrigatório')) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof BadRequestException || error.status === 400) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Erro interno do servidor ao criar subconta Asaas' });
+      }
+    }
+  }
+
+  private async retryAsaasSetup(req: Request, res: Response): Promise<void> {
+    try {
+      const championshipId = req.params.id;
+      const userId = (req as any).user.id;
+      const userRole = (req as any).user.role;
+
+      // Verifica se o campeonato existe
+      const championship = await this.championshipService.findById(championshipId);
+      if (!championship) {
+        res.status(404).json({ message: 'Campeonato não encontrado' });
+        return;
+      }
+
+      // Verifica se o usuário tem permissão (owner ou admin)
+      if (userRole !== UserRole.ADMINISTRATOR && championship.ownerId !== userId) {
+        res.status(403).json({ message: 'Você não tem permissão para configurar este campeonato' });
+        return;
+      }
+
+      console.log(`[CHAMPIONSHIP] Forçando configuração da subconta Asaas para campeonato: ${championshipId}`);
+      console.log(`[CHAMPIONSHIP] Dados atuais - asaasCustomerId: ${championship.asaasCustomerId}, asaasWalletId: ${championship.asaasWalletId}`);
+
+      // Força a configuração da subconta
+      const updatedChampionship = await this.championshipService.retryAsaasSubAccountSetup(championshipId);
+
+      res.json({
+        message: 'Subconta configurada com sucesso',
+        championship: updatedChampionship
+      });
+    } catch (error: any) {
+      console.error('Error in retryAsaasSetup:', error);
+      
+      if (error.message === 'Campeonato não encontrado') {
+        res.status(404).json({ message: error.message });
+      } else if (error.message === 'Split payment não está habilitado para este campeonato') {
+        res.status(400).json({ message: error.message });
+      } else if (error.message.includes('Subconta já configurada')) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof BadRequestException || error.status === 400) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Erro interno do servidor ao configurar subconta' });
+      }
+    }
+  }
+
+  private async checkAsaasStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const championshipId = req.params.id;
+      const userId = (req as any).user.id;
+      const userRole = (req as any).user.role;
+
+      const championship = await this.championshipService.findById(championshipId);
+      if (!championship) {
+        res.status(404).json({ message: 'Campeonato não encontrado' });
+        return;
+      }
+
+      // Verifica se o usuário tem permissão (owner, administrator ou manager)
+      const hasPermission = 
+        userRole === UserRole.ADMINISTRATOR || 
+        userRole === UserRole.MANAGER || 
+        championship.ownerId === userId;
+
+      if (!hasPermission) {
+        res.status(403).json({ message: 'Você não tem permissão para acessar este campeonato' });
+        return;
+      }
+
+      const isConfigured = !!(championship.asaasCustomerId && championship.asaasWalletId);
+      const canRetry = championship.splitEnabled && championship.document && !isConfigured;
+
+      res.json({
+        championshipId: championship.id,
+        splitEnabled: championship.splitEnabled,
+        asaasCustomerId: championship.asaasCustomerId,
+        asaasWalletId: championship.asaasWalletId,
+        configured: isConfigured,
+        canRetry: canRetry,
+        document: championship.document,
+        personType: championship.personType
+      });
+    } catch (error: any) {
+      console.error('Error checking Asaas status:', error);
+      res.status(500).json({ message: 'Erro interno do servidor' });
+    }
   }
 } 

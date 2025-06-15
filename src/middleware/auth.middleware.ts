@@ -20,18 +20,11 @@ declare global {
 // Verify JWT token
 export const authMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
   try {
-    // Debug: log all cookies
-    console.log('Cookies received:', req.cookies);
-
     const token = req.cookies?.accessToken;
     if (!token) {
-      console.log('No accessToken cookie found');
       res.status(401).json({ message: 'Authentication token is required' });
       return;
     }
-
-    // Debug: log the token
-    console.log('AccessToken:', token);
 
     // Use any type to work around typescript issues
     const jwtVerify: any = jwt.verify;

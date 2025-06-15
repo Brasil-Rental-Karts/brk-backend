@@ -60,6 +60,9 @@ export class Championship extends BaseEntity {
   @Column({ length: 100, nullable: true })
   complement: string;
 
+  @Column({ length: 100, nullable: true })
+  province: string;
+
   @Column({ default: true })
   isResponsible: boolean;
 
@@ -69,9 +72,38 @@ export class Championship extends BaseEntity {
   @Column({ length: 15, nullable: true })
   responsiblePhone: string;
 
+  @Column({ length: 100, nullable: true })
+  responsibleEmail: string;
+
+  @Column({ type: 'date', nullable: true })
+  responsibleBirthDate: Date;
+
+  @Column({ 
+    type: 'enum', 
+    enum: ['MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION'], 
+    nullable: true 
+  })
+  companyType: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  incomeValue: number;
+
   // Patrocinadores
   @Column({ type: 'jsonb', nullable: true, default: [] })
   sponsors: Sponsor[];
+
+  // Dados do Asaas para Split Payment
+  @Column({ length: 255, nullable: true })
+  asaasCustomerId: string;
+
+  @Column({ length: 255, nullable: true })
+  asaasWalletId: string;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 10.00 })
+  platformCommissionPercentage: number;
+
+  @Column({ default: true })
+  splitEnabled: boolean;
 
   // Relacionamento com o usuário criador
   @Column({ nullable: false })
