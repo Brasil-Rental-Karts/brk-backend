@@ -17,6 +17,7 @@ import { ScoringSystemController } from './controllers/scoring-system.controller
 import { SeasonRegistrationController } from './controllers/season-registration.controller';
 import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
 import { StageController } from './controllers/stage.controller';
+import { UserStatsController } from './controllers/user-stats.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -44,6 +45,7 @@ import { ScoringSystemService } from './services/scoring-system.service';
 import { SeasonRegistrationService } from './services/season-registration.service';
 import { AsaasService } from './services/asaas.service';
 import { StageService } from './services/stage.service';
+import { UserStatsService } from './services/user-stats.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -80,6 +82,7 @@ AppDataSource.initialize()
     const asaasService = new AsaasService();
     const seasonRegistrationService = new SeasonRegistrationService();
     const stageService = new StageService();
+    const userStatsService = new UserStatsService();
     
     // Initialize controllers
     const controllers = [
@@ -95,7 +98,8 @@ AppDataSource.initialize()
       new ScoringSystemController(scoringSystemService, championshipService),
       new SeasonRegistrationController(seasonRegistrationService),
       new AsaasWebhookController(seasonRegistrationService, asaasService),
-      new StageController(stageService)
+      new StageController(stageService),
+      new UserStatsController()
     ];
 
     // Initialize the app
