@@ -390,6 +390,32 @@ export class AsaasService {
   }
 
   /**
+   * Busca uma subconta por email
+   */
+  async findSubAccountByEmail(email: string): Promise<AsaasSubAccountResponse | null> {
+    try {
+      console.log(`[ASAAS] Buscando subconta para email: ${email}`);
+      
+      const response: AxiosResponse<{ data: AsaasSubAccountResponse[] }> = await this.apiClient.get(
+        `/accounts?email=${encodeURIComponent(email)}`
+      );
+      
+      const subAccount = response.data.data.length > 0 ? response.data.data[0] : null;
+      
+      if (subAccount) {
+        console.log(`[ASAAS] Subconta encontrada por email: ${subAccount.id} - WalletID: ${subAccount.walletId}`);
+      } else {
+        console.log(`[ASAAS] Nenhuma subconta encontrada para email: ${email}`);
+      }
+      
+      return subAccount;
+    } catch (error: any) {
+      console.error('[ASAAS] Error finding subaccount by email:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  /**
    * Cria uma nova subconta não white label no Asaas
    */
   async createSubAccount(subAccountData: AsaasSubAccount): Promise<AsaasSubAccountResponse> {
@@ -434,26 +460,53 @@ export class AsaasService {
 
   /**
    * Busca ou cria uma subconta não white label e retorna o walletId
+   * Implementa verificação prévia por CPF/CNPJ e email antes de criar
    */
-  async getOrCreateSubAccountWallet(subAccountData: AsaasSubAccount): Promise<{ subAccountId: string; walletId: string }> {
+  async getOrCreateSubAccountWallet(subAccountData: AsaasSubAccount): Promise<{ 
+    subAccountId: string; 
+    walletId: string; 
+    wasExisting: boolean;
+    foundBy?: 'cpfCnpj' | 'email';
+    existingAccountData?: AsaasSubAccountResponse;
+  }> {
     try {
-      console.log(`[ASAAS] Verificando/criando subconta não white label para CPF/CNPJ: ${subAccountData.cpfCnpj}`);
+      console.log(`[ASAAS] Verificando conta existente antes de criar subconta para: ${subAccountData.name}`);
+      console.log(`[ASAAS] CPF/CNPJ: ${subAccountData.cpfCnpj}, Email: ${subAccountData.email}`);
       
-      // Primeiro, tenta buscar uma subconta existente
+      // Primeiro, tenta buscar uma subconta existente por CPF/CNPJ
       let subAccount = await this.findSubAccountByCpfCnpj(subAccountData.cpfCnpj);
       
       if (subAccount) {
-        console.log(`[ASAAS] Subconta existente encontrada: ${subAccount.id} - WalletID: ${subAccount.walletId}`);
-        console.log(`[ASAAS] Verificando se a subconta existente é adequada...`);
+        console.log(`[ASAAS] Subconta existente encontrada por CPF/CNPJ: ${subAccount.id} - WalletID: ${subAccount.walletId}`);
+        console.log(`[ASAAS] Vinculando à conta existente encontrada por CPF/CNPJ`);
         
         return {
           subAccountId: subAccount.id,
-          walletId: subAccount.walletId
+          walletId: subAccount.walletId,
+          wasExisting: true,
+          foundBy: 'cpfCnpj',
+          existingAccountData: subAccount
         };
       }
       
-      // Se não encontrou, cria uma nova subconta não white label
-      console.log(`[ASAAS] Criando nova subconta não white label para: ${subAccountData.name}`);
+      // Se não encontrou por CPF/CNPJ, tenta buscar por email
+      subAccount = await this.findSubAccountByEmail(subAccountData.email);
+      
+      if (subAccount) {
+        console.log(`[ASAAS] Subconta existente encontrada por email: ${subAccount.id} - WalletID: ${subAccount.walletId}`);
+        console.log(`[ASAAS] Vinculando à conta existente encontrada por email`);
+        
+        return {
+          subAccountId: subAccount.id,
+          walletId: subAccount.walletId,
+          wasExisting: true,
+          foundBy: 'email',
+          existingAccountData: subAccount
+        };
+      }
+      
+      // Se não encontrou nenhuma conta existente, cria uma nova subconta não white label
+      console.log(`[ASAAS] Nenhuma conta existente foi encontrada. Criando nova subconta não white label para: ${subAccountData.name}`);
       subAccount = await this.createSubAccount(subAccountData);
       
       // Validação adicional para garantir que a subconta foi criada corretamente
@@ -461,11 +514,12 @@ export class AsaasService {
         throw new Error('Subconta criada mas walletId não foi gerado');
       }
       
-      console.log(`[ASAAS] Subconta não white label configurada com sucesso - ID: ${subAccount.id}, WalletID: ${subAccount.walletId}`);
+      console.log(`[ASAAS] Nova subconta não white label criada com sucesso - ID: ${subAccount.id}, WalletID: ${subAccount.walletId}`);
       
       return {
         subAccountId: subAccount.id,
-        walletId: subAccount.walletId
+        walletId: subAccount.walletId,
+        wasExisting: false
       };
     } catch (error: any) {
       console.error('[ASAAS] Error getting/creating non-white-label subaccount wallet:', error.response?.data || error.message);

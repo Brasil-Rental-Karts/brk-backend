@@ -309,44 +309,44 @@ export class ChampionshipController extends BaseController {
      *               document:
      *                 type: string
      *                 maxLength: 18
-     *               socialReason:
-     *                 type: string
-     *                 maxLength: 255
-     *               cep:
-     *                 type: string
-     *                 maxLength: 9
-     *               state:
-     *                 type: string
-     *                 maxLength: 2
-     *               city:
-     *                 type: string
-     *                 maxLength: 100
-     *               fullAddress:
-     *                 type: string
-     *               number:
-     *                 type: string
-     *                 maxLength: 10
-     *               complement:
-     *                 type: string
-     *                 maxLength: 100
-     *               isResponsible:
-     *                 type: boolean
-     *               responsibleName:
-     *                 type: string
-     *                 maxLength: 100
-     *               responsiblePhone:
-     *                 type: string
-     *                 maxLength: 15
-     *     responses:
-     *       201:
-     *         description: Campeonato criado com sucesso
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/Championship'
-     *       400:
-     *         description: Dados inválidos
-     */
+ *               socialReason:
+ *                 type: string
+ *                 maxLength: 255
+ *               cep:
+ *                 type: string
+ *                 maxLength: 9
+ *               state:
+ *                 type: string
+ *                 maxLength: 2
+ *               city:
+ *                 type: string
+ *                 maxLength: 100
+ *               fullAddress:
+ *                 type: string
+ *               number:
+ *                 type: string
+ *                 maxLength: 10
+ *               complement:
+ *                 type: string
+ *                 maxLength: 100
+ *               isResponsible:
+ *                 type: boolean
+ *               responsibleName:
+ *                 type: string
+ *                 maxLength: 100
+ *               responsiblePhone:
+ *                 type: string
+ *                 maxLength: 15
+ *     responses:
+ *       201:
+ *         description: Campeonato criado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Championship'
+ *       400:
+ *         description: Dados inválidos
+ */
     this.router.post('/', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.createChampionship.bind(this));
 
     /**
@@ -456,8 +456,8 @@ export class ChampionshipController extends BaseController {
      * @swagger
      * /championships/{id}/create-asaas-account:
      *   post:
-     *     summary: Criar subconta Asaas manualmente
-     *     description: Cria a subconta Asaas para o campeonato através das configurações
+     *     summary: Verificar/Criar subconta Asaas manualmente
+     *     description: Verifica se já existe uma subconta Asaas (por CPF/CNPJ ou e-mail) e vincula a conta existente, ou cria uma nova subconta se não existir
      *     tags: [Championships]
      *     security:
      *       - bearerAuth: []
@@ -471,7 +471,7 @@ export class ChampionshipController extends BaseController {
      *         description: ID do campeonato
      *     responses:
      *       200:
-     *         description: Subconta Asaas criada com sucesso
+     *         description: Subconta Asaas criada ou vinculada com sucesso
      *         content:
      *           application/json:
      *             schema:
@@ -479,10 +479,23 @@ export class ChampionshipController extends BaseController {
      *               properties:
      *                 message:
      *                   type: string
+     *                   description: Mensagem indicando se foi criação ou vinculação
      *                 asaasCustomerId:
      *                   type: string
      *                 asaasWalletId:
      *                   type: string
+     *                 wasExisting:
+     *                   type: boolean
+     *                   description: Indica se a conta já existia
+     *                 foundBy:
+     *                   type: string
+     *                   enum: [cpfCnpj, email]
+     *                   description: Método usado para encontrar conta existente (apenas se wasExisting=true)
+     *                 updatedFields:
+     *                   type: array
+     *                   items:
+     *                     type: string
+     *                   description: Lista de campos do championship que foram atualizados com dados da conta existente (apenas se wasExisting=true)
      *       400:
      *         description: Erro na criação da subconta (dados inválidos, split desabilitado, etc.)
      *       404:
@@ -917,14 +930,26 @@ export class ChampionshipController extends BaseController {
         return;
       }
 
-      // Cria a subconta Asaas
-      const updatedChampionship = await this.championshipService.createAsaasSubAccount(id);
+      // Cria/vincula a subconta Asaas
+      const { championship: updatedChampionship, wasExisting, foundBy, updatedFields } = await this.championshipService.createAsaasSubAccount(id);
 
       if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
+        let message = wasExisting 
+          ? `Conta Asaas vinculada com sucesso! Foi encontrada uma conta existente ${foundBy === 'cpfCnpj' ? 'pelo CPF/CNPJ' : 'pelo e-mail'} informado.`
+          : 'Subconta Asaas criada com sucesso';
+        
+        // Adicionar informação sobre campos atualizados se houver
+        if (wasExisting && updatedFields && updatedFields.length > 0) {
+          message += ` Os seguintes campos foram atualizados com os dados da conta existente: ${updatedFields.join(', ')}.`;
+        }
+        
         res.json({
-          message: 'Subconta Asaas criada com sucesso',
+          message,
           asaasCustomerId: updatedChampionship.asaasCustomerId,
-          asaasWalletId: updatedChampionship.asaasWalletId
+          asaasWalletId: updatedChampionship.asaasWalletId,
+          wasExisting,
+          foundBy,
+          updatedFields: wasExisting ? updatedFields : undefined
         });
       } else {
         res.status(500).json({ message: 'Erro ao criar subconta Asaas' });

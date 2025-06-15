@@ -200,9 +200,88 @@ export class ChampionshipService extends BaseService<Championship> {
   }
 
   /**
+   * Mapeia dados da subconta Asaas para campos do Championship
+   */
+  private mapAsaasDataToChampionship(asaasData: any): Partial<Championship> {
+    const updates: Partial<Championship> = {};
+    
+    // Atualizar documento (CPF/CNPJ)
+    if (asaasData.cpfCnpj) {
+      updates.document = asaasData.cpfCnpj;
+    }
+    
+    // Atualizar campos baseados nos dados do Asaas
+    if (asaasData.name) {
+      if (asaasData.companyType) {
+        // Pessoa Jurídica - atualizar razão social
+        updates.socialReason = asaasData.name;
+      } else {
+        // Pessoa Física - atualizar nome do responsável
+        updates.responsibleName = asaasData.name;
+      }
+    }
+    
+    if (asaasData.email) {
+      updates.responsibleEmail = asaasData.email;
+    }
+    
+    if (asaasData.phone || asaasData.mobilePhone) {
+      updates.responsiblePhone = asaasData.mobilePhone || asaasData.phone;
+    }
+    
+    if (asaasData.birthDate) {
+      updates.responsibleBirthDate = new Date(asaasData.birthDate);
+    }
+    
+    if (asaasData.companyType) {
+      updates.companyType = asaasData.companyType;
+    }
+    
+    if (asaasData.address) {
+      updates.fullAddress = asaasData.address;
+    }
+    
+    if (asaasData.addressNumber) {
+      updates.number = asaasData.addressNumber;
+    }
+    
+    if (asaasData.complement) {
+      updates.complement = asaasData.complement;
+    }
+    
+    if (asaasData.province) {
+      updates.province = asaasData.province;
+    }
+    
+    if (asaasData.postalCode) {
+      updates.cep = asaasData.postalCode;
+    }
+    
+    if (asaasData.city) {
+      updates.city = asaasData.city;
+    }
+    
+    if (asaasData.state) {
+      updates.state = asaasData.state;
+    }
+    
+    if (asaasData.incomeValue && typeof asaasData.incomeValue === 'number') {
+      updates.incomeValue = asaasData.incomeValue;
+    }
+    
+    console.log(`[CHAMPIONSHIP] Dados mapeados do Asaas:`, updates);
+    
+    return updates;
+  }
+
+  /**
    * Configura a subconta não white label no Asaas para split payment
    */
-  private async setupAsaasSubAccount(championship: Championship): Promise<void> {
+  private async setupAsaasSubAccount(championship: Championship): Promise<{
+    wasExisting: boolean;
+    foundBy?: 'cpfCnpj' | 'email';
+    updatedFields?: string[];
+  }> {
     try {
       console.log(`[CHAMPIONSHIP] Configurando subconta não white label no Asaas para campeonato: ${championship.id}`);
       console.log(`[CHAMPIONSHIP] Dados do campeonato:`, {
@@ -217,26 +296,48 @@ export class ChampionshipService extends BaseService<Championship> {
       const subAccountData = this.asaasService.prepareSubAccountData(championship);
       
       // Busca ou cria a subconta não white label e obtém o walletId
-      const { subAccountId, walletId } = await this.asaasService.getOrCreateSubAccountWallet(subAccountData);
+      const { subAccountId, walletId, wasExisting, foundBy, existingAccountData } = await this.asaasService.getOrCreateSubAccountWallet(subAccountData);
       
-      console.log(`[CHAMPIONSHIP] Subconta obtida/criada - CustomerID: ${subAccountId}, WalletID: ${walletId}`);
-      
-      // Atualiza o campeonato com os dados da subconta
-      const updatedChampionship = await this.update(championship.id, {
+      let updatedFields: string[] = [];
+      let championshipUpdates: Partial<Championship> = {
         asaasCustomerId: subAccountId,
         asaasWalletId: walletId
-      });
+      };
+      
+      if (wasExisting && existingAccountData) {
+        console.log(`[CHAMPIONSHIP] Subconta existente encontrada por ${foundBy} - CustomerID: ${subAccountId}, WalletID: ${walletId}`);
+        console.log(`[CHAMPIONSHIP] Atualizando dados do campeonato com informações da conta existente do Asaas`);
+        
+        // Mapear dados do Asaas para campos do Championship
+        const asaasDataUpdates = this.mapAsaasDataToChampionship(existingAccountData);
+        championshipUpdates = { ...championshipUpdates, ...asaasDataUpdates };
+        updatedFields = Object.keys(asaasDataUpdates);
+        
+        console.log(`[CHAMPIONSHIP] Campos que serão atualizados:`, updatedFields);
+      } else {
+        console.log(`[CHAMPIONSHIP] Nova subconta criada - CustomerID: ${subAccountId}, WalletID: ${walletId}`);
+      }
+      
+      // Atualiza o campeonato com os dados da subconta e dados do Asaas (se existente)
+      const updatedChampionship = await this.update(championship.id, championshipUpdates);
       
       if (updatedChampionship) {
         console.log(`[CHAMPIONSHIP] Campeonato atualizado com dados da subconta não white label:`);
         console.log(`[CHAMPIONSHIP] - CustomerID: ${updatedChampionship.asaasCustomerId}`);
         console.log(`[CHAMPIONSHIP] - WalletID: ${updatedChampionship.asaasWalletId}`);
         console.log(`[CHAMPIONSHIP] - Split Payment: ${updatedChampionship.splitEnabled ? 'HABILITADO' : 'DESABILITADO'}`);
+        console.log(`[CHAMPIONSHIP] - Conta ${wasExisting ? 'vinculada' : 'criada'} com sucesso`);
+        
+        if (wasExisting && updatedFields.length > 0) {
+          console.log(`[CHAMPIONSHIP] - Dados atualizados da conta existente: ${updatedFields.join(', ')}`);
+        }
       } else {
         throw new Error('Falha ao atualizar campeonato com dados da subconta');
       }
       
-      console.log(`[CHAMPIONSHIP] Subconta não white label configurada com sucesso para campeonato: ${championship.id}`);
+      console.log(`[CHAMPIONSHIP] Subconta não white label ${wasExisting ? 'vinculada' : 'configurada'} com sucesso para campeonato: ${championship.id}`);
+      
+      return { wasExisting, foundBy, updatedFields };
     } catch (error) {
       console.error('[CHAMPIONSHIP] Erro ao configurar subconta não white label no Asaas:', error);
       throw error;
@@ -246,7 +347,12 @@ export class ChampionshipService extends BaseService<Championship> {
   /**
    * Cria a subconta Asaas manualmente (chamado através das configurações)
    */
-  async createAsaasSubAccount(championshipId: string): Promise<Championship | null> {
+  async createAsaasSubAccount(championshipId: string): Promise<{
+    championship: Championship | null;
+    wasExisting: boolean;
+    foundBy?: 'cpfCnpj' | 'email';
+    updatedFields?: string[];
+  }> {
     const championship = await this.findById(championshipId);
     
     if (!championship) {
@@ -263,24 +369,36 @@ export class ChampionshipService extends BaseService<Championship> {
     
     if (championship.asaasWalletId && championship.asaasCustomerId) {
       console.log(`[CHAMPIONSHIP] Subconta Asaas já existe - CustomerID: ${championship.asaasCustomerId}, WalletID: ${championship.asaasWalletId}`);
-      return championship;
+      return { 
+        championship, 
+        wasExisting: true 
+      };
     }
     
-    console.log(`[CHAMPIONSHIP] Criando subconta Asaas para campeonato: ${championshipId}`);
-    await this.setupAsaasSubAccount(championship);
+    console.log(`[CHAMPIONSHIP] Verificando/criando subconta Asaas para campeonato: ${championshipId}`);
+    const { wasExisting, foundBy, updatedFields } = await this.setupAsaasSubAccount(championship);
     
     // Busca o campeonato atualizado para confirmar que os dados foram salvos
     const updatedChampionship = await this.findById(championshipId);
     
     if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
-      console.log(`[CHAMPIONSHIP] Subconta Asaas criada com sucesso:`);
+      console.log(`[CHAMPIONSHIP] Subconta Asaas ${wasExisting ? 'vinculada' : 'criada'} com sucesso:`);
       console.log(`[CHAMPIONSHIP] - CustomerID: ${updatedChampionship.asaasCustomerId}`);
       console.log(`[CHAMPIONSHIP] - WalletID: ${updatedChampionship.asaasWalletId}`);
+      
+      if (wasExisting && updatedFields && updatedFields.length > 0) {
+        console.log(`[CHAMPIONSHIP] - Dados atualizados: ${updatedFields.join(', ')}`);
+      }
     } else {
-      console.error(`[CHAMPIONSHIP] Falha na criação - dados não foram salvos corretamente`);
+      console.error(`[CHAMPIONSHIP] Falha na ${wasExisting ? 'vinculação' : 'criação'} - dados não foram salvos corretamente`);
     }
     
-    return updatedChampionship;
+    return { 
+      championship: updatedChampionship, 
+      wasExisting, 
+      foundBy,
+      updatedFields
+    };
   }
 
   /**
