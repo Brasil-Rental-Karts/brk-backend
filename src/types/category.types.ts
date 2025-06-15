@@ -8,6 +8,9 @@ export interface BatteryConfig {
   /** Tipo de grid utilizado nesta bateria */
   gridType: string; // ID do GridType
   
+  /** Sistema de pontuação utilizado nesta bateria */
+  scoringSystemId: string; // ID do ScoringSystem
+  
   /** Ordem da bateria na sequência */
   order: number;
   
@@ -38,8 +41,10 @@ export const validateBatteryConfig = (battery: BatteryConfig): string[] => {
   
   // gridType pode ser vazio inicialmente, será validado no momento de uso
   
-  if (battery.order === undefined || battery.order < 1) {
-    errors.push('Ordem da bateria deve ser maior que 0');
+  // scoringSystemId pode ser vazio inicialmente, será validado no momento de uso
+  
+  if (battery.order === undefined || battery.order < 0) {
+    errors.push('Ordem da bateria deve ser maior ou igual a 0');
   }
   
   if (battery.duration !== undefined && battery.duration < 1) {

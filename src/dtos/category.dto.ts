@@ -14,9 +14,12 @@ export class BatteryConfigDto {
   @IsString()
   gridType: string;
 
+  @IsString()
+  scoringSystemId: string;
+
   @Transform(({ value }) => parseInt(value))
   @IsInt({ message: 'Ordem deve ser um número inteiro' })
-  @Min(1, { message: 'Ordem deve ser maior que 0' })
+  @Min(0, { message: 'Ordem deve ser maior ou igual a 0' })
   order: number;
 
   @IsOptional()
@@ -74,13 +77,16 @@ export class BatteryConfigDto {
  *               gridType:
  *                 type: string
  *                 description: ID do tipo de grid
+ *               scoringSystemId:
+ *                 type: string
+ *                 description: ID do sistema de pontuação
  *               order:
  *                 type: integer
  *                 description: Ordem da bateria
  *               isRequired:
  *                 type: boolean
  *                 description: Se é obrigatória
- *           example: [{"name": "Classificação", "gridType": "uuid", "order": 1, "isRequired": true}]
+ *           example: [{"name": "Classificação", "gridType": "uuid", "scoringSystemId": "uuid", "order": 1, "isRequired": true}]
  *         minimumAge:
  *           type: integer
  *           minimum: 1
@@ -166,13 +172,16 @@ export class CreateCategoryDto extends BaseDto {
  *               gridType:
  *                 type: string
  *                 description: ID do tipo de grid
+ *               scoringSystemId:
+ *                 type: string
+ *                 description: ID do sistema de pontuação
  *               order:
  *                 type: integer
  *                 description: Ordem da bateria
  *               isRequired:
  *                 type: boolean
  *                 description: Se é obrigatória
- *           example: [{"name": "Classificação", "gridType": "uuid", "order": 1, "isRequired": true}]
+ *           example: [{"name": "Classificação", "gridType": "uuid", "scoringSystemId": "uuid", "order": 1, "isRequired": true}]
  *         minimumAge:
  *           type: integer
  *           minimum: 1
