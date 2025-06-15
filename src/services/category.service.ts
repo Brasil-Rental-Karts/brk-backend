@@ -8,8 +8,12 @@ export class CategoryService extends BaseService<Category> {
     super(categoryRepository);
   }
 
-  async findByName(name: string): Promise<Category | null> {
+  async findByName(name: string): Promise<Category[]> {
     return this.categoryRepository.findByName(name);
+  }
+
+  async findByNameAndSeason(name: string, seasonId: string): Promise<Category | null> {
+    return this.categoryRepository.findByNameAndSeason(name, seasonId);
   }
 
   async findByBallast(ballast: string): Promise<Category[]> {

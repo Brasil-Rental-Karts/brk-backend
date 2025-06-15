@@ -132,7 +132,7 @@ export class CategoryController extends BaseController {
      * @swagger
      * /categories/name/{name}:
      *   get:
-     *     summary: Buscar categoria por nome
+     *     summary: Buscar categorias por nome
      *     tags: [Categories]
      *     security:
      *       - bearerAuth: []
@@ -143,13 +143,24 @@ export class CategoryController extends BaseController {
      *         schema:
      *           type: string
      *         description: Nome da categoria
+     *       - in: query
+     *         name: seasonId
+     *         required: false
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da temporada (opcional - se fornecido, retorna categoria específica da temporada)
      *     responses:
      *       200:
-     *         description: Categoria encontrada
+     *         description: Categoria(s) encontrada(s)
      *         content:
      *           application/json:
      *             schema:
-     *               $ref: '#/components/schemas/Category'
+     *               oneOf:
+     *                 - $ref: '#/components/schemas/Category'
+     *                 - type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/Category'
      *       401:
      *         description: Token de acesso inválido
      *       404:
@@ -374,14 +385,25 @@ export class CategoryController extends BaseController {
   private async getCategoryByName(req: Request, res: Response): Promise<void> {
     try {
       const { name } = req.params;
-      const category = await this.categoryService.findByName(name);
+      const { seasonId } = req.query;
 
-      if (!category) {
-        res.status(404).json({ message: 'Categoria não encontrada' });
-        return;
+      if (seasonId) {
+        // Se seasonId for fornecido, buscar categoria específica da temporada
+        const category = await this.categoryService.findByNameAndSeason(name, seasonId as string);
+        if (!category) {
+          res.status(404).json({ message: 'Categoria não encontrada' });
+          return;
+        }
+        res.status(200).json(category);
+      } else {
+        // Se seasonId não for fornecido, buscar todas as categorias com esse nome
+        const categories = await this.categoryService.findByName(name);
+        if (!categories || categories.length === 0) {
+          res.status(404).json({ message: 'Categoria não encontrada' });
+          return;
+        }
+        res.status(200).json(categories);
       }
-
-      res.status(200).json(category);
     } catch (error) {
       console.error('Erro ao buscar categoria por nome:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
@@ -422,11 +444,11 @@ export class CategoryController extends BaseController {
         return;
       }
 
-      // Verificar se já existe uma categoria com o mesmo nome
-      const existingCategory = await this.categoryService.findByName(req.body.name);
+      // Verificar se já existe uma categoria com o mesmo nome na mesma temporada
+      const existingCategory = await this.categoryService.findByNameAndSeason(req.body.name, req.body.seasonId);
       if (existingCategory) {
         res.status(400).json({ 
-          message: 'Já existe uma categoria com este nome' 
+          message: 'Já existe uma categoria com este nome nesta temporada' 
         });
         return;
       }
@@ -460,12 +482,13 @@ export class CategoryController extends BaseController {
         return;
       }
 
-      // Verificar se já existe outra categoria com o mesmo nome (se o nome foi alterado)
+      // Verificar se já existe outra categoria com o mesmo nome na mesma temporada (se o nome foi alterado)
       if (req.body.name && req.body.name !== existingCategory.name) {
-        const categoryWithSameName = await this.categoryService.findByName(req.body.name);
+        const seasonId = req.body.seasonId || existingCategory.seasonId;
+        const categoryWithSameName = await this.categoryService.findByNameAndSeason(req.body.name, seasonId);
         if (categoryWithSameName) {
           res.status(400).json({ 
-            message: 'Já existe uma categoria com este nome' 
+            message: 'Já existe uma categoria com este nome nesta temporada' 
           });
           return;
         }

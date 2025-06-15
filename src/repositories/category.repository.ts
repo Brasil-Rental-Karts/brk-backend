@@ -7,8 +7,12 @@ export class CategoryRepository extends BaseRepositoryImpl<Category> {
     super(repository);
   }
 
-  async findByName(name: string): Promise<Category | null> {
-    return this.repository.findOne({ where: { name } });
+  async findByName(name: string): Promise<Category[]> {
+    return this.repository.find({ where: { name } });
+  }
+
+  async findByNameAndSeason(name: string, seasonId: string): Promise<Category | null> {
+    return this.repository.findOne({ where: { name, seasonId } });
   }
 
   async findByBallast(ballast: string): Promise<Category[]> {
