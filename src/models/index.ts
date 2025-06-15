@@ -9,4 +9,5 @@ export * from './asaas-payment.entity';
 export * from './vip-preregister.entity';
 export * from './category.entity';
 export * from './grid-type.entity';
-export * from './scoring-system.entity'; 
+export * from './scoring-system.entity';
+export * from './stage.entity'; 

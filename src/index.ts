@@ -16,6 +16,7 @@ import { GridTypeController } from './controllers/grid-type.controller';
 import { ScoringSystemController } from './controllers/scoring-system.controller';
 import { SeasonRegistrationController } from './controllers/season-registration.controller';
 import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
+import { StageController } from './controllers/stage.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -42,6 +43,7 @@ import { GridTypeService } from './services/grid-type.service';
 import { ScoringSystemService } from './services/scoring-system.service';
 import { SeasonRegistrationService } from './services/season-registration.service';
 import { AsaasService } from './services/asaas.service';
+import { StageService } from './services/stage.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -77,6 +79,7 @@ AppDataSource.initialize()
     const scoringSystemService = new ScoringSystemService();
     const asaasService = new AsaasService();
     const seasonRegistrationService = new SeasonRegistrationService();
+    const stageService = new StageService();
     
     // Initialize controllers
     const controllers = [
@@ -91,7 +94,8 @@ AppDataSource.initialize()
       new GridTypeController(),
       new ScoringSystemController(scoringSystemService, championshipService),
       new SeasonRegistrationController(seasonRegistrationService),
-      new AsaasWebhookController(seasonRegistrationService, asaasService)
+      new AsaasWebhookController(seasonRegistrationService, asaasService),
+      new StageController(stageService)
     ];
 
     // Initialize the app
