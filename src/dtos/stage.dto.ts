@@ -56,14 +56,6 @@ import { BaseDto } from './base.dto';
  *             type: string
  *             format: uuid
  *           description: IDs das categorias participantes
- *         defaultGridTypeId:
- *           type: string
- *           format: uuid
- *           description: ID do tipo de grid padrão (opcional)
- *         defaultScoringSystemId:
- *           type: string
- *           format: uuid
- *           description: ID do sistema de pontuação padrão (opcional)
  *         doublePoints:
  *           type: boolean
  *           description: Se a pontuação é em dobro
@@ -110,14 +102,6 @@ export class CreateStageDto extends BaseDto {
   @IsArray({ message: 'IDs das categorias deve ser um array' })
   @IsUUID(4, { each: true, message: 'Cada ID de categoria deve ser um UUID válido' })
   categoryIds: string[];
-
-  @IsOptional()
-  @IsUUID(4, { message: 'ID do tipo de grid deve ser um UUID válido' })
-  defaultGridTypeId?: string;
-
-  @IsOptional()
-  @IsUUID(4, { message: 'ID do sistema de pontuação deve ser um UUID válido' })
-  defaultScoringSystemId?: string;
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
@@ -176,14 +160,6 @@ export class CreateStageDto extends BaseDto {
  *             type: string
  *             format: uuid
  *           description: IDs das categorias participantes
- *         defaultGridTypeId:
- *           type: string
- *           format: uuid
- *           description: ID do tipo de grid padrão (opcional)
- *         defaultScoringSystemId:
- *           type: string
- *           format: uuid
- *           description: ID do sistema de pontuação padrão (opcional)
  *         doublePoints:
  *           type: boolean
  *           description: Se a pontuação é em dobro
@@ -228,14 +204,6 @@ export class UpdateStageDto extends BaseDto {
   @IsArray({ message: 'IDs das categorias deve ser um array' })
   @IsUUID(4, { each: true, message: 'Cada ID de categoria deve ser um UUID válido' })
   categoryIds?: string[];
-
-  @IsOptional()
-  @IsUUID(4, { message: 'ID do tipo de grid deve ser um UUID válido' })
-  defaultGridTypeId?: string;
-
-  @IsOptional()
-  @IsUUID(4, { message: 'ID do sistema de pontuação deve ser um UUID válido' })
-  defaultScoringSystemId?: string;
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)

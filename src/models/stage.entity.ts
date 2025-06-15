@@ -27,12 +27,6 @@ export class Stage extends BaseEntity {
   @Column({ type: 'simple-array', nullable: false })
   categoryIds: string[];
 
-  @Column({ nullable: true })
-  defaultGridTypeId: string;
-
-  @Column({ nullable: true })
-  defaultScoringSystemId: string;
-
   @Column({ type: 'boolean', nullable: false, default: false })
   doublePoints: boolean;
 

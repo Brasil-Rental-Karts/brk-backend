@@ -65,14 +65,7 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  *             type: string
  *             format: uuid
  *           description: IDs das categorias participantes
- *         defaultGridTypeId:
- *           type: string
- *           format: uuid
- *           description: ID do tipo de grid padrão (opcional)
- *         defaultScoringSystemId:
- *           type: string
- *           format: uuid
- *           description: ID do sistema de pontuação padrão (opcional)
+
  *         doublePoints:
  *           type: boolean
  *           description: Se a pontuação é em dobro
