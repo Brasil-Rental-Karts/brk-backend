@@ -148,6 +148,46 @@ export class StageController extends BaseController {
 
     /**
      * @swagger
+     * /stages/{id}/with-participants:
+     *   get:
+     *     summary: Buscar etapa por ID com participantes confirmados
+     *     tags: [Stages]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da etapa
+     *     responses:
+     *       200:
+     *         description: Etapa encontrada com participantes
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               allOf:
+     *                 - $ref: '#/components/schemas/Stage'
+     *                 - type: object
+     *                   properties:
+     *                     participants:
+     *                       type: array
+     *                       items:
+     *                         $ref: '#/components/schemas/StageParticipation'
+     *                     participantCount:
+     *                       type: number
+     *       404:
+     *         description: Etapa não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.get('/:id/with-participants', authMiddleware, this.getStageByIdWithParticipants.bind(this));
+
+    /**
+     * @swagger
      * /stages/season/{seasonId}:
      *   get:
      *     summary: Buscar etapas por temporada
@@ -410,6 +450,20 @@ export class StageController extends BaseController {
     try {
       const { id } = req.params;
       const stage = await this.stageService.findById(id);
+      res.json(stage);
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  }
+
+  private async getStageByIdWithParticipants(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const stage = await this.stageService.findByIdWithParticipants(id);
       res.json(stage);
     } catch (error: any) {
       if (error instanceof NotFoundException) {

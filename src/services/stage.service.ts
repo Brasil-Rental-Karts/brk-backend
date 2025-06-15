@@ -1,15 +1,23 @@
 import { Repository } from 'typeorm';
 import { AppDataSource } from '../config/database.config';
 import { Stage } from '../models/stage.entity';
+import { StageParticipation, ParticipationStatus } from '../models/stage-participation.entity';
 import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 
+export interface StageWithParticipants extends Stage {
+  participants?: StageParticipation[];
+  participantCount?: number;
+}
+
 export class StageService {
   private stageRepository: Repository<Stage>;
+  private participationRepository: Repository<StageParticipation>;
 
   constructor() {
     this.stageRepository = AppDataSource.getRepository(Stage);
+    this.participationRepository = AppDataSource.getRepository(StageParticipation);
   }
 
   /**
@@ -34,6 +42,35 @@ export class StageService {
     }
 
     return stage;
+  }
+
+  /**
+   * Buscar etapa por ID com participantes confirmados
+   */
+  async findByIdWithParticipants(id: string): Promise<StageWithParticipants> {
+    const stage = await this.stageRepository.findOne({
+      where: { id }
+    });
+
+    if (!stage) {
+      throw new NotFoundException('Etapa não encontrada');
+    }
+
+    // Buscar participantes confirmados
+    const participants = await this.participationRepository.find({
+      where: { 
+        stageId: id, 
+        status: ParticipationStatus.CONFIRMED 
+      },
+      relations: ['user', 'category'],
+      order: { confirmedAt: 'ASC' }
+    });
+
+    return {
+      ...stage,
+      participants,
+      participantCount: participants.length
+    };
   }
 
   /**
