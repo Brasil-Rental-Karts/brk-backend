@@ -7,6 +7,12 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+export interface DatabaseEvent {
+  operation: 'INSERT' | 'UPDATE' | 'DELETE';
+  table: string;
+  data: any;
+}
+
 export class DatabaseEventsService {
   private static instance: DatabaseEventsService;
   private client: Client | null = null;
@@ -22,6 +28,31 @@ export class DatabaseEventsService {
       DatabaseEventsService.instance = new DatabaseEventsService();
     }
     return DatabaseEventsService.instance;
+  }
+
+  async publishEvent(event: DatabaseEvent): Promise<boolean> {
+    try {
+      console.log(`Publishing database event: ${event.operation} on ${event.table}`);
+      
+      // Track Championships and Seasons tables
+      if (event.table === 'Championships' || event.table === 'Seasons') {
+        // Publish the message to Redis
+        const success = await this.redisService.publishMessage(event);
+        
+        if (success) {
+          console.log('Successfully sent to Redis');
+        } else {
+          console.error('Failed to send to Redis');
+        }
+        
+        return success;
+      }
+      
+      return true; // Return true for non-tracked tables
+    } catch (error) {
+      console.error('Error publishing database event:', error);
+      return false;
+    }
   }
 
   async startListening(): Promise<void> {
@@ -91,23 +122,52 @@ export class DatabaseEventsService {
         switch (event.operation) {
           case 'INSERT':
           case 'UPDATE':
-            // Cache the championship basic info (only the fields from "Sobre o Campeonato")
+            // Cache the championship info with image
             if (event.data && event.data.id) {
-              const basicInfo = {
+              const championshipInfo = {
                 id: event.data.id,
                 name: event.data.name,
+                championshipImage: event.data.championshipImage || '',
                 shortDescription: event.data.shortDescription || '',
                 fullDescription: event.data.fullDescription || ''
               };
-              await this.redisService.cacheChampionshipBasicInfo(event.data.id, basicInfo);
-              console.log(`Cached championship basic info for ID: ${event.data.id}`);
+              await this.redisService.cacheChampionshipBasicInfo(event.data.id, championshipInfo);
+              console.log(`Cached championship info for ID: ${event.data.id}`);
             }
             break;
           case 'DELETE':
-            // Remove from cache
+            // Remove championship from cache and clean up seasons index
             if (event.data && event.data.id) {
               await this.redisService.invalidateChampionshipCache(event.data.id);
+              await this.redisService.invalidateChampionshipSeasonsIndex(event.data.id);
               console.log(`Invalidated cache for championship ID: ${event.data.id}`);
+            }
+            break;
+        }
+      }
+
+      if (event.table === 'Seasons') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+            // Cache the season info with championship relationship
+            if (event.data && event.data.id) {
+              const seasonInfo = {
+                id: event.data.id,
+                name: event.data.name,
+                startDate: event.data.startDate,
+                endDate: event.data.endDate,
+                championshipId: event.data.championshipId
+              };
+              await this.redisService.cacheSeasonBasicInfo(event.data.id, seasonInfo);
+              console.log(`Cached season info for ID: ${event.data.id}, Championship: ${event.data.championshipId}`);
+            }
+            break;
+          case 'DELETE':
+            // Remove season from cache and championship seasons index
+            if (event.data && event.data.id) {
+              await this.redisService.invalidateSeasonCache(event.data.id, event.data.championshipId);
+              console.log(`Invalidated cache for season ID: ${event.data.id}`);
             }
             break;
         }

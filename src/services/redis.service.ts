@@ -201,12 +201,12 @@ export class RedisService {
     }
   }
 
-  // Championship-specific cache methods with optimized performance
+  // Championship-specific cache methods
   async cacheChampionshipBasicInfo(championshipId: string, data: any): Promise<boolean> {
     try {
       const key = `championship:${championshipId}`;
-      // Cache championship basic info for 1 hour (3600 seconds)
-      return await this.setData(key, data, 3600);
+      // Cache championship info without expiration (permanent until explicitly removed)
+      return await this.setData(key, data);
     } catch (error) {
       console.error('Error caching championship basic info:', error);
       return false;
@@ -233,10 +233,8 @@ export class RedisService {
     }
   }
 
-  // Batch operations for better performance
-  async getMultipleCachedChampionships(championshipIds: string[]): Promise<{ [key: string]: any }> {
-    const results: { [key: string]: any } = {};
-    
+  // Season-specific cache methods with championship relationship
+  async cacheSeasonBasicInfo(seasonId: string, data: any): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -246,36 +244,34 @@ export class RedisService {
         throw new Error('Failed to create Redis client');
       }
 
-      // Use pipeline for batch operations
-      const pipeline = this.client.multi();
-      
-      championshipIds.forEach(id => {
-        const key = `championship:${id}`;
-        pipeline.get(key);
-      });
+      // Cache season data
+      const seasonKey = `season:${seasonId}`;
+      const setResult = await this.setData(seasonKey, data);
 
-      const responses = await pipeline.exec();
-      
-      if (responses) {
-        responses.forEach((response, index) => {
-          const championshipId = championshipIds[index];
-          if (response && typeof response === 'string') {
-            try {
-              results[championshipId] = JSON.parse(response);
-            } catch {
-              results[championshipId] = response;
-            }
-          }
-        });
+      if (setResult && data.championshipId) {
+        // Add season ID to championship's seasons list for fast lookup
+        const championshipSeasonsKey = `championship:${data.championshipId}:seasons`;
+        await this.client.sAdd(championshipSeasonsKey, seasonId);
       }
-    } catch (error) {
-      console.error('Error getting multiple cached championships:', error);
-    }
 
-    return results;
+      return setResult;
+    } catch (error) {
+      console.error('Error caching season basic info:', error);
+      return false;
+    }
   }
 
-  async cacheMultipleChampionships(championshipsData: { [key: string]: any }): Promise<boolean> {
+  async getCachedSeasonBasicInfo(seasonId: string): Promise<any | null> {
+    try {
+      const key = `season:${seasonId}`;
+      return await this.getData(key);
+    } catch (error) {
+      console.error('Error getting cached season basic info:', error);
+      return null;
+    }
+  }
+
+  async invalidateSeasonCache(seasonId: string, championshipId?: string): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -285,19 +281,59 @@ export class RedisService {
         throw new Error('Failed to create Redis client');
       }
 
-      // Use pipeline for batch operations
-      const pipeline = this.client.multi();
-      
-      Object.entries(championshipsData).forEach(([championshipId, data]) => {
-        const key = `championship:${championshipId}`;
-        const valueString = JSON.stringify(data);
-        pipeline.setEx(key, 3600, valueString); // 1 hour expiration
-      });
+      // Remove season data
+      const seasonKey = `season:${seasonId}`;
+      const deleteResult = await this.deleteData(seasonKey);
 
-      await pipeline.exec();
+      // Remove season ID from championship's seasons list if championshipId is provided
+      if (championshipId) {
+        const championshipSeasonsKey = `championship:${championshipId}:seasons`;
+        await this.client.sRem(championshipSeasonsKey, seasonId);
+      }
+
+      return deleteResult;
+    } catch (error) {
+      console.error('Error invalidating season cache:', error);
+      return false;
+    }
+  }
+
+  // Get all season IDs for a championship (for fast bulk retrieval)
+  async getChampionshipSeasonIds(championshipId: string): Promise<string[]> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const key = `championship:${championshipId}:seasons`;
+      const seasonIds = await this.client.sMembers(key);
+      return seasonIds || [];
+    } catch (error) {
+      console.error('Error getting championship season IDs:', error);
+      return [];
+    }
+  }
+
+  // Clean up championship seasons index when championship is deleted
+  async invalidateChampionshipSeasonsIndex(championshipId: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const key = `championship:${championshipId}:seasons`;
+      await this.client.del(key);
       return true;
     } catch (error) {
-      console.error('Error caching multiple championships:', error);
+      console.error('Error invalidating championship seasons index:', error);
       return false;
     }
   }
