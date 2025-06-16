@@ -18,13 +18,14 @@ export interface StaffMemberResponse {
     name: string;
     email: string;
   };
-  role: StaffRole;
+  role: StaffRole | 'owner';
   addedAt: Date;
   addedBy: {
     id: string;
     name: string;
     email: string;
   };
+  isOwner?: boolean;
 }
 
 export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
@@ -39,21 +40,58 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
   async getStaffMembers(championshipId: string): Promise<StaffMemberResponse[]> {
     const staffMembers = await this.repository.findByChampionshipId(championshipId);
     
-    return staffMembers.map(staff => ({
-      id: staff.id,
+    // Buscar dados do owner do campeonato
+    const championship = await this.championshipService.findById(championshipId);
+    if (!championship) {
+      throw new NotFoundException('Campeonato não encontrado');
+    }
+
+    const owner = await this.userService.findById(championship.ownerId);
+    if (!owner) {
+      throw new NotFoundException('Proprietário do campeonato não encontrado');
+    }
+
+    const result: StaffMemberResponse[] = [];
+
+    // Adicionar o owner primeiro na lista
+    result.push({
+      id: `owner-${championship.ownerId}`, // ID especial para o owner
       user: {
-        id: staff.user.id,
-        name: staff.user.name,
-        email: staff.user.email
+        id: owner.id,
+        name: owner.name,
+        email: owner.email
       },
-      role: staff.role,
-      addedAt: staff.addedAt,
+      role: 'owner' as any,
+      addedAt: championship.createdAt,
       addedBy: {
-        id: staff.addedBy.id,
-        name: staff.addedBy.name,
-        email: staff.addedBy.email
-      }
-    }));
+        id: owner.id,
+        name: owner.name,
+        email: owner.email
+      },
+      isOwner: true
+    });
+
+    // Adicionar membros do staff
+    staffMembers.forEach(staff => {
+      result.push({
+        id: staff.id,
+        user: {
+          id: staff.user.id,
+          name: staff.user.name,
+          email: staff.user.email
+        },
+        role: staff.role,
+        addedAt: staff.addedAt,
+        addedBy: {
+          id: staff.addedBy.id,
+          name: staff.addedBy.name,
+          email: staff.addedBy.email
+        },
+        isOwner: false
+      });
+    });
+
+    return result;
   }
 
   async addStaffMember(
