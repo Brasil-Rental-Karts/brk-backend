@@ -21,12 +21,26 @@ export class StageService {
   }
 
   /**
+   * Formatar campos de hora para HH:MM
+   */
+  private formatTimeFields(stage: Stage): Stage {
+    if (stage.time && stage.time.length > 5) {
+      stage.time = stage.time.substring(0, 5);
+    }
+    if (stage.briefingTime && stage.briefingTime.length > 5) {
+      stage.briefingTime = stage.briefingTime.substring(0, 5);
+    }
+    return stage;
+  }
+
+  /**
    * Buscar todas as etapas
    */
   async findAll(): Promise<Stage[]> {
-    return this.stageRepository.find({
+    const stages = await this.stageRepository.find({
       order: { date: 'ASC', time: 'ASC' }
     });
+    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
@@ -41,7 +55,7 @@ export class StageService {
       throw new NotFoundException('Etapa não encontrada');
     }
 
-    return stage;
+    return this.formatTimeFields(stage);
   }
 
   /**
@@ -67,7 +81,7 @@ export class StageService {
     });
 
     return {
-      ...stage,
+      ...this.formatTimeFields(stage),
       participants,
       participantCount: participants.length
     };
@@ -77,30 +91,33 @@ export class StageService {
    * Buscar etapas por temporada
    */
   async findBySeasonId(seasonId: string): Promise<Stage[]> {
-    return this.stageRepository.find({
+    const stages = await this.stageRepository.find({
       where: { seasonId },
       order: { date: 'ASC', time: 'ASC' }
     });
+    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
    * Buscar etapas por kartódromo
    */
   async findByKartodrome(kartodrome: string): Promise<Stage[]> {
-    return this.stageRepository.find({
+    const stages = await this.stageRepository.find({
       where: { kartodrome },
       order: { date: 'ASC', time: 'ASC' }
     });
+    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
    * Buscar etapas por data
    */
   async findByDate(date: Date): Promise<Stage[]> {
-    return this.stageRepository.find({
+    const stages = await this.stageRepository.find({
       where: { date },
       order: { time: 'ASC' }
     });
+    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
@@ -110,13 +127,15 @@ export class StageService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return this.stageRepository
+    const stages = await this.stageRepository
       .createQueryBuilder('stage')
       .where('stage.seasonId = :seasonId', { seasonId })
       .andWhere('stage.date >= :today', { today })
       .orderBy('stage.date', 'ASC')
       .addOrderBy('stage.time', 'ASC')
       .getMany();
+    
+    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
@@ -126,13 +145,15 @@ export class StageService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return this.stageRepository
+    const stages = await this.stageRepository
       .createQueryBuilder('stage')
       .where('stage.seasonId = :seasonId', { seasonId })
       .andWhere('stage.date < :today', { today })
       .orderBy('stage.date', 'DESC')
       .addOrderBy('stage.time', 'DESC')
       .getMany();
+    
+    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
@@ -193,7 +214,8 @@ export class StageService {
       briefingTime
     });
 
-    return this.stageRepository.save(stage);
+    const savedStage = await this.stageRepository.save(stage);
+    return this.formatTimeFields(savedStage);
   }
 
   /**
@@ -216,14 +238,13 @@ export class StageService {
       const checkDate = updateStageDto.date ? dateObj : stage.date;
       const checkTime = updateStageDto.time || stage.time;
 
-      const existingStage = await this.stageRepository.findOne({
-        where: {
-          seasonId: stage.seasonId,
-          date: checkDate,
-          time: checkTime,
-          id: { $ne: id } as any // Excluir a própria etapa da verificação
-        }
-      });
+      const existingStage = await this.stageRepository
+        .createQueryBuilder('stage')
+        .where('stage.seasonId = :seasonId', { seasonId: stage.seasonId })
+        .andWhere('stage.date = :date', { date: checkDate })
+        .andWhere('stage.time = :time', { time: checkTime })
+        .andWhere('stage.id != :id', { id })
+        .getOne();
 
       if (existingStage) {
         throw new BadRequestException('Já existe uma etapa agendada para esta data e horário');
@@ -263,13 +284,14 @@ export class StageService {
    * Buscar etapas com pontuação em dobro por temporada
    */
   async findDoublePointsBySeasonId(seasonId: string): Promise<Stage[]> {
-    return this.stageRepository.find({
+    const stages = await this.stageRepository.find({
       where: { 
         seasonId, 
         doublePoints: true 
       },
       order: { date: 'ASC', time: 'ASC' }
     });
+    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
@@ -287,7 +309,7 @@ export class StageService {
   async findNextBySeasonId(seasonId: string): Promise<Stage | null> {
     const today = new Date();
     
-    return this.stageRepository
+    const stage = await this.stageRepository
       .createQueryBuilder('stage')
       .where('stage.seasonId = :seasonId', { seasonId })
       .andWhere('(stage.date > :today OR (stage.date = :today AND stage.time > :currentTime))', {
@@ -297,5 +319,7 @@ export class StageService {
       .orderBy('stage.date', 'ASC')
       .addOrderBy('stage.time', 'ASC')
       .getOne();
+    
+    return stage ? this.formatTimeFields(stage) : null;
   }
 } 

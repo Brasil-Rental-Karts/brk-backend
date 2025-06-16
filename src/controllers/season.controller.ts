@@ -6,6 +6,7 @@ import { Season, SeasonStatus, InscriptionType, PaymentMethod } from '../models/
 import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
 
 /**
  * @swagger
@@ -79,7 +80,10 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  */
 
 export class SeasonController extends BaseController {
-  constructor(private seasonService: SeasonService) {
+  constructor(
+    private seasonService: SeasonService,
+    private championshipStaffService: ChampionshipStaffService
+  ) {
     super('/seasons');
     this.initializeRoutes();
   }
@@ -186,7 +190,7 @@ export class SeasonController extends BaseController {
      *       400:
      *         description: Dados inválidos
      */
-    this.router.post('/', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.createSeason.bind(this));
+    this.router.post('/', authMiddleware, this.createSeason.bind(this));
 
     /**
      * @swagger
@@ -215,7 +219,7 @@ export class SeasonController extends BaseController {
      *       404:
      *         description: Temporada não encontrada
      */
-    this.router.put('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateSeason.bind(this));
+    this.router.put('/:id', authMiddleware, this.updateSeason.bind(this));
 
     /**
      * @swagger
@@ -238,7 +242,7 @@ export class SeasonController extends BaseController {
      *       404:
      *         description: Temporada não encontrada
      */
-    this.router.delete('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.deleteSeason.bind(this));
+    this.router.delete('/:id', authMiddleware, this.deleteSeason.bind(this));
   }
 
   private async getAllSeasons(req: Request, res: Response): Promise<void> {
@@ -288,6 +292,17 @@ export class SeasonController extends BaseController {
   private async createSeason(req: Request, res: Response): Promise<void> {
     try {
       this.validateSeasonData(req.body);
+      const userId = req.user!.id;
+      const championshipId = req.body.championshipId;
+
+      // Verificar se o usuário tem permissão para criar temporadas neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para criar temporadas neste campeonato'
+        });
+        return;
+      }
 
       const seasonData: Partial<Season> = {
         name: req.body.name,
@@ -316,7 +331,23 @@ export class SeasonController extends BaseController {
   private async updateSeason(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user!.id;
       this.validateSeasonData(req.body, false);
+
+      // Buscar a temporada para obter o championshipId
+      const existingSeason = await this.seasonService.findById(id);
+      if (!existingSeason) {
+        throw new NotFoundException('Temporada não encontrada');
+      }
+
+      // Verificar se o usuário tem permissão para editar temporadas neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, existingSeason.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para editar esta temporada'
+        });
+        return;
+      }
 
       const seasonData: Partial<Season> = {};
 
@@ -351,6 +382,23 @@ export class SeasonController extends BaseController {
   private async deleteSeason(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Buscar a temporada para obter o championshipId
+      const existingSeason = await this.seasonService.findById(id);
+      if (!existingSeason) {
+        throw new NotFoundException('Temporada não encontrada');
+      }
+
+      // Verificar se o usuário tem permissão para deletar temporadas neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, existingSeason.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para deletar esta temporada'
+        });
+        return;
+      }
+
       const deleted = await this.seasonService.delete(id);
 
       if (!deleted) {

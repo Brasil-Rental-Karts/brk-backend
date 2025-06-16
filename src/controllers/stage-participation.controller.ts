@@ -198,6 +198,35 @@ export class StageParticipationController extends BaseController {
 
     /**
      * @swagger
+     * /stage-participations/my/upcoming:
+     *   get:
+     *     summary: Buscar próximas participações do usuário logado
+     *     tags: [Stage Participations]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Lista de próximas participações do usuário
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/StageParticipation'
+     *       401:
+     *         description: Token de acesso inválido
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.get('/my/upcoming', authMiddleware, this.getMyUpcomingParticipations.bind(this));
+
+    /**
+     * @swagger
      * /stage-participations/stage/{stageId}:
      *   get:
      *     summary: Buscar participações de uma etapa específica
@@ -352,6 +381,21 @@ export class StageParticipationController extends BaseController {
       });
     } catch (error: any) {
       console.error('Error getting user participations:', error);
+      res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+  }
+
+  private async getMyUpcomingParticipations(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const upcomingParticipations = await this.stageParticipationService.findUserUpcomingParticipations(userId);
+
+      res.json({
+        message: 'Próximas participações recuperadas com sucesso',
+        data: upcomingParticipations
+      });
+    } catch (error: any) {
+      console.error('Error getting user upcoming participations:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }

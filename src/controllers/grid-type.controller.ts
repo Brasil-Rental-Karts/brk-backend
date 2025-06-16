@@ -5,13 +5,16 @@ import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
 import { CreateGridTypeDto, UpdateGridTypeDto } from '../dtos/grid-type.dto';
 import { UserRole } from '../models/user.entity';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
 
 export class GridTypeController extends BaseController {
   private gridTypeService: GridTypeService;
+  private championshipStaffService: ChampionshipStaffService;
 
-  constructor() {
+  constructor(championshipStaffService: ChampionshipStaffService) {
     super('/');
     this.gridTypeService = new GridTypeService();
+    this.championshipStaffService = championshipStaffService;
     this.initializeRoutes();
   }
 
@@ -299,6 +302,17 @@ export class GridTypeController extends BaseController {
   private async createPredefined(req: Request, res: Response): Promise<void> {
     try {
       const { championshipId } = req.params;
+      const userId = req.user!.id;
+
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para gerenciar tipos de grid neste campeonato'
+        });
+        return;
+      }
+
       const gridTypes = await this.gridTypeService.createPredefined(championshipId);
       res.status(201).json(gridTypes);
     } catch (error: any) {
@@ -310,6 +324,17 @@ export class GridTypeController extends BaseController {
   private async create(req: Request, res: Response): Promise<void> {
     try {
       const { championshipId } = req.params;
+      const userId = req.user!.id;
+
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para criar tipos de grid neste campeonato'
+        });
+        return;
+      }
+
       const createDto: CreateGridTypeDto = req.body;
       const gridType = await this.gridTypeService.create(championshipId, createDto);
       res.status(201).json(gridType);
@@ -322,6 +347,17 @@ export class GridTypeController extends BaseController {
   private async update(req: Request, res: Response): Promise<void> {
     try {
       const { id, championshipId } = req.params;
+      const userId = req.user!.id;
+
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para editar tipos de grid neste campeonato'
+        });
+        return;
+      }
+
       const updateDto: UpdateGridTypeDto = req.body;
       const gridType = await this.gridTypeService.update(id, championshipId, updateDto);
       res.json(gridType);
@@ -338,6 +374,17 @@ export class GridTypeController extends BaseController {
   private async delete(req: Request, res: Response): Promise<void> {
     try {
       const { id, championshipId } = req.params;
+      const userId = req.user!.id;
+
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para deletar tipos de grid neste campeonato'
+        });
+        return;
+      }
+
       await this.gridTypeService.delete(id, championshipId);
       res.status(204).send();
     } catch (error: any) {
@@ -358,6 +405,17 @@ export class GridTypeController extends BaseController {
   private async activate(req: Request, res: Response): Promise<void> {
     try {
       const { id, championshipId } = req.params;
+      const userId = req.user!.id;
+
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para gerenciar tipos de grid neste campeonato'
+        });
+        return;
+      }
+
       const gridType = await this.gridTypeService.toggleActive(id, championshipId);
       res.json(gridType);
     } catch (error: any) {
@@ -376,6 +434,17 @@ export class GridTypeController extends BaseController {
   private async setAsDefault(req: Request, res: Response): Promise<void> {
     try {
       const { id, championshipId } = req.params;
+      const userId = req.user!.id;
+
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para gerenciar tipos de grid neste campeonato'
+        });
+        return;
+      }
+
       const gridType = await this.gridTypeService.setAsDefault(id, championshipId);
       res.json(gridType);
     } catch (error: any) {

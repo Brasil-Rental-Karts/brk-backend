@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { ScoringSystemService, CreateScoringSystemDto, UpdateScoringSystemDto } from '../services/scoring-system.service';
 import { ChampionshipService } from '../services/championship.service';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
@@ -79,7 +80,8 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
 export class ScoringSystemController extends BaseController {
   constructor(
     private scoringSystemService: ScoringSystemService,
-    private championshipService: ChampionshipService
+    private championshipService: ChampionshipService,
+    private championshipStaffService: ChampionshipStaffService
   ) {
     super('/scoring-systems');
     this.initializeRoutes();
@@ -401,8 +403,8 @@ export class ScoringSystemController extends BaseController {
         throw new BadRequestException('Usuário não identificado');
       }
 
-      // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystems = await this.scoringSystemService.findByChampionship(championshipId);
 
@@ -421,8 +423,8 @@ export class ScoringSystemController extends BaseController {
         throw new BadRequestException('Usuário não identificado');
       }
 
-      // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      // Verificar se o usuário tem permissão para gerenciar este campeonato
+      await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystem = await this.scoringSystemService.findById(id, championshipId);
 
@@ -442,7 +444,7 @@ export class ScoringSystemController extends BaseController {
       }
 
       // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystemData: CreateScoringSystemDto = req.body;
       
@@ -469,7 +471,7 @@ export class ScoringSystemController extends BaseController {
       }
 
       // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystemData: UpdateScoringSystemDto = req.body;
       const scoringSystem = await this.scoringSystemService.update(id, championshipId, scoringSystemData);
@@ -490,7 +492,7 @@ export class ScoringSystemController extends BaseController {
       }
 
       // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      await this.validateChampionshipPermission(championshipId, userId);
 
       await this.scoringSystemService.delete(id, championshipId);
 
@@ -510,7 +512,7 @@ export class ScoringSystemController extends BaseController {
       }
 
       // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystem = await this.scoringSystemService.setAsDefault(id, championshipId);
 
@@ -530,7 +532,7 @@ export class ScoringSystemController extends BaseController {
       }
 
       // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystem = await this.scoringSystemService.toggleActive(id, championshipId);
 
@@ -550,7 +552,7 @@ export class ScoringSystemController extends BaseController {
       }
 
       // Verificar se o usuário é proprietário do campeonato
-      await this.validateChampionshipOwnership(championshipId, userId);
+      await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystems = await this.scoringSystemService.createPredefined(championshipId);
 
@@ -560,19 +562,14 @@ export class ScoringSystemController extends BaseController {
     }
   }
 
-  private async validateChampionshipOwnership(championshipId: string, userId: string): Promise<void> {
+  private async validateChampionshipPermission(championshipId: string, userId: string): Promise<void> {
     try {
-      const championship = await this.championshipService.findById(championshipId);
-      
-      if (!championship) {
-        throw new NotFoundException('Campeonato não encontrado');
-      }
-      
-      if (championship.ownerId !== userId) {
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
         throw new ForbiddenException('Você não tem permissão para gerenciar este campeonato');
       }
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+      if (error instanceof ForbiddenException) {
         throw error;
       }
       throw new NotFoundException('Campeonato não encontrado');

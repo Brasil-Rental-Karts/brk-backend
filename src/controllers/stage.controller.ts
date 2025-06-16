@@ -7,6 +7,8 @@ import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
+import { SeasonService } from '../services/season.service';
 
 /**
  * @swagger
@@ -84,7 +86,11 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  */
 
 export class StageController extends BaseController {
-  constructor(private stageService: StageService) {
+  constructor(
+    private stageService: StageService,
+    private championshipStaffService: ChampionshipStaffService,
+    private seasonService: SeasonService
+  ) {
     super('/stages');
     this.initializeRoutes();
   }
@@ -347,7 +353,6 @@ export class StageController extends BaseController {
     this.router.post(
       '/', 
       authMiddleware, 
-      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), 
       validationMiddleware(CreateStageDto), 
       this.createStage.bind(this)
     );
@@ -395,7 +400,6 @@ export class StageController extends BaseController {
     this.router.put(
       '/:id', 
       authMiddleware, 
-      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), 
       validationMiddleware(UpdateStageDto), 
       this.updateStage.bind(this)
     );
@@ -431,7 +435,6 @@ export class StageController extends BaseController {
     this.router.delete(
       '/:id', 
       authMiddleware, 
-      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), 
       this.deleteStage.bind(this)
     );
   }
@@ -523,6 +526,25 @@ export class StageController extends BaseController {
   private async createStage(req: Request, res: Response): Promise<void> {
     try {
       const createStageDto: CreateStageDto = req.body;
+      const userId = req.user!.id;
+      const seasonId = createStageDto.seasonId;
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para criar etapas neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para criar etapas neste campeonato'
+        });
+        return;
+      }
+
       const stage = await this.stageService.create(createStageDto);
       res.status(201).json(stage);
     } catch (error: any) {
@@ -538,6 +560,31 @@ export class StageController extends BaseController {
     try {
       const { id } = req.params;
       const updateStageDto: UpdateStageDto = req.body;
+      const userId = req.user!.id;
+
+      // Buscar a etapa existente para obter o seasonId
+      const existingStage = await this.stageService.findById(id);
+      if (!existingStage) {
+        res.status(404).json({ message: 'Etapa não encontrada' });
+        return;
+      }
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(existingStage.seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para editar etapas neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para editar esta etapa'
+        });
+        return;
+      }
+
       const stage = await this.stageService.update(id, updateStageDto);
       res.json(stage);
     } catch (error: any) {
@@ -554,6 +601,31 @@ export class StageController extends BaseController {
   private async deleteStage(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Buscar a etapa existente para obter o seasonId
+      const existingStage = await this.stageService.findById(id);
+      if (!existingStage) {
+        res.status(404).json({ message: 'Etapa não encontrada' });
+        return;
+      }
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(existingStage.seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para deletar etapas neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para deletar esta etapa'
+        });
+        return;
+      }
+
       await this.stageService.delete(id);
       res.status(204).send();
     } catch (error: any) {

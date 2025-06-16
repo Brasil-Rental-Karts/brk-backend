@@ -5,6 +5,8 @@ import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
+import { SeasonService } from '../services/season.service';
 
 /**
  * @swagger
@@ -88,7 +90,11 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  */
 
 export class SeasonRegistrationController extends BaseController {
-  constructor(private registrationService: SeasonRegistrationService) {
+  constructor(
+    private registrationService: SeasonRegistrationService,
+    private championshipStaffService: ChampionshipStaffService,
+    private seasonService: SeasonService
+  ) {
     super('/season-registrations');
     this.initializeRoutes();
   }
@@ -236,7 +242,7 @@ export class SeasonRegistrationController extends BaseController {
      *       200:
      *         description: Lista de inscrições da temporada
      */
-    this.router.get('/season/:seasonId', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.getRegistrationsBySeason.bind(this));
+    this.router.get('/season/:seasonId', authMiddleware, this.getRegistrationsBySeason.bind(this));
 
     /**
      * @swagger
@@ -257,7 +263,7 @@ export class SeasonRegistrationController extends BaseController {
      *       200:
      *         description: Lista de inscrições do campeonato
      */
-    this.router.get('/championship/:championshipId', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.getRegistrationsByChampionship.bind(this));
+    this.router.get('/championship/:championshipId', authMiddleware, this.getRegistrationsByChampionship.bind(this));
 
     /**
      * @swagger
@@ -459,6 +465,26 @@ export class SeasonRegistrationController extends BaseController {
   private async getRegistrationsBySeason(req: Request, res: Response): Promise<void> {
     try {
       const { seasonId } = req.params;
+      const userId = req.user!.id;
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(seasonId);
+      if (!season) {
+        res.status(404).json({
+          message: 'Temporada não encontrada'
+        });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para acessar os dados desta temporada
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para acessar os dados desta temporada'
+        });
+        return;
+      }
+
       const registrations = await this.registrationService.findBySeasonId(seasonId);
 
       res.json({
@@ -476,6 +502,17 @@ export class SeasonRegistrationController extends BaseController {
   private async getRegistrationsByChampionship(req: Request, res: Response): Promise<void> {
     try {
       const { championshipId } = req.params;
+      const userId = req.user!.id;
+
+      // Verificar se o usuário tem permissão para acessar os dados do campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para acessar os dados deste campeonato'
+        });
+        return;
+      }
+
       const registrations = await this.registrationService.findByChampionshipId(championshipId);
 
       res.json({

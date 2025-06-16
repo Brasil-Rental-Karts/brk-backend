@@ -8,6 +8,7 @@ import { HealthController } from './controllers/health.controller';
 import { AuthController } from './controllers/auth.controller';
 import { UserController } from './controllers/user.controller';
 import { ChampionshipController } from './controllers/championship.controller';
+import { ChampionshipStaffController } from './controllers/championship-staff.controller';
 import { MemberProfileController } from './controllers/member-profile.controller';
 import { SeasonController } from './controllers/season.controller';
 import { VipPreregisterController } from './controllers/vip-preregister.controller';
@@ -23,6 +24,7 @@ import { UserStatsController } from './controllers/user-stats.controller';
 // Entities
 import { User } from './models/user.entity';
 import { Championship } from './models/championship.entity';
+import { ChampionshipStaff } from './models/championship-staff.entity';
 import { MemberProfile } from './models/member-profile.entity';
 import { Season } from './models/season.entity';
 import { VipPreregister } from './models/vip-preregister.entity';
@@ -33,6 +35,7 @@ import { GridType } from './models/grid-type.entity';
 import { AuthService } from './services/auth.service';
 import { UserService } from './services/user.service';
 import { ChampionshipService } from './services/championship.service';
+import { ChampionshipStaffService } from './services/championship-staff.service';
 import { RedisService } from './services/redis.service';
 import { DatabaseEventsService } from './services/database-events.service';
 import { EmailService } from './services/email.service';
@@ -52,6 +55,7 @@ import { UserStatsService } from './services/user-stats.service';
 // Repositories
 import { UserRepository } from './repositories/user.repository';
 import { ChampionshipRepository } from './repositories/championship.repository';
+import { ChampionshipStaffRepository } from './repositories/championship-staff.repository';
 import { MemberProfileRepository } from './repositories/member-profile.repository';
 import { SeasonRepository } from './repositories/season.repository';
 import { VipPreregisterRepository } from './repositories/vip-preregister.repository';
@@ -65,6 +69,7 @@ AppDataSource.initialize()
     // Initialize repositories
     const userRepository = new UserRepository(AppDataSource.getRepository(User));
     const championshipRepository = new ChampionshipRepository(AppDataSource.getRepository(Championship));
+    const championshipStaffRepository = new ChampionshipStaffRepository(AppDataSource.getRepository(ChampionshipStaff));
     const memberProfileRepository = new MemberProfileRepository(AppDataSource.getRepository(MemberProfile));
     const seasonRepository = new SeasonRepository(AppDataSource.getRepository(Season));
     const vipPreregisterRepository = new VipPreregisterRepository(AppDataSource.getRepository(VipPreregister));
@@ -75,6 +80,7 @@ AppDataSource.initialize()
     const authService = new AuthService(userRepository, memberProfileRepository, emailService);
     const userService = new UserService(userRepository);
     const championshipService = new ChampionshipService(championshipRepository);
+    const championshipStaffService = new ChampionshipStaffService(championshipStaffRepository, userService, championshipService);
     const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);
     const memberProfileService = new MemberProfileService(memberProfileRepository, userService);
     const seasonService = new SeasonService(seasonRepository);
@@ -92,16 +98,17 @@ AppDataSource.initialize()
       new HealthController(),
       new AuthController(authService, googleAuthService),
       new UserController(userService),
-      new ChampionshipController(championshipService, userService, authService, memberProfileService),
+      new ChampionshipController(championshipService, userService, authService, memberProfileService, championshipStaffService, seasonRegistrationService),
+      new ChampionshipStaffController(championshipStaffService),
       new MemberProfileController(memberProfileService),
-      new SeasonController(seasonService),
+      new SeasonController(seasonService, championshipStaffService),
       new VipPreregisterController(vipPreregisterService),
-      new CategoryController(categoryService),
-      new GridTypeController(),
-      new ScoringSystemController(scoringSystemService, championshipService),
-      new SeasonRegistrationController(seasonRegistrationService),
+      new CategoryController(categoryService, championshipStaffService, seasonService),
+      new GridTypeController(championshipStaffService),
+      new ScoringSystemController(scoringSystemService, championshipService, championshipStaffService),
+      new SeasonRegistrationController(seasonRegistrationService, championshipStaffService, seasonService),
       new AsaasWebhookController(seasonRegistrationService, asaasService),
-      new StageController(stageService),
+      new StageController(stageService, championshipStaffService, seasonService),
       new StageParticipationController(),
       new UserStatsController()
     ];

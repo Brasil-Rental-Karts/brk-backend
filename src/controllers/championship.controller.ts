@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { ChampionshipService } from '../services/championship.service';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
+import { SeasonRegistrationService } from '../services/season-registration.service';
 import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
 import { MemberProfileService } from '../services/member-profile.service';
@@ -171,7 +173,9 @@ export class ChampionshipController extends BaseController {
     private championshipService: ChampionshipService,
     private userService: UserService,
     private authService: AuthService,
-    private memberProfileService: MemberProfileService
+    private memberProfileService: MemberProfileService,
+    private championshipStaffService: ChampionshipStaffService,
+    private seasonRegistrationService: SeasonRegistrationService
   ) {
     super('/championships');
     this.initializeRoutes();
@@ -425,7 +429,7 @@ export class ChampionshipController extends BaseController {
      *       403:
      *         description: Sem permissão para atualizar este campeonato
      */
-    this.router.put('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateChampionship.bind(this));
+    this.router.put('/:id', authMiddleware, this.updateChampionship.bind(this));
 
     /**
      * @swagger
@@ -603,16 +607,26 @@ export class ChampionshipController extends BaseController {
   private async getChampionshipById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = (req as any).user.id;
+      
       const championship = await this.championshipService.findById(id);
 
       if (!championship) {
         throw new NotFoundException('Campeonato não encontrado');
       }
 
+      // Verificar se o usuário tem permissão para acessar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
+      if (!hasPermission) {
+        throw new ForbiddenException('Você não tem permissão para acessar este campeonato');
+      }
+
       res.json(championship);
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
+      } else if (error instanceof ForbiddenException) {
+        res.status(403).json({ message: error.message });
       } else {
         console.error('Error getting championship by id:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
@@ -643,8 +657,72 @@ export class ChampionshipController extends BaseController {
   private async getMyChampionships(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
-      const championships = await this.championshipService.findByOwnerId(userId);
-      res.json(championships);
+      
+      // Buscar campeonatos próprios
+      const ownedChampionships = await this.championshipService.findByOwnerId(userId);
+      
+      // Buscar campeonatos onde é staff
+      const staffChampionshipIds = await this.championshipStaffService.getUserStaffChampionships(userId);
+      const staffChampionships = await Promise.all(
+        staffChampionshipIds.map(id => this.championshipService.findById(id))
+      );
+      
+      // Buscar campeonatos onde está inscrito como piloto
+      const userRegistrations = await this.seasonRegistrationService.findByUserId(userId);
+      const participatingChampionshipIds = new Set<string>();
+      
+      // Extrair IDs únicos dos campeonatos das inscrições
+      userRegistrations.forEach(registration => {
+        if (registration.season && registration.season.championshipId) {
+          participatingChampionshipIds.add(registration.season.championshipId);
+        }
+      });
+      
+      // Buscar dados completos dos campeonatos onde está inscrito
+      const participatingChampionships = await Promise.all(
+        Array.from(participatingChampionshipIds).map(id => this.championshipService.findById(id))
+      );
+      
+      // Combinar e remover duplicatas
+      const allChampionships: any[] = [...ownedChampionships];
+      
+      // Adicionar campeonatos onde é staff (se não for owner)
+      staffChampionships.forEach(staffChamp => {
+        if (staffChamp && !allChampionships.find(owned => owned.id === staffChamp.id)) {
+          allChampionships.push({
+            ...staffChamp,
+            isStaff: true,
+            isOwner: false,
+            isPilot: false
+          });
+        }
+      });
+      
+      // Adicionar campeonatos onde está inscrito como piloto (se não for owner nem staff)
+      participatingChampionships.forEach(pilotChamp => {
+        if (pilotChamp && !allChampionships.find(existing => existing.id === pilotChamp.id)) {
+          allChampionships.push({
+            ...pilotChamp,
+            isStaff: false,
+            isOwner: false,
+            isPilot: true
+          });
+        }
+      });
+      
+      // Marcar os campeonatos próprios e verificar se também é piloto
+      allChampionships.forEach((champ: any) => {
+        if (!champ.hasOwnProperty('isStaff') && !champ.hasOwnProperty('isPilot')) {
+          champ.isOwner = true;
+          champ.isStaff = false;
+          champ.isPilot = participatingChampionshipIds.has(champ.id);
+        } else if (champ.isStaff) {
+          // Se é staff, verificar se também é piloto
+          champ.isPilot = participatingChampionshipIds.has(champ.id);
+        }
+      });
+      
+      res.json(allChampionships);
     } catch (error) {
       console.error('Error getting user championships:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
@@ -699,8 +777,9 @@ export class ChampionshipController extends BaseController {
         throw new NotFoundException('Campeonato não encontrado');
       }
 
-      // Verifica se o usuário é o proprietário
-      if (existingChampionship.ownerId !== userId) {
+      // Verifica se o usuário é o proprietário ou staff member
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
+      if (!hasPermission) {
         throw new ForbiddenException('Você não tem permissão para atualizar este campeonato');
       }
 
@@ -924,8 +1003,9 @@ export class ChampionshipController extends BaseController {
         return;
       }
 
-      // Verifica se o usuário é o proprietário
-      if (championship.ownerId !== userId) {
+      // Verifica se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
+      if (!hasPermission) {
         res.status(403).json({ message: 'Você não tem permissão para configurar este campeonato' });
         return;
       }
@@ -982,8 +1062,9 @@ export class ChampionshipController extends BaseController {
         return;
       }
 
-      // Verifica se o usuário tem permissão (owner ou admin)
-      if (userRole !== UserRole.ADMINISTRATOR && championship.ownerId !== userId) {
+      // Verifica se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
         res.status(403).json({ message: 'Você não tem permissão para configurar este campeonato' });
         return;
       }
@@ -1027,12 +1108,8 @@ export class ChampionshipController extends BaseController {
         return;
       }
 
-      // Verifica se o usuário tem permissão (owner, administrator ou manager)
-      const hasPermission = 
-        userRole === UserRole.ADMINISTRATOR || 
-        userRole === UserRole.MANAGER || 
-        championship.ownerId === userId;
-
+      // Verifica se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
       if (!hasPermission) {
         res.status(403).json({ message: 'Você não tem permissão para acessar este campeonato' });
         return;

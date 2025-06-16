@@ -7,6 +7,8 @@ import { CreateCategoryDto, UpdateCategoryDto } from '../dtos/category.dto';
 import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
+import { SeasonService } from '../services/season.service';
 
 /**
  * @swagger
@@ -66,7 +68,11 @@ import { NotFoundException } from '../exceptions/not-found.exception';
  */
 
 export class CategoryController extends BaseController {
-  constructor(private categoryService: CategoryService) {
+  constructor(
+    private categoryService: CategoryService,
+    private championshipStaffService: ChampionshipStaffService,
+    private seasonService: SeasonService
+  ) {
     super('/categories');
     this.initializeRoutes();
   }
@@ -266,7 +272,6 @@ export class CategoryController extends BaseController {
     this.router.post(
       '/',
       authMiddleware,
-      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]),
       validationMiddleware(CreateCategoryDto),
       this.createCategory.bind(this)
     );
@@ -314,7 +319,6 @@ export class CategoryController extends BaseController {
     this.router.put(
       '/:id',
       authMiddleware,
-      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]),
       validationMiddleware(UpdateCategoryDto),
       this.updateCategory.bind(this)
     );
@@ -350,7 +354,6 @@ export class CategoryController extends BaseController {
     this.router.delete(
       '/:id',
       authMiddleware,
-      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]),
       this.deleteCategory.bind(this)
     );
   }
@@ -434,6 +437,25 @@ export class CategoryController extends BaseController {
 
   private async createCategory(req: Request, res: Response): Promise<void> {
     try {
+      const userId = req.user!.id;
+      const seasonId = req.body.seasonId;
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para criar categorias neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para criar categorias neste campeonato'
+        });
+        return;
+      }
+
       const validationErrors = await this.categoryService.validateCategoryData(req.body);
       
       if (validationErrors.length > 0) {
@@ -464,6 +486,30 @@ export class CategoryController extends BaseController {
   private async updateCategory(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user!.id;
+      
+      // Verificar se a categoria existe
+      const existingCategory = await this.categoryService.findById(id);
+      if (!existingCategory) {
+        res.status(404).json({ message: 'Categoria não encontrada' });
+        return;
+      }
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(existingCategory.seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para editar categorias neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para editar esta categoria'
+        });
+        return;
+      }
       
       const validationErrors = await this.categoryService.validateCategoryData(req.body, true);
       
@@ -472,13 +518,6 @@ export class CategoryController extends BaseController {
           message: 'Dados inválidos', 
           errors: validationErrors 
         });
-        return;
-      }
-
-      // Verificar se a categoria existe
-      const existingCategory = await this.categoryService.findById(id);
-      if (!existingCategory) {
-        res.status(404).json({ message: 'Categoria não encontrada' });
         return;
       }
 
@@ -505,10 +544,27 @@ export class CategoryController extends BaseController {
   private async deleteCategory(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user!.id;
       
       const category = await this.categoryService.findById(id);
       if (!category) {
         res.status(404).json({ message: 'Categoria não encontrada' });
+        return;
+      }
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(category.seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para deletar categorias neste campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para deletar esta categoria'
+        });
         return;
       }
 
