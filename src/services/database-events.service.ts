@@ -34,8 +34,8 @@ export class DatabaseEventsService {
     try {
       console.log(`Publishing database event: ${event.operation} on ${event.table}`);
       
-      // Track Championships and Seasons tables
-      if (event.table === 'Championships' || event.table === 'Seasons') {
+      // Track Championships, Seasons, Categories and Stages tables
+      if (['Championships', 'Seasons', 'Categories', 'Stages'].includes(event.table)) {
         // Publish the message to Redis
         const success = await this.redisService.publishMessage(event);
         
@@ -164,10 +164,67 @@ export class DatabaseEventsService {
             }
             break;
           case 'DELETE':
-            // Remove season from cache and championship seasons index
+            // Remove season from cache and clean up related indexes
             if (event.data && event.data.id) {
               await this.redisService.invalidateSeasonCache(event.data.id, event.data.championshipId);
+              await this.redisService.invalidateSeasonIndexes(event.data.id);
               console.log(`Invalidated cache for season ID: ${event.data.id}`);
+            }
+            break;
+        }
+      }
+
+      if (event.table === 'Categories') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+            // Cache the category info with season relationship
+            if (event.data && event.data.id) {
+              const categoryInfo = {
+                id: event.data.id,
+                name: event.data.name,
+                ballast: event.data.ballast,
+                maxPilots: event.data.maxPilots,
+                minimumAge: event.data.minimumAge,
+                seasonId: event.data.seasonId
+              };
+              await this.redisService.cacheCategoryBasicInfo(event.data.id, categoryInfo);
+              console.log(`Cached category info for ID: ${event.data.id}, Season: ${event.data.seasonId}`);
+            }
+            break;
+          case 'DELETE':
+            // Remove category from cache and season categories index
+            if (event.data && event.data.id) {
+              await this.redisService.invalidateCategoryCache(event.data.id, event.data.seasonId);
+              console.log(`Invalidated cache for category ID: ${event.data.id}`);
+            }
+            break;
+        }
+      }
+
+      if (event.table === 'Stages') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+            // Cache the stage info with season relationship
+            if (event.data && event.data.id) {
+              const stageInfo = {
+                id: event.data.id,
+                name: event.data.name,
+                date: event.data.date,
+                time: event.data.time,
+                kartodrome: event.data.kartodrome,
+                seasonId: event.data.seasonId
+              };
+              await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
+              console.log(`Cached stage info for ID: ${event.data.id}, Season: ${event.data.seasonId}`);
+            }
+            break;
+          case 'DELETE':
+            // Remove stage from cache and season stages index
+            if (event.data && event.data.id) {
+              await this.redisService.invalidateStageCache(event.data.id, event.data.seasonId);
+              console.log(`Invalidated cache for stage ID: ${event.data.id}`);
             }
             break;
         }

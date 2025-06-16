@@ -80,20 +80,33 @@ export class ChampionshipService extends BaseService<Championship> {
     return cachedData;
   }
 
-  // Método para buscar múltiplos championships básicos do cache
+  // Buscar múltiplos championships por IDs (alta performance)
   async getMultipleChampionshipsBasicInfo(ids: string[]): Promise<ChampionshipCacheData[]> {
-    const results: ChampionshipCacheData[] = [];
+    try {
+      // Usa o novo método otimizado com Redis pipeline
+      return await this.redisService.getMultipleChampionshipsBasicInfo(ids);
+    } catch (error) {
+      console.error('Error getting multiple championships from cache:', error);
+      return [];
+    }
+  }
 
-    // Busca apenas no cache, sem fallback para banco
-    const cachePromises = ids.map(async (id) => {
-      const cached = await this.getCachedChampionshipData(id);
-      if (cached) {
-        results.push(cached);
+  // Buscar todas as temporadas de um campeonato no cache (alta performance)
+  async getChampionshipSeasonsBasicInfo(championshipId: string): Promise<any[]> {
+    try {
+      // Busca a lista de IDs das temporadas do campeonato
+      const seasonIds = await this.redisService.getChampionshipSeasonIds(championshipId);
+      
+      if (!seasonIds || seasonIds.length === 0) {
+        return [];
       }
-    });
 
-    await Promise.all(cachePromises);
-    return results;
+      // Busca os dados de todas as temporadas em paralelo usando pipeline
+      return await this.redisService.getMultipleSeasonsBasicInfo(seasonIds);
+    } catch (error) {
+      console.error('Error getting championship seasons from cache:', error);
+      return [];
+    }
   }
 
   // Métodos privados para cache (usados apenas pelos database events)

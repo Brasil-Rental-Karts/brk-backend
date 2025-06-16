@@ -5,19 +5,31 @@ import { StageParticipation, ParticipationStatus } from '../models/stage-partici
 import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
+import { RedisService } from './redis.service';
 
 export interface StageWithParticipants extends Stage {
   participants?: StageParticipation[];
   participantCount?: number;
 }
 
+export interface StageCacheData {
+  id: string;
+  name: string;
+  date: Date;
+  time: string;
+  kartodrome: string;
+  seasonId: string;
+}
+
 export class StageService {
   private stageRepository: Repository<Stage>;
   private participationRepository: Repository<StageParticipation>;
+  private redisService: RedisService;
 
   constructor() {
     this.stageRepository = AppDataSource.getRepository(Stage);
     this.participationRepository = AppDataSource.getRepository(StageParticipation);
+    this.redisService = RedisService.getInstance();
   }
 
   /**
@@ -321,5 +333,55 @@ export class StageService {
       .getOne();
     
     return stage ? this.formatTimeFields(stage) : null;
+  }
+
+  // Métodos para buscar dados do cache Redis (para API cache)
+  async getStageBasicInfo(id: string): Promise<StageCacheData | null> {
+    const cachedData = await this.getCachedStageData(id);
+    return cachedData;
+  }
+
+  // Buscar todas as etapas de uma temporada no cache (alta performance)
+  async getSeasonStagesBasicInfo(seasonId: string): Promise<StageCacheData[]> {
+    try {
+      // Busca a lista de IDs das etapas da temporada
+      const stageIds = await this.redisService.getSeasonStageIds(seasonId);
+      
+      if (!stageIds || stageIds.length === 0) {
+        return [];
+      }
+
+      // Busca os dados de todas as etapas em paralelo
+      const stagesPromises = stageIds.map(id => this.getCachedStageData(id));
+      const stages = await Promise.all(stagesPromises);
+      
+      // Filtra apenas as etapas que foram encontradas no cache
+      return stages.filter(stage => stage !== null) as StageCacheData[];
+    } catch (error) {
+      console.error('Error getting season stages from cache:', error);
+      return [];
+    }
+  }
+
+  // Buscar múltiplas etapas por IDs (alta performance)
+  async getMultipleStagesBasicInfo(ids: string[]): Promise<StageCacheData[]> {
+    try {
+      // Usa o novo método otimizado com Redis pipeline
+      return await this.redisService.getMultipleStagesBasicInfo(ids);
+    } catch (error) {
+      console.error('Error getting multiple stages from cache:', error);
+      return [];
+    }
+  }
+
+  // Métodos privados para cache (usados apenas pelos database events)
+  private async getCachedStageData(id: string): Promise<StageCacheData | null> {
+    try {
+      const key = `stage:${id}`;
+      return await this.redisService.getData(key);
+    } catch (error) {
+      console.error('Error getting cached stage data:', error);
+      return null;
+    }
   }
 } 

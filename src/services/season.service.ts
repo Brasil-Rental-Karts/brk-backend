@@ -97,18 +97,13 @@ export class SeasonService extends BaseService<Season> {
 
   // Buscar múltiplas temporadas por IDs (alta performance)
   async getMultipleSeasonsBasicInfo(ids: string[]): Promise<SeasonCacheData[]> {
-    const results: SeasonCacheData[] = [];
-
-    // Busca apenas no cache, sem fallback para banco
-    const cachePromises = ids.map(async (id) => {
-      const cached = await this.getCachedSeasonData(id);
-      if (cached) {
-        results.push(cached);
-      }
-    });
-
-    await Promise.all(cachePromises);
-    return results;
+    try {
+      // Usa o novo método otimizado com Redis pipeline
+      return await this.redisService.getMultipleSeasonsBasicInfo(ids);
+    } catch (error) {
+      console.error('Error getting multiple seasons from cache:', error);
+      return [];
+    }
   }
 
   // Métodos privados para cache (usados apenas pelos database events)
