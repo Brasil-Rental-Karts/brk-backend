@@ -74,15 +74,8 @@ export class StageService {
    * Buscar etapa por ID com participantes confirmados
    */
   async findByIdWithParticipants(id: string): Promise<StageWithParticipants> {
-    const stage = await this.stageRepository.findOne({
-      where: { id }
-    });
+    const stage = await this.findById(id);
 
-    if (!stage) {
-      throw new NotFoundException('Etapa não encontrada');
-    }
-
-    // Buscar participantes confirmados
     const participants = await this.participationRepository.find({
       where: { 
         stageId: id, 
@@ -107,6 +100,7 @@ export class StageService {
       where: { seasonId },
       order: { date: 'ASC', time: 'ASC' }
     });
+    
     return stages.map(stage => this.formatTimeFields(stage));
   }
 
@@ -172,20 +166,8 @@ export class StageService {
    * Criar nova etapa
    */
   async create(createStageDto: CreateStageDto): Promise<Stage> {
-    // Validar se a temporada existe (isso deveria ser feito através de FK)
-    
-    // Converter a data string para Date object
     const dateObj = new Date(createStageDto.date);
     
-    // Validar se a data não é no passado
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (dateObj < today) {
-      throw new BadRequestException('Não é possível criar etapa com data no passado');
-    }
-
-    // Verificar se já existe etapa no mesmo horário para a mesma temporada
     const existingStage = await this.stageRepository.findOne({
       where: {
         seasonId: createStageDto.seasonId,
@@ -197,8 +179,7 @@ export class StageService {
     if (existingStage) {
       throw new BadRequestException('Já existe uma etapa agendada para esta data e horário');
     }
-
-    // Se briefingTime não foi fornecido, sugerir 30 minutos antes da etapa
+    
     let briefingTime = createStageDto.briefingTime;
     if (!briefingTime) {
       const stageHour = parseInt(createStageDto.time.split(':')[0]);
@@ -227,6 +208,8 @@ export class StageService {
     });
 
     const savedStage = await this.stageRepository.save(stage);
+    await this.redisService.invalidateSeasonCache(savedStage.seasonId);
+    
     return this.formatTimeFields(savedStage);
   }
 
@@ -236,17 +219,8 @@ export class StageService {
   async update(id: string, updateStageDto: UpdateStageDto): Promise<Stage> {
     const stage = await this.findById(id);
 
-    // Se a data for alterada, validar
     if (updateStageDto.date) {
       const dateObj = new Date(updateStageDto.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (dateObj < today) {
-        throw new BadRequestException('Não é possível alterar etapa para data no passado');
-      }
-
-      // Verificar conflito de horário se data ou hora forem alteradas
       const checkDate = updateStageDto.date ? dateObj : stage.date;
       const checkTime = updateStageDto.time || stage.time;
 
@@ -263,16 +237,20 @@ export class StageService {
       }
     }
 
-    // Atualizar os campos fornecidos
-    const updatedData: any = { ...updateStageDto };
-    
-    if (updateStageDto.date) {
-      updatedData.date = new Date(updateStageDto.date);
-    }
+    const { date, ...restOfDto } = updateStageDto;
+    const updateData: Partial<Stage> = { ...restOfDto };
 
-    await this.stageRepository.update(id, updatedData);
+    if (date) {
+      updateData.date = new Date(date);
+    }
     
-    return this.findById(id);
+    const updatedStage = this.stageRepository.merge(stage, updateData);
+    const savedStage = await this.stageRepository.save(updatedStage);
+    
+    await this.redisService.invalidateStageCache(id, savedStage.seasonId);
+    await this.redisService.invalidateSeasonCache(savedStage.seasonId);
+
+    return this.formatTimeFields(savedStage);
   }
 
   /**
@@ -280,39 +258,29 @@ export class StageService {
    */
   async delete(id: string): Promise<void> {
     const stage = await this.findById(id);
-    
-    // Verificar se a etapa não é no passado (regra de negócio)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (stage.date < today) {
-      throw new BadRequestException('Não é possível deletar etapa que já aconteceu');
+    if (!stage) {
+      throw new NotFoundException('Etapa não encontrada');
     }
 
     await this.stageRepository.delete(id);
+    await this.redisService.invalidateStageCache(id, stage.seasonId);
+    await this.redisService.invalidateSeasonCache(stage.seasonId);
   }
 
   /**
    * Buscar etapas com pontuação em dobro por temporada
    */
   async findDoublePointsBySeasonId(seasonId: string): Promise<Stage[]> {
-    const stages = await this.stageRepository.find({
-      where: { 
-        seasonId, 
-        doublePoints: true 
-      },
-      order: { date: 'ASC', time: 'ASC' }
+    return this.stageRepository.find({
+      where: { seasonId, doublePoints: true }
     });
-    return stages.map(stage => this.formatTimeFields(stage));
   }
 
   /**
    * Contar etapas por temporada
    */
   async countBySeasonId(seasonId: string): Promise<number> {
-    return this.stageRepository.count({
-      where: { seasonId }
-    });
+    return this.stageRepository.count({ where: { seasonId } });
   }
 
   /**
@@ -320,68 +288,14 @@ export class StageService {
    */
   async findNextBySeasonId(seasonId: string): Promise<Stage | null> {
     const today = new Date();
-    
-    const stage = await this.stageRepository
+    today.setHours(0, 0, 0, 0);
+
+    return this.stageRepository
       .createQueryBuilder('stage')
       .where('stage.seasonId = :seasonId', { seasonId })
-      .andWhere('(stage.date > :today OR (stage.date = :today AND stage.time > :currentTime))', {
-        today: today.toISOString().split('T')[0],
-        currentTime: today.toTimeString().split(' ')[0].substring(0, 5)
-      })
+      .andWhere('stage.date >= :today', { today })
       .orderBy('stage.date', 'ASC')
       .addOrderBy('stage.time', 'ASC')
       .getOne();
-    
-    return stage ? this.formatTimeFields(stage) : null;
   }
-
-  // Métodos para buscar dados do cache Redis (para API cache)
-  async getStageBasicInfo(id: string): Promise<StageCacheData | null> {
-    const cachedData = await this.getCachedStageData(id);
-    return cachedData;
-  }
-
-  // Buscar todas as etapas de uma temporada no cache (alta performance)
-  async getSeasonStagesBasicInfo(seasonId: string): Promise<StageCacheData[]> {
-    try {
-      // Busca a lista de IDs das etapas da temporada
-      const stageIds = await this.redisService.getSeasonStageIds(seasonId);
-      
-      if (!stageIds || stageIds.length === 0) {
-        return [];
-      }
-
-      // Busca os dados de todas as etapas em paralelo
-      const stagesPromises = stageIds.map(id => this.getCachedStageData(id));
-      const stages = await Promise.all(stagesPromises);
-      
-      // Filtra apenas as etapas que foram encontradas no cache
-      return stages.filter(stage => stage !== null) as StageCacheData[];
-    } catch (error) {
-      console.error('Error getting season stages from cache:', error);
-      return [];
-    }
-  }
-
-  // Buscar múltiplas etapas por IDs (alta performance)
-  async getMultipleStagesBasicInfo(ids: string[]): Promise<StageCacheData[]> {
-    try {
-      // Usa o novo método otimizado com Redis pipeline
-      return await this.redisService.getMultipleStagesBasicInfo(ids);
-    } catch (error) {
-      console.error('Error getting multiple stages from cache:', error);
-      return [];
-    }
-  }
-
-  // Métodos privados para cache (usados apenas pelos database events)
-  private async getCachedStageData(id: string): Promise<StageCacheData | null> {
-    try {
-      const key = `stage:${id}`;
-      return await this.redisService.getData(key);
-    } catch (error) {
-      console.error('Error getting cached stage data:', error);
-      return null;
-    }
-  }
-} 
+}
