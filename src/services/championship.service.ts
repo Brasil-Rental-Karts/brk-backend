@@ -10,6 +10,7 @@ export interface ChampionshipCacheData {
   championshipImage: string;
   shortDescription: string;
   fullDescription: string;
+  sponsors: any[];
 }
 
 export class ChampionshipService extends BaseService<Championship> {

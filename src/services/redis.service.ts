@@ -219,7 +219,8 @@ export class RedisService {
         name: data.name,
         championshipImage: data.championshipImage || '',
         shortDescription: data.shortDescription || '',
-        fullDescription: data.fullDescription || ''
+        fullDescription: data.fullDescription || '',
+        sponsors: JSON.stringify(data.sponsors || [])
       };
 
       // Store championship data as Redis Hash
@@ -257,7 +258,15 @@ export class RedisService {
         name: data.name,
         championshipImage: data.championshipImage,
         shortDescription: data.shortDescription,
-        fullDescription: data.fullDescription
+        fullDescription: data.fullDescription,
+        sponsors: (() => {
+          try {
+            return data.sponsors ? JSON.parse(data.sponsors) : [];
+          } catch (e) {
+            console.error('Error parsing sponsors JSON:', e);
+            return [];
+          }
+        })()
       };
     } catch (error) {
       console.error('Error getting cached championship basic info:', error);
@@ -302,7 +311,15 @@ export class RedisService {
           name: data.name,
           championshipImage: data.championshipImage,
           shortDescription: data.shortDescription,
-          fullDescription: data.fullDescription
+          fullDescription: data.fullDescription,
+          sponsors: (() => {
+            try {
+              return data.sponsors ? JSON.parse(data.sponsors) : [];
+            } catch (e) {
+              console.error('Error parsing sponsors JSON:', e);
+              return [];
+            }
+          })()
         }));
     } catch (error) {
       console.error('Error getting multiple championships from cache:', error);
@@ -695,7 +712,7 @@ export class RedisService {
 
       if (!this.client) {
         throw new Error('Failed to create Redis client');
-      }
+            }
 
       // Use Redis Hash to store stage data (more efficient than JSON strings)
       const stageKey = `stage:${stageId}`;
@@ -705,6 +722,7 @@ export class RedisService {
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         time: data.time,
         kartodrome: data.kartodrome,
+        streamLink: data.streamLink || '',
         seasonId: data.seasonId
       };
 
@@ -742,7 +760,7 @@ export class RedisService {
       
       if (!data || Object.keys(data).length === 0) {
         return null;
-      }
+    }
 
       // Convert date string back to Date object
       return {

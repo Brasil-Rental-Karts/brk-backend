@@ -129,7 +129,8 @@ export class DatabaseEventsService {
                 name: event.data.name,
                 championshipImage: event.data.championshipImage || '',
                 shortDescription: event.data.shortDescription || '',
-                fullDescription: event.data.fullDescription || ''
+                fullDescription: event.data.fullDescription || '',
+                sponsors: event.data.sponsors || []
               };
               await this.redisService.cacheChampionshipBasicInfo(event.data.id, championshipInfo);
               console.log(`Cached championship info for ID: ${event.data.id}`);
@@ -214,6 +215,7 @@ export class DatabaseEventsService {
                 date: event.data.date,
                 time: event.data.time,
                 kartodrome: event.data.kartodrome,
+                streamLink: event.data.streamLink,
                 seasonId: event.data.seasonId
               };
               await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
