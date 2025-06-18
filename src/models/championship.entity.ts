@@ -1,6 +1,7 @@
-import { Entity, Column, BeforeInsert, BeforeUpdate } from 'typeorm';
+import { Entity, Column, BeforeInsert, BeforeUpdate, OneToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { slugify } from '../utils/slugify';
+import { Season } from './season.entity';
 
 export enum PersonType {
   FISICA = 0,
@@ -112,6 +113,9 @@ export class Championship extends BaseEntity {
   // Relacionamento com o usuário criador
   @Column({ nullable: false })
   ownerId: string;
+
+  @OneToMany(() => Season, (season) => season.championship)
+  seasons: Season[];
 
   @BeforeInsert()
   @BeforeUpdate()

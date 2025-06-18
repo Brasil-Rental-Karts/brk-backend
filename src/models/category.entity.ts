@@ -1,6 +1,7 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { BatteriesConfig } from '../types/category.types';
+import { Season } from './season.entity';
 
 @Entity('Categories')
 export class Category extends BaseEntity {
@@ -22,4 +23,8 @@ export class Category extends BaseEntity {
   // Relacionamento com a temporada
   @Column({ nullable: false })
   seasonId: string;
+
+  @ManyToOne(() => Season, (season) => season.categories)
+  @JoinColumn({ name: 'seasonId' })
+  season: Season;
 } 

@@ -86,7 +86,28 @@ export class ChampionshipService extends BaseService<Championship> {
 
   async findById(id: string): Promise<Championship | null> {
     // Apenas busca no banco, sem interferir no cache
-    const championship = await super.findById(id);
+    const championship = await this.championshipRepository['repository'].findOne({
+      where: { id },
+      relations: ['seasons', 'seasons.categories'],
+    });
+    return championship;
+  }
+
+  async findBySlugOrId(slugOrId: string): Promise<Championship | null> {
+    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
+    
+    let where: any;
+    if (isUUID) {
+      where = { id: slugOrId };
+    } else {
+      where = { slug: slugOrId };
+    }
+
+    const championship = await this.championshipRepository['repository'].findOne({
+      where,
+      relations: ['seasons', 'seasons.categories'],
+    });
+
     return championship;
   }
 

@@ -812,6 +812,10 @@ export class ChampionshipController extends BaseController {
     res.json({ message: 'Campeonato deletado com sucesso' });
   }
 
+  private async findChampionshipBySlugOrId(slugOrId: string): Promise<Championship | null> {
+    return this.championshipService.findBySlugOrId(slugOrId);
+  }
+
   private validateChampionshipData(data: any, isCreate: boolean = true): void {
     if (isCreate) {
       // Validações obrigatórias para criação

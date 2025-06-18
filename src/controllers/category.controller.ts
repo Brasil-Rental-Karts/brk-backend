@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { BaseController } from './base.controller';
 import { CategoryService } from '../services/category.service';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
@@ -262,13 +262,13 @@ export class CategoryController extends BaseController {
      *               $ref: '#/components/schemas/Category'
      *       400:
      *         description: Dados inválidos
-      *       401:
- *         description: Token de acesso inválido
- *       403:
- *         description: Permissão insuficiente (requer role ADMINISTRATOR ou MANAGER)
- *       500:
- *         description: Erro interno do servidor
- */
+     *       401:
+     *         description: Token de acesso inválido
+     *       403:
+     *         description: Permissão insuficiente (requer role ADMINISTRATOR ou MANAGER)
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.post(
       '/',
       authMiddleware,
@@ -307,15 +307,15 @@ export class CategoryController extends BaseController {
      *               $ref: '#/components/schemas/Category'
      *       400:
      *         description: Dados inválidos
-      *       401:
- *         description: Token de acesso inválido
- *       403:
- *         description: Permissão insuficiente (requer role ADMINISTRATOR ou MANAGER)
- *       404:
- *         description: Categoria não encontrada
- *       500:
- *         description: Erro interno do servidor
- */
+     *       401:
+     *         description: Token de acesso inválido
+     *       403:
+     *         description: Permissão insuficiente (requer role ADMINISTRATOR ou MANAGER)
+     *       404:
+     *         description: Categoria não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.put(
       '/:id',
       authMiddleware,
@@ -342,15 +342,15 @@ export class CategoryController extends BaseController {
      *     responses:
      *       204:
      *         description: Categoria deletada com sucesso
-      *       401:
- *         description: Token de acesso inválido
- *       403:
- *         description: Permissão insuficiente (requer role ADMINISTRATOR ou MANAGER)
- *       404:
- *         description: Categoria não encontrada
- *       500:
- *         description: Erro interno do servidor
- */
+     *       401:
+     *         description: Token de acesso inválido
+     *       403:
+     *         description: Permissão insuficiente (requer role ADMINISTRATOR ou MANAGER)
+     *       404:
+     *         description: Categoria não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
     this.router.delete(
       '/:id',
       authMiddleware,
@@ -435,7 +435,7 @@ export class CategoryController extends BaseController {
     }
   }
 
-  private async createCategory(req: Request, res: Response): Promise<void> {
+  private async createCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;
       const seasonId = req.body.seasonId;
@@ -479,7 +479,7 @@ export class CategoryController extends BaseController {
       res.status(201).json(category);
     } catch (error) {
       console.error('Erro ao criar categoria:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      next(error);
     }
   }
 

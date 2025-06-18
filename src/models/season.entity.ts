@@ -1,5 +1,7 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { Championship } from './championship.entity';
+import { Category } from './category.entity';
 
 export enum SeasonStatus {
   AGENDADO = 'agendado',
@@ -63,4 +65,11 @@ export class Season extends BaseEntity {
   // Relacionamento com o campeonato
   @Column({ nullable: false })
   championshipId: string;
+
+  @ManyToOne(() => Championship, (championship) => championship.seasons)
+  @JoinColumn({ name: 'championshipId' })
+  championship: Championship;
+
+  @OneToMany(() => Category, (category) => category.season)
+  categories: Category[];
 } 
