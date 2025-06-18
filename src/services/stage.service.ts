@@ -208,7 +208,6 @@ export class StageService {
     });
 
     const savedStage = await this.stageRepository.save(stage);
-    await this.redisService.invalidateSeasonCache(savedStage.seasonId);
     
     return this.formatTimeFields(savedStage);
   }
@@ -248,7 +247,6 @@ export class StageService {
     const savedStage = await this.stageRepository.save(updatedStage);
     
     await this.redisService.invalidateStageCache(id, savedStage.seasonId);
-    await this.redisService.invalidateSeasonCache(savedStage.seasonId);
 
     return this.formatTimeFields(savedStage);
   }
@@ -264,7 +262,6 @@ export class StageService {
 
     await this.stageRepository.delete(id);
     await this.redisService.invalidateStageCache(id, stage.seasonId);
-    await this.redisService.invalidateSeasonCache(stage.seasonId);
   }
 
   /**
