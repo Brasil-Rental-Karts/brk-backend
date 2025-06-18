@@ -15,7 +15,7 @@ export class CategoryRepository extends BaseRepositoryImpl<Category> {
     return this.repository.findOne({ where: { name, seasonId } });
   }
 
-  async findByBallast(ballast: string): Promise<Category[]> {
+  async findByBallast(ballast: number): Promise<Category[]> {
     return this.repository.find({ where: { ballast } });
   }
 

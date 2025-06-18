@@ -7,7 +7,7 @@ import { RedisService } from './redis.service';
 export interface CategoryCacheData {
   id: string;
   name: string;
-  ballast: string;
+  ballast: number;
   maxPilots: number;
   minimumAge: number;
   seasonId: string;
@@ -53,8 +53,12 @@ export class CategoryService extends BaseService<Category> {
     return this.categoryRepository.findByNameAndSeason(name, seasonId);
   }
 
-  async findByBallast(ballast: string): Promise<Category[]> {
-    return this.categoryRepository.findByBallast(ballast);
+  async findByBallast(ballast: number): Promise<Category[]> {
+    const numericBallast = typeof ballast === 'string' ? parseInt(ballast, 10) : ballast;
+    if (isNaN(numericBallast)) {
+      return []; // ou lançar um erro, dependendo da lógica de negócio
+    }
+    return this.categoryRepository.findByBallast(numericBallast);
   }
 
   async findBySeasonId(seasonId: string): Promise<Category[]> {
@@ -123,16 +127,14 @@ export class CategoryService extends BaseService<Category> {
     }
 
     if (!isUpdate || data.ballast !== undefined) {
-      if (!data.ballast || typeof data.ballast !== 'string') {
-        errors.push('Lastro é obrigatório e deve ser uma string');
-      } else if (data.ballast.length > 10) {
-        errors.push('Lastro deve ter no máximo 10 caracteres');
+      if (typeof data.ballast !== 'number' || data.ballast < 0 || data.ballast > 999) {
+        errors.push('Lastro deve ser um número entre 0 e 999');
       }
     }
 
     if (!isUpdate || data.maxPilots !== undefined) {
-      if (!Number.isInteger(data.maxPilots) || data.maxPilots < 1) {
-        errors.push('Máximo de pilotos deve ser um número inteiro maior que 0');
+      if (!Number.isInteger(data.maxPilots) || data.maxPilots < 0 || data.maxPilots > 999) {
+        errors.push('Máximo de pilotos deve ser um número inteiro entre 0 e 999');
       }
     }
 
@@ -146,8 +148,8 @@ export class CategoryService extends BaseService<Category> {
     }
 
     if (!isUpdate || data.minimumAge !== undefined) {
-      if (!Number.isInteger(data.minimumAge) || data.minimumAge < 1) {
-        errors.push('Idade mínima deve ser um número inteiro maior que 0');
+      if (!Number.isInteger(data.minimumAge) || data.minimumAge < 0 || data.minimumAge > 999) {
+        errors.push('Idade mínima deve ser um número inteiro entre 0 e 999');
       }
     }
 

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MaxLength, IsInt, Min, IsUUID, IsArray, ValidateNested, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, IsInt, Min, IsUUID, IsArray, ValidateNested, IsOptional, Max } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { BaseDto } from './base.dto';
 import { BatteriesConfig, validateBatteriesConfig } from '../types/category.types';
@@ -56,13 +56,15 @@ export class BatteryConfigDto {
  *           description: Nome da categoria
  *           example: "Categoria A"
  *         ballast:
- *           type: string
- *           maxLength: 10
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 999
  *           description: Lastro (máscara Kg)
- *           example: "75Kg"
+ *           example: 75
  *         maxPilots:
  *           type: integer
- *           minimum: 1
+ *           minimum: 0
+ *           maximum: 999
  *           description: Máximo de pilotos
  *           example: 20
  *         batteriesConfig:
@@ -89,7 +91,8 @@ export class BatteryConfigDto {
  *           example: [{"name": "Classificação", "gridType": "uuid", "scoringSystemId": "uuid", "order": 1, "isRequired": true}]
  *         minimumAge:
  *           type: integer
- *           minimum: 1
+ *           minimum: 0
+ *           maximum: 999
  *           description: Idade mínima
  *           example: 18
  *         seasonId:
@@ -104,14 +107,16 @@ export class CreateCategoryDto extends BaseDto {
   @MaxLength(75, { message: 'Nome da categoria deve ter no máximo 75 caracteres' })
   name: string;
 
-  @IsString()
-  @IsNotEmpty({ message: 'Lastro é obrigatório' })
-  @MaxLength(10, { message: 'Lastro deve ter no máximo 10 caracteres' })
-  ballast: string;
+  @Transform(({ value }) => parseInt(value))
+  @IsInt({ message: 'Lastro deve ser um número inteiro' })
+  @Min(0, { message: 'Lastro deve ser no mínimo 0' })
+  @Max(999, { message: 'Lastro deve ser no máximo 999' })
+  ballast: number;
 
   @Transform(({ value }) => parseInt(value))
   @IsInt({ message: 'Máximo de pilotos deve ser um número inteiro' })
-  @Min(1, { message: 'Máximo de pilotos deve ser maior que 0' })
+  @Min(0, { message: 'Máximo de pilotos deve ser no mínimo 0' })
+  @Max(999, { message: 'Máximo de pilotos deve ser no máximo 999' })
   maxPilots: number;
 
   @IsArray({ message: 'Configuração de baterias deve ser um array' })
@@ -130,7 +135,8 @@ export class CreateCategoryDto extends BaseDto {
 
   @Transform(({ value }) => parseInt(value))
   @IsInt({ message: 'Idade mínima deve ser um número inteiro' })
-  @Min(1, { message: 'Idade mínima deve ser maior que 0' })
+  @Min(0, { message: 'Idade mínima deve ser no mínimo 0' })
+  @Max(999, { message: 'Idade mínima deve ser no máximo 999' })
   minimumAge: number;
 
   @IsUUID('4', { message: 'ID da temporada deve ser um UUID válido' })
@@ -151,13 +157,15 @@ export class CreateCategoryDto extends BaseDto {
  *           description: Nome da categoria
  *           example: "Categoria A"
  *         ballast:
- *           type: string
- *           maxLength: 10
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 999
  *           description: Lastro (máscara Kg)
- *           example: "75Kg"
+ *           example: 75
  *         maxPilots:
  *           type: integer
- *           minimum: 1
+ *           minimum: 0
+ *           maximum: 999
  *           description: Máximo de pilotos
  *           example: 20
  *         batteriesConfig:
@@ -184,7 +192,8 @@ export class CreateCategoryDto extends BaseDto {
  *           example: [{"name": "Classificação", "gridType": "uuid", "scoringSystemId": "uuid", "order": 1, "isRequired": true}]
  *         minimumAge:
  *           type: integer
- *           minimum: 1
+ *           minimum: 0
+ *           maximum: 999
  *           description: Idade mínima
  *           example: 18
  *         seasonId:
@@ -194,19 +203,26 @@ export class CreateCategoryDto extends BaseDto {
  *           example: "123e4567-e89b-12d3-a456-426614174000"
  */
 export class UpdateCategoryDto extends BaseDto {
+  @IsOptional()
   @IsString()
   @MaxLength(75, { message: 'Nome da categoria deve ter no máximo 75 caracteres' })
   name?: string;
 
-  @IsString()
-  @MaxLength(10, { message: 'Lastro deve ter no máximo 10 caracteres' })
-  ballast?: string;
+  @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @IsInt({ message: 'Lastro deve ser um número inteiro' })
+  @Min(0, { message: 'Lastro deve ser no mínimo 0' })
+  @Max(999, { message: 'Lastro deve ser no máximo 999' })
+  ballast?: number;
 
+  @IsOptional()
   @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Máximo de pilotos deve ser um número inteiro' })
-  @Min(1, { message: 'Máximo de pilotos deve ser maior que 0' })
+  @Min(0, { message: 'Máximo de pilotos deve ser no mínimo 0' })
+  @Max(999, { message: 'Máximo de pilotos deve ser no máximo 999' })
   maxPilots?: number;
 
+  @IsOptional()
   @IsArray({ message: 'Configuração de baterias deve ser um array' })
   @ValidateNested({ each: true })
   @Type(() => BatteryConfigDto)
@@ -221,11 +237,14 @@ export class UpdateCategoryDto extends BaseDto {
   })
   batteriesConfig?: BatteryConfigDto[];
 
+  @IsOptional()
   @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Idade mínima deve ser um número inteiro' })
-  @Min(1, { message: 'Idade mínima deve ser maior que 0' })
+  @Min(0, { message: 'Idade mínima deve ser no mínimo 0' })
+  @Max(999, { message: 'Idade mínima deve ser no máximo 999' })
   minimumAge?: number;
 
+  @IsOptional()
   @IsUUID('4', { message: 'ID da temporada deve ser um UUID válido' })
   seasonId?: string;
 } 

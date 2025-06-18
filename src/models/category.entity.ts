@@ -8,8 +8,8 @@ export class Category extends BaseEntity {
   @Column({ length: 75, nullable: false })
   name: string;
 
-  @Column({ length: 10, nullable: false })
-  ballast: string; // mascara Kg
+  @Column({ type: 'int', nullable: false })
+  ballast: number;
 
   @Column({ type: 'int', nullable: false })
   maxPilots: number;

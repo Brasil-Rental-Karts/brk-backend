@@ -189,7 +189,7 @@ export class CategoryController extends BaseController {
      *         name: ballast
      *         required: true
      *         schema:
-     *           type: string
+     *           type: integer
      *         description: Lastro das categorias
      *     responses:
      *       200:
@@ -414,14 +414,14 @@ export class CategoryController extends BaseController {
   }
 
   private async getCategoriesByBallast(req: Request, res: Response): Promise<void> {
-    try {
-      const { ballast } = req.params;
-      const categories = await this.categoryService.findByBallast(ballast);
-      res.status(200).json(categories);
-    } catch (error) {
-      console.error('Erro ao buscar categorias por lastro:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+    const ballast = parseInt(req.params.ballast, 10);
+
+    if (isNaN(ballast)) {
+      throw new BadRequestException('O lastro deve ser um número.');
     }
+    
+    const categories = await this.categoryService.findByBallast(ballast);
+    res.status(200).json(categories);
   }
 
   private async getCategoriesBySeasonId(req: Request, res: Response): Promise<void> {
