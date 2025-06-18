@@ -5,6 +5,7 @@ import { RedisService } from './redis.service';
 import { AsaasService } from './asaas.service';
 import { GridTypeService } from './grid-type.service';
 import { ScoringSystemService } from './scoring-system.service';
+import { ConflictException } from '../exceptions/conflict.exception';
 
 export interface ChampionshipCacheData {
   id: string;
@@ -32,32 +33,37 @@ export class ChampionshipService extends BaseService<Championship> {
   }
 
   async create(championshipData: Partial<Championship>): Promise<Championship> {
-    const championship = await super.create(championshipData);
-    
-    console.log(`[CHAMPIONSHIP] Criado campeonato ${championship.id} - splitEnabled: ${championship.splitEnabled}, document: ${championship.document}`);
-    console.log(`[CHAMPIONSHIP] Subconta Asaas será configurada manualmente através das configurações`);
-    
-    // Criar tipos de grid pré-configurados
     try {
-      await this.gridTypeService.createPredefined(championship.id);
-      console.log(`[CHAMPIONSHIP] Tipos de grid pré-configurados criados para o campeonato ${championship.id}`);
-    } catch (error) {
-      console.error(`[CHAMPIONSHIP] Erro ao criar tipos de grid pré-configurados para o campeonato ${championship.id}:`, error);
-      // Não quebrar a criação do campeonato se a criação dos grids falhar
-    }
+      const championship = await super.create(championshipData);
+      
+      console.log(`[CHAMPIONSHIP] Criado campeonato ${championship.id} - splitEnabled: ${championship.splitEnabled}, document: ${championship.document}`);
+      console.log(`[CHAMPIONSHIP] Subconta Asaas será configurada manualmente através das configurações`);
+      
+      // Criar tipos de grid pré-configurados
+      try {
+        await this.gridTypeService.createPredefined(championship.id);
+        console.log(`[CHAMPIONSHIP] Tipos de grid pré-configurados criados para o campeonato ${championship.id}`);
+      } catch (error) {
+        console.error(`[CHAMPIONSHIP] Erro ao criar tipos de grid pré-configurados para o campeonato ${championship.id}:`, error);
+      }
 
-    // Criar sistema de pontuação pré-configurado
-    try {
-      await this.scoringSystemService.createPredefined(championship.id);
-      console.log(`[CHAMPIONSHIP] Sistema de pontuação pré-configurado criado para o campeonato ${championship.id}`);
-    } catch (error) {
-      console.error(`[CHAMPIONSHIP] Erro ao criar sistema de pontuação pré-configurado para o campeonato ${championship.id}:`, error);
-      // Não quebrar a criação do campeonato se a criação dos sistemas de pontuação falhar
+      // Criar sistema de pontuação pré-configurado
+      try {
+        await this.scoringSystemService.createPredefined(championship.id);
+        console.log(`[CHAMPIONSHIP] Sistema de pontuação pré-configurado criado para o campeonato ${championship.id}`);
+      } catch (error) {
+        console.error(`[CHAMPIONSHIP] Erro ao criar sistema de pontuação pré-configurado para o campeonato ${championship.id}:`, error);
+      }
+      
+      // O cache será atualizado via database events, não aqui
+      
+      return championship;
+    } catch (error: any) {
+      if (error?.code === '23505' && error.detail?.includes('(slug)')) {
+        throw new ConflictException('Já existe um campeonato com este nome. Por favor, escolha outro.');
+      }
+      throw error;
     }
-    
-    // O cache será atualizado via database events, não aqui
-    
-    return championship;
   }
 
   async update(id: string, championshipData: Partial<Championship>): Promise<Championship | null> {

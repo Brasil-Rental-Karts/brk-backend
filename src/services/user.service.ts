@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import { BaseService } from './base.service';
 import { User, UserRole } from '../models/user.entity';
 import { UserRepository } from '../repositories/user.repository';
-import { HttpException } from '../middleware/error.middleware';
+import { HttpException } from '../exceptions/http.exception';
 
 export class UserService extends BaseService<User> {
   constructor(private userRepository: UserRepository) {

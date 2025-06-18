@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { BaseDto } from '../dtos/base.dto';
-import { HttpException } from './error.middleware';
+import { HttpException } from '../exceptions/http.exception';
 
 export function validationMiddleware<T extends BaseDto>(dtoClass: new () => T) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {

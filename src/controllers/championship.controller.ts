@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { BaseController } from './base.controller';
 import { ChampionshipService } from '../services/championship.service';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
@@ -729,120 +729,87 @@ export class ChampionshipController extends BaseController {
     }
   }
 
-  private async createChampionship(req: Request, res: Response): Promise<void> {
-    try {
-      const userId = (req as any).user.id;
-      const championshipData = req.body;
+  private async createChampionship(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const userId = (req as any).user.id;
+    const championshipData = req.body;
 
-      // Validações básicas
-      this.validateChampionshipData(championshipData);
+    // Validações básicas
+    this.validateChampionshipData(championshipData);
 
-      // Adiciona o ownerId
-      championshipData.ownerId = userId;
+    // Adiciona o ownerId
+    championshipData.ownerId = userId;
 
-      // Preenchimento automático dos campos responsáveis se isResponsible for true
-      if (championshipData.isResponsible === true) {
-        await this.fillResponsibleDataFromUser(championshipData, userId);
-      }
-
-      // Gerar IDs para sponsors se eles existirem
-      if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
-        championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
-          ...sponsor,
-          id: this.generateSponsorId(sponsor.name)
-        }));
-      }
-
-      const championship = await this.championshipService.create(championshipData);
-      res.status(201).json(championship);
-    } catch (error: any) {
-      if (error instanceof BadRequestException) {
-        res.status(400).json({ message: error.message });
-      } else {
-        console.error('Error creating championship:', error);
-        res.status(500).json({ message: 'Erro interno do servidor' });
-      }
+    // Preenchimento automático dos campos responsáveis se isResponsible for true
+    if (championshipData.isResponsible === true) {
+      await this.fillResponsibleDataFromUser(championshipData, userId);
     }
+
+    // Gerar IDs para sponsors se eles existirem
+    if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
+      championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
+        ...sponsor,
+        id: this.generateSponsorId(sponsor.name)
+      }));
+    }
+
+    const championship = await this.championshipService.create(championshipData);
+    res.status(201).json(championship);
   }
 
-  private async updateChampionship(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-      const userId = (req as any).user.id;
-      const championshipData = req.body;
+  private async updateChampionship(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const championshipData = req.body;
 
-      // Verifica se o campeonato existe
-      const existingChampionship = await this.championshipService.findById(id);
-      if (!existingChampionship) {
-        throw new NotFoundException('Campeonato não encontrado');
-      }
-
-      // Verifica se o usuário é o proprietário ou staff member
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
-      if (!hasPermission) {
-        throw new ForbiddenException('Você não tem permissão para atualizar este campeonato');
-      }
-
-      // Validações básicas (apenas para campos que estão sendo atualizados)
-      this.validateChampionshipData(championshipData, false);
-
-      // Preenchimento automático dos campos responsáveis se isResponsible for true
-      if (championshipData.isResponsible === true) {
-        await this.fillResponsibleDataFromUser(championshipData, userId);
-      }
-
-      // Gerar IDs para sponsors se eles existirem
-      if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
-        championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
-          ...sponsor,
-          id: sponsor.id || this.generateSponsorId(sponsor.name)
-        }));
-      }
-
-      const championship = await this.championshipService.update(id, championshipData);
-      res.json(championship);
-    } catch (error: any) {
-      if (error instanceof NotFoundException) {
-        res.status(404).json({ message: error.message });
-      } else if (error instanceof ForbiddenException) {
-        res.status(403).json({ message: error.message });
-      } else if (error instanceof BadRequestException) {
-        res.status(400).json({ message: error.message });
-      } else {
-        console.error('Error updating championship:', error);
-        res.status(500).json({ message: 'Erro interno do servidor' });
-      }
+    // Verifica se o campeonato existe
+    const existingChampionship = await this.championshipService.findById(id);
+    if (!existingChampionship) {
+      throw new NotFoundException('Campeonato não encontrado');
     }
+
+    // Verifica se o usuário é o proprietário ou staff member
+    const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
+    if (!hasPermission) {
+      throw new ForbiddenException('Você não tem permissão para atualizar este campeonato');
+    }
+
+    // Validações básicas (apenas para campos que estão sendo atualizados)
+    this.validateChampionshipData(championshipData, false);
+
+    // Preenchimento automático dos campos responsáveis se isResponsible for true
+    if (championshipData.isResponsible === true) {
+      await this.fillResponsibleDataFromUser(championshipData, userId);
+    }
+
+    // Gerar IDs para sponsors se eles existirem
+    if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
+      championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
+        ...sponsor,
+        id: sponsor.id || this.generateSponsorId(sponsor.name)
+      }));
+    }
+
+    const championship = await this.championshipService.update(id, championshipData);
+    res.json(championship);
   }
 
-  private async deleteChampionship(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-      const userId = (req as any).user.id;
+  private async deleteChampionship(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
 
-      // Verifica se o campeonato existe
-      const existingChampionship = await this.championshipService.findById(id);
-      if (!existingChampionship) {
-        throw new NotFoundException('Campeonato não encontrado');
-      }
-
-      // Verifica se o usuário é o proprietário
-      if (existingChampionship.ownerId !== userId) {
-        throw new ForbiddenException('Você não tem permissão para deletar este campeonato');
-      }
-
-      await this.championshipService.delete(id);
-      res.json({ message: 'Campeonato deletado com sucesso' });
-    } catch (error: any) {
-      if (error instanceof NotFoundException) {
-        res.status(404).json({ message: error.message });
-      } else if (error instanceof ForbiddenException) {
-        res.status(403).json({ message: error.message });
-      } else {
-        console.error('Error deleting championship:', error);
-        res.status(500).json({ message: 'Erro interno do servidor' });
-      }
+    // Verifica se o campeonato existe
+    const existingChampionship = await this.championshipService.findById(id);
+    if (!existingChampionship) {
+      throw new NotFoundException('Campeonato não encontrado');
     }
+
+    // Verifica se o usuário é o proprietário
+    if (existingChampionship.ownerId !== userId) {
+      throw new ForbiddenException('Você não tem permissão para deletar este campeonato');
+    }
+
+    await this.championshipService.delete(id);
+    res.json({ message: 'Campeonato deletado com sucesso' });
   }
 
   private validateChampionshipData(data: any, isCreate: boolean = true): void {
