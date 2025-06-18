@@ -2,6 +2,7 @@ import { Client } from 'pg';
 import { RedisService } from './redis.service';
 import { redisConfig } from '../config/redis.config';
 import { AppDataSource } from '../config/database.config';
+import { Championship } from '../models/championship.entity';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -124,16 +125,13 @@ export class DatabaseEventsService {
           case 'UPDATE':
             // Cache the championship info with image
             if (event.data && event.data.id) {
-              const championshipInfo = {
-                id: event.data.id,
-                name: event.data.name,
-                championshipImage: event.data.championshipImage || '',
-                shortDescription: event.data.shortDescription || '',
-                fullDescription: event.data.fullDescription || '',
-                sponsors: event.data.sponsors || []
-              };
-              await this.redisService.cacheChampionshipBasicInfo(event.data.id, championshipInfo);
-              console.log(`Cached championship info for ID: ${event.data.id}`);
+              const championshipRepo = AppDataSource.getRepository(Championship);
+              const fullChampionship = await championshipRepo.findOneBy({ id: event.data.id });
+
+              if (fullChampionship) {
+                await this.redisService.cacheChampionshipBasicInfo(fullChampionship.id, fullChampionship);
+                console.log(`Cached championship info for ID: ${fullChampionship.id}`);
+              }
             }
             break;
           case 'DELETE':

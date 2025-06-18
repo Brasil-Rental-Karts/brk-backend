@@ -217,6 +217,7 @@ export class RedisService {
       const championshipData = {
         id: data.id,
         name: data.name,
+        slug: data.slug || '',
         championshipImage: data.championshipImage || '',
         shortDescription: data.shortDescription || '',
         fullDescription: data.fullDescription || '',
@@ -249,24 +250,13 @@ export class RedisService {
       const key = `championship:${championshipId}`;
       const data = await this.client.hGetAll(key);
       
-      if (!data || Object.keys(data).length === 0) {
+      if (Object.keys(data).length === 0) {
         return null;
       }
-
+      
       return {
-        id: data.id,
-        name: data.name,
-        championshipImage: data.championshipImage,
-        shortDescription: data.shortDescription,
-        fullDescription: data.fullDescription,
-        sponsors: (() => {
-          try {
-            return data.sponsors ? JSON.parse(data.sponsors) : [];
-          } catch (e) {
-            console.error('Error parsing sponsors JSON:', e);
-            return [];
-          }
-        })()
+        ...data,
+        sponsors: JSON.parse(data.sponsors || '[]')
       };
     } catch (error) {
       console.error('Error getting cached championship basic info:', error);

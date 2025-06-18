@@ -1,5 +1,6 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, BeforeInsert, BeforeUpdate } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { slugify } from '../utils/slugify';
 
 export enum PersonType {
   FISICA = 0,
@@ -18,6 +19,9 @@ export class Championship extends BaseEntity {
   // Sobre o Campeonato
   @Column({ length: 90, nullable: false })
   name: string;
+
+  @Column({ length: 100, nullable: true, unique: true })
+  slug: string;
 
   @Column({ type: 'text', nullable: true })
   championshipImage: string;
@@ -108,4 +112,10 @@ export class Championship extends BaseEntity {
   // Relacionamento com o usuário criador
   @Column({ nullable: false })
   ownerId: string;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  generateSlug() {
+    this.slug = slugify(this.name);
+  }
 } 
