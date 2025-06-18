@@ -92,6 +92,7 @@ export class CreateStageDto extends BaseDto {
   kartodromeAddress: string;
 
   @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsString()
   @MaxLength(500, { message: 'Link de transmissão deve ter no máximo 500 caracteres' })
   streamLink?: string;
@@ -113,6 +114,7 @@ export class CreateStageDto extends BaseDto {
   briefing?: string;
 
   @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsString()
   @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário do briefing deve estar no formato HH:MM' })
   briefingTime?: string;
@@ -196,6 +198,7 @@ export class UpdateStageDto extends BaseDto {
   kartodromeAddress?: string;
 
   @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsString()
   @MaxLength(500, { message: 'Link de transmissão deve ter no máximo 500 caracteres' })
   streamLink?: string;
@@ -215,6 +218,7 @@ export class UpdateStageDto extends BaseDto {
   briefing?: string;
 
   @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsString()
   @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário do briefing deve estar no formato HH:MM' })
   briefingTime?: string;

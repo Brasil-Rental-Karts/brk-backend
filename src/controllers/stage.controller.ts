@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { BaseController } from './base.controller';
 import { StageService } from '../services/stage.service';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
@@ -523,9 +523,11 @@ export class StageController extends BaseController {
     }
   }
 
-  private async createStage(req: Request, res: Response): Promise<void> {
+  private async createStage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const createStageDto: CreateStageDto = req.body;
+      console.log('Received DTO for createStage:', JSON.stringify(createStageDto, null, 2));
+
       const userId = req.user!.id;
       const seasonId = createStageDto.seasonId;
 
@@ -548,11 +550,8 @@ export class StageController extends BaseController {
       const stage = await this.stageService.create(createStageDto);
       res.status(201).json(stage);
     } catch (error: any) {
-      if (error instanceof BadRequestException) {
-        res.status(400).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: error.message });
-      }
+      console.error('Error creating stage:', error);
+      next(error);
     }
   }
 
