@@ -137,39 +137,6 @@ services:
       start_period: 60s
     command: npm run dev
 
-  # ===================================
-  # Adminer (Database Management)
-  # ===================================
-  adminer:
-    image: adminer:4.8.1
-    container_name: brk-adminer-dev
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    networks:
-      - brk-dev-network
-    depends_on:
-      - postgres
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
-      ADMINER_DESIGN: pepa-linha
-
-  # ===================================
-  # Redis Commander (Redis Management)
-  # ===================================
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: brk-redis-commander-dev
-    restart: unless-stopped
-    environment:
-      REDIS_HOSTS: local:redis:6379:0:redis_password
-    ports:
-      - "8081:8081"
-    networks:
-      - brk-dev-network
-    depends_on:
-      - redis
-
 # ===================================
 # Development Volumes
 # ===================================

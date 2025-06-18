@@ -24,14 +24,17 @@ export class Championship extends BaseEntity {
   @Column({ length: 100, nullable: true, unique: true })
   slug: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: false })
   championshipImage: string;
 
-  @Column({ length: 165, nullable: true })
+  @Column({ length: 165, nullable: false })
   shortDescription: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: false })
   fullDescription: string;
+
+  @Column({ type: 'text', nullable: false })
+  rules: string;
 
   // Dados Gerais
   @Column({ 
@@ -65,7 +68,7 @@ export class Championship extends BaseEntity {
   @Column({ length: 100, nullable: true })
   complement: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ length: 100, nullable: false })
   province: string;
 
   @Column({ default: true })
@@ -74,13 +77,13 @@ export class Championship extends BaseEntity {
   @Column({ length: 100, nullable: true })
   responsibleName: string;
 
-  @Column({ length: 15, nullable: true })
+  @Column({ length: 15, nullable: false })
   responsiblePhone: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ length: 100, nullable: false })
   responsibleEmail: string;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'date', nullable: false })
   responsibleBirthDate: Date;
 
   @Column({ 
@@ -90,7 +93,7 @@ export class Championship extends BaseEntity {
   })
   companyType: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   incomeValue: number;
 
   // Patrocinadores

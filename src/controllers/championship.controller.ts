@@ -822,6 +822,18 @@ export class ChampionshipController extends BaseController {
       if (!data.name || data.name.trim().length === 0) {
         throw new BadRequestException('Nome do campeonato é obrigatório');
       }
+      if (!data.championshipImage || data.championshipImage.trim().length === 0) {
+        throw new BadRequestException('Imagem do campeonato é obrigatória');
+      }
+      if (!data.shortDescription || data.shortDescription.trim().length === 0) {
+        throw new BadRequestException('Descrição curta do campeonato é obrigatória');
+      }
+      if (!data.fullDescription || data.fullDescription.trim().length === 0) {
+        throw new BadRequestException('Descrição completa do campeonato é obrigatória');
+      }
+      if (!data.rules || data.rules.trim().length === 0) {
+        throw new BadRequestException('Regulamento do campeonato é obrigatório');
+      }
       if (!data.document || data.document.trim().length === 0) {
         throw new BadRequestException('Documento é obrigatório');
       }
@@ -837,8 +849,14 @@ export class ChampionshipController extends BaseController {
       if (!data.fullAddress || data.fullAddress.trim().length === 0) {
         throw new BadRequestException('Endereço completo é obrigatório');
       }
+      if (!data.province || data.province.trim().length === 0) {
+        throw new BadRequestException('Bairro é obrigatório');
+      }
       if (!data.number || data.number.trim().length === 0) {
         throw new BadRequestException('Número do endereço é obrigatório');
+      }
+      if (data.incomeValue === undefined || data.incomeValue === null) {
+        throw new BadRequestException('Renda mensal é obrigatória');
       }
     }
 
@@ -890,6 +908,12 @@ export class ChampionshipController extends BaseController {
       if (!data.responsiblePhone || data.responsiblePhone.trim().length === 0) {
         throw new BadRequestException('Telefone do responsável é obrigatório quando não é o próprio usuário');
       }
+      if (!data.responsibleEmail || data.responsibleEmail.trim().length === 0) {
+        throw new BadRequestException('E-mail do responsável é obrigatório quando não é o próprio usuário');
+      }
+      if (!data.responsibleBirthDate) {
+        throw new BadRequestException('Data de nascimento do responsável é obrigatória quando não é o próprio usuário');
+      }
     }
 
     // Validação condicional: se é pessoa jurídica, deve informar razão social
@@ -923,29 +947,34 @@ export class ChampionshipController extends BaseController {
       // Buscar dados do usuário
       const user = await this.userService.findById(userId);
       if (!user) {
-        console.warn(`User not found for ID: ${userId}`);
-        return;
+        throw new NotFoundException(`Usuário com ID ${userId} não encontrado.`);
       }
 
       // Buscar dados do member profile
       const memberProfile = await this.memberProfileService.findByUserId(userId);
 
+      // Validar se os campos obrigatórios existem no perfil do usuário
+      if (!user.phone) {
+        throw new BadRequestException('Seu perfil de usuário não possui um telefone. Por favor, atualize seu cadastro.');
+      }
+      if (!memberProfile || !memberProfile.birthDate) {
+        throw new BadRequestException('Seu perfil de usuário não possui uma data de nascimento. Por favor, atualize seu cadastro.');
+      }
+
       // Preencher campos responsáveis com dados do usuário
       championshipData.responsibleName = user.name || '';
-      championshipData.responsiblePhone = user.phone || '';
-      
-      // Email: usar do user (sempre disponível)
+      championshipData.responsiblePhone = user.phone;
       championshipData.responsibleEmail = user.email || '';
-      
-      // Data de nascimento: usar do member profile se disponível
-      if (memberProfile && memberProfile.birthDate) {
-        championshipData.responsibleBirthDate = memberProfile.birthDate;
-      }
+      championshipData.responsibleBirthDate = memberProfile.birthDate;
 
       console.log(`Auto-filled responsible data for user ${userId}: name=${user.name}, phone=${user.phone}, email=${user.email}, birthDate=${memberProfile?.birthDate}`);
     } catch (error) {
       console.error('Error filling responsible data from user:', error);
       // Não falha a criação do campeonato se não conseguir buscar os dados do usuário
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Não foi possível preencher os dados do responsável a partir do seu perfil de usuário.');
     }
   }
 
