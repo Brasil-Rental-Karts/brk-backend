@@ -29,9 +29,6 @@ export class Season extends BaseEntity {
   @Column({ length: 75, nullable: false })
   name: string;
 
-  @Column({ type: 'text', nullable: false })
-  seasonImage: string;
-
   @Column({ type: 'varchar', length: 1000, nullable: false })
   description: string;
 
@@ -44,7 +41,8 @@ export class Season extends BaseEntity {
   @Column({ 
     type: 'enum', 
     enum: SeasonStatus, 
-    default: SeasonStatus.AGENDADO 
+    default: SeasonStatus.AGENDADO,
+    nullable: false
   })
   status: SeasonStatus;
 

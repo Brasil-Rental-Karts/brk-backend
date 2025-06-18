@@ -16,7 +16,6 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *       type: object
  *       required:
  *         - name
- *         - seasonImage
  *         - description
  *         - startDate
  *         - endDate
@@ -33,9 +32,6 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           type: string
  *           maxLength: 75
  *           description: Nome da temporada
- *         seasonImage:
- *           type: string
- *           description: URL da imagem da temporada
  *         description:
  *           type: string
  *           maxLength: 1000
@@ -249,11 +245,10 @@ export class SeasonController extends BaseController {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
-
-      const result = await this.seasonService.findAllPaginated(page, limit);
-      res.status(200).json(result);
+      const seasons = await this.seasonService.findAllPaginated(page, limit);
+      res.status(200).json(seasons);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: 'Erro ao listar temporadas', details: error.message });
     }
   }
 
@@ -262,11 +257,10 @@ export class SeasonController extends BaseController {
       const { championshipId } = req.params;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
-
-      const result = await this.seasonService.findByChampionshipId(championshipId, page, limit);
-      res.status(200).json(result);
+      const seasons = await this.seasonService.findByChampionshipId(championshipId, page, limit);
+      res.status(200).json(seasons);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: 'Erro ao listar temporadas do campeonato', details: error.message });
     }
   }
 
@@ -274,17 +268,15 @@ export class SeasonController extends BaseController {
     try {
       const { id } = req.params;
       const season = await this.seasonService.findById(id);
-
       if (!season) {
         throw new NotFoundException('Temporada não encontrada');
       }
-
       res.status(200).json(season);
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
       } else {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Erro ao buscar temporada', details: error.message });
       }
     }
   }
@@ -295,18 +287,17 @@ export class SeasonController extends BaseController {
       const userId = req.user!.id;
       const championshipId = req.body.championshipId;
 
-      // Verificar se o usuário tem permissão para criar temporadas neste campeonato
       const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para criar temporadas neste campeonato'
+          message: 'Você não tem permissão para criar uma temporada neste campeonato.',
+          details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
         });
         return;
       }
 
       const seasonData: Partial<Season> = {
         name: req.body.name,
-        seasonImage: req.body.seasonImage,
         description: req.body.description,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
@@ -323,7 +314,7 @@ export class SeasonController extends BaseController {
       if (error instanceof BadRequestException) {
         res.status(400).json({ message: error.message });
       } else {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Erro ao criar temporada', details: error.message });
       }
     }
   }
@@ -334,17 +325,16 @@ export class SeasonController extends BaseController {
       const userId = req.user!.id;
       this.validateSeasonData(req.body, false);
 
-      // Buscar a temporada para obter o championshipId
       const existingSeason = await this.seasonService.findById(id);
       if (!existingSeason) {
         throw new NotFoundException('Temporada não encontrada');
       }
 
-      // Verificar se o usuário tem permissão para editar temporadas neste campeonato
       const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, existingSeason.championshipId);
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para editar esta temporada'
+          message: 'Você não tem permissão para atualizar esta temporada.',
+          details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
         });
         return;
       }
@@ -352,7 +342,6 @@ export class SeasonController extends BaseController {
       const seasonData: Partial<Season> = {};
 
       if (req.body.name) seasonData.name = req.body.name;
-      if (req.body.seasonImage) seasonData.seasonImage = req.body.seasonImage;
       if (req.body.description) seasonData.description = req.body.description;
       if (req.body.startDate) seasonData.startDate = new Date(req.body.startDate);
       if (req.body.endDate) seasonData.endDate = new Date(req.body.endDate);
@@ -366,7 +355,6 @@ export class SeasonController extends BaseController {
       if (!season) {
         throw new NotFoundException('Temporada não encontrada');
       }
-
       res.status(200).json(season);
     } catch (error: any) {
       if (error instanceof NotFoundException) {
@@ -374,7 +362,7 @@ export class SeasonController extends BaseController {
       } else if (error instanceof BadRequestException) {
         res.status(400).json({ message: error.message });
       } else {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Erro ao atualizar temporada', details: error.message });
       }
     }
   }
@@ -384,33 +372,27 @@ export class SeasonController extends BaseController {
       const { id } = req.params;
       const userId = req.user!.id;
 
-      // Buscar a temporada para obter o championshipId
       const existingSeason = await this.seasonService.findById(id);
       if (!existingSeason) {
         throw new NotFoundException('Temporada não encontrada');
       }
 
-      // Verificar se o usuário tem permissão para deletar temporadas neste campeonato
       const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, existingSeason.championshipId);
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para deletar esta temporada'
+          message: 'Você não tem permissão para deletar esta temporada.',
+          details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
         });
         return;
       }
 
-      const deleted = await this.seasonService.delete(id);
-
-      if (!deleted) {
-        throw new NotFoundException('Temporada não encontrada');
-      }
-
+      await this.seasonService.delete(id);
       res.status(200).json({ message: 'Temporada deletada com sucesso' });
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
       } else {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Erro ao deletar temporada', details: error.message });
       }
     }
   }
@@ -419,9 +401,6 @@ export class SeasonController extends BaseController {
     if (isCreate) {
       if (!data.name || data.name.trim() === '') {
         throw new BadRequestException('Nome da temporada é obrigatório');
-      }
-      if (!data.seasonImage || data.seasonImage.trim() === '') {
-        throw new BadRequestException('Imagem da temporada é obrigatória');
       }
       if (!data.description || data.description.trim() === '') {
         throw new BadRequestException('Descrição da temporada é obrigatória');
@@ -446,7 +425,6 @@ export class SeasonController extends BaseController {
       }
     }
 
-    // Validações comuns para create e update
     if (data.name && data.name.length > 75) {
       throw new BadRequestException('Nome da temporada deve ter no máximo 75 caracteres');
     }
@@ -467,12 +445,10 @@ export class SeasonController extends BaseController {
       }
     }
 
-    // Validação de datas
     if (data.startDate || data.endDate) {
       let startDate: Date | null = null;
       let endDate: Date | null = null;
 
-      // Validar formato e parsing das datas
       if (data.startDate) {
         startDate = new Date(data.startDate);
         if (isNaN(startDate.getTime())) {
@@ -487,13 +463,10 @@ export class SeasonController extends BaseController {
         }
       }
 
-      // Validar que startDate é anterior a endDate
       if (startDate && endDate && startDate >= endDate) {
         throw new BadRequestException('Data de início deve ser anterior à data de fim');
       }
 
-      // Validar que as datas não são muito antigas ou muito futuras
-      const currentDate = new Date();
       const minDate = new Date('2020-01-01');
       const maxDate = new Date('2050-12-31');
 
