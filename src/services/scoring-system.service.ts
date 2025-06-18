@@ -212,25 +212,6 @@ export class ScoringSystemService {
 
     const predefinedSystems = [
       {
-        name: 'Fórmula 1',
-        description: 'Sistema de pontuação da Fórmula 1: 25-18-15-12-10-8-6-4-2-1 pontos para os 10 primeiros',
-        positions: [
-          { position: 1, points: 25 },
-          { position: 2, points: 18 },
-          { position: 3, points: 15 },
-          { position: 4, points: 12 },
-          { position: 5, points: 10 },
-          { position: 6, points: 8 },
-          { position: 7, points: 6 },
-          { position: 8, points: 4 },
-          { position: 9, points: 2 },
-          { position: 10, points: 1 }
-        ],
-        polePositionPoints: 1,
-        fastestLapPoints: 1,
-        isDefault: true
-      },
-      {
         name: 'Kart Brasileiro',
         description: 'Sistema tradicional brasileiro: 20-17-15-13-11-10-9-8-7-6-5-4-3-2-1 pontos',
         positions: [
@@ -250,37 +231,22 @@ export class ScoringSystemService {
           { position: 14, points: 2 },
           { position: 15, points: 1 }
         ],
-        isDefault: false
-      },
-      {
-        name: 'Simples (Top 5)',
-        description: 'Sistema simplificado: 5-4-3-2-1 pontos para os 5 primeiros',
-        positions: [
-          { position: 1, points: 5 },
-          { position: 2, points: 4 },
-          { position: 3, points: 3 },
-          { position: 4, points: 2 },
-          { position: 5, points: 1 }
-        ],
-        isDefault: false
+        polePositionPoints: 0,
+        fastestLapPoints: 0,
+        isDefault: true
       }
     ];
 
-    const createdSystems: ScoringSystem[] = [];
-
-    for (const systemData of predefinedSystems) {
-      const system = this.scoringSystemRepository.create({
-        ...systemData,
+    const scoringSystems = predefinedSystems.map(data => 
+      this.scoringSystemRepository.create({
+        ...data,
         championshipId,
-        isActive: true,
-        leaderLapPoints: 0
-      });
+        isActive: true, // Sempre ativo por padrão
+        leaderLapPoints: 0 // Default
+      })
+    );
 
-      const savedSystem = await this.scoringSystemRepository.save(system);
-      createdSystems.push(savedSystem);
-    }
-
-    return createdSystems;
+    return this.scoringSystemRepository.save(scoringSystems);
   }
 
   /**
