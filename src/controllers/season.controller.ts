@@ -67,6 +67,15 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           type: string
  *           format: uuid
  *           description: ID do campeonato
+ *         allowInstallment:
+ *           type: boolean
+ *           description: Define se o parcelamento é permitido
+ *         maxInstallments:
+ *           type: integer
+ *           description: Número máximo de parcelas
+ *         interestRate:
+ *           type: number
+ *           description: Taxa de juros para parcelamento
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -398,85 +407,84 @@ export class SeasonController extends BaseController {
   }
 
   private validateSeasonData(data: any, isCreate: boolean = true): void {
+    const requiredFieldsCreate: string[] = [
+      'name', 'description', 'startDate', 'endDate', 
+      'inscriptionValue', 'inscriptionType', 'paymentMethods', 'championshipId'
+    ];
+  
     if (isCreate) {
-      if (!data.name || data.name.trim() === '') {
-        throw new BadRequestException('Nome da temporada é obrigatório');
-      }
-      if (!data.description || data.description.trim() === '') {
-        throw new BadRequestException('Descrição da temporada é obrigatória');
-      }
-      if (!data.startDate) {
-        throw new BadRequestException('Data de início é obrigatória');
-      }
-      if (!data.endDate) {
-        throw new BadRequestException('Data de fim é obrigatória');
-      }
-      if (!data.inscriptionValue || isNaN(parseFloat(data.inscriptionValue))) {
-        throw new BadRequestException('Valor da inscrição é obrigatório e deve ser um número válido');
-      }
-      if (!data.inscriptionType) {
-        throw new BadRequestException('Tipo de inscrição é obrigatório');
-      }
-      if (!data.paymentMethods || !Array.isArray(data.paymentMethods) || data.paymentMethods.length === 0) {
-        throw new BadRequestException('Métodos de pagamento são obrigatórios');
-      }
-      if (!data.championshipId) {
-        throw new BadRequestException('ID do campeonato é obrigatório');
+      for (const field of requiredFieldsCreate) {
+        if (data[field] === undefined || data[field] === null || (typeof data[field] === 'string' && data[field].trim() === '')) {
+          throw new BadRequestException(`${field} é obrigatório`);
+        }
       }
     }
-
-    if (data.name && data.name.length > 75) {
-      throw new BadRequestException('Nome da temporada deve ter no máximo 75 caracteres');
+  
+    if (data.name !== undefined && (typeof data.name !== 'string' || data.name.length > 75)) {
+      throw new BadRequestException('Nome da temporada inválido ou excede 75 caracteres.');
     }
-    if (data.description && data.description.length > 1000) {
-      throw new BadRequestException('Descrição deve ter no máximo 1000 caracteres');
+    
+    if (data.description !== undefined && (typeof data.description !== 'string' || data.description.length > 1000)) {
+      throw new BadRequestException('Descrição da temporada inválida ou excede 1000 caracteres.');
     }
+  
+    if (data.allowInstallment === true && (data.maxInstallments === undefined || data.maxInstallments === null)) {
+      throw new BadRequestException('O número máximo de parcelas é obrigatório quando o parcelamento é permitido.');
+    }
+  
+    if (data.maxInstallments !== undefined && data.maxInstallments !== null && (typeof data.maxInstallments !== 'number' || data.maxInstallments <= 1)) {
+      throw new BadRequestException('O número de parcelas deve ser um número maior que 1.');
+    }
+  
+    if (data.interestRate !== undefined && data.interestRate !== null && (typeof data.interestRate !== 'number' || data.interestRate < 0)) {
+      throw new BadRequestException('A taxa de juros deve ser um número positivo.');
+    }
+  
+    if (data.startDate !== undefined && isNaN(new Date(data.startDate).getTime())) {
+      throw new BadRequestException('Data de início inválida. Use o formato YYYY-MM-DD');
+    }
+  
+    if (data.endDate !== undefined && isNaN(new Date(data.endDate).getTime())) {
+      throw new BadRequestException('Data de fim inválida. Use o formato YYYY-MM-DD');
+    }
+  
+    if (data.startDate && data.endDate && new Date(data.startDate) >= new Date(data.endDate)) {
+      throw new BadRequestException('Data de início deve ser anterior à data de fim');
+    }
+  
+    const minDate = new Date('2020-01-01');
+    const maxDate = new Date('2050-12-31');
+    if (data.startDate && (new Date(data.startDate) < minDate || new Date(data.startDate) > maxDate)) {
+      throw new BadRequestException('Data de início deve estar entre 2020 e 2050');
+    }
+  
+    if (data.endDate && (new Date(data.endDate) < minDate || new Date(data.endDate) > maxDate)) {
+      throw new BadRequestException('Data de fim deve estar entre 2020 e 2050');
+    }
+  
     if (data.status && !Object.values(SeasonStatus).includes(data.status)) {
       throw new BadRequestException('Status inválido');
     }
+  
+    if (data.inscriptionValue !== undefined && isNaN(parseFloat(data.inscriptionValue))) {
+      throw new BadRequestException('Valor da inscrição deve ser um número válido');
+    }
+  
     if (data.inscriptionType && !Object.values(InscriptionType).includes(data.inscriptionType)) {
       throw new BadRequestException('Tipo de inscrição inválido');
     }
+  
     if (data.paymentMethods && Array.isArray(data.paymentMethods)) {
+      if (data.paymentMethods.length === 0 && isCreate) {
+        throw new BadRequestException('Métodos de pagamento são obrigatórios');
+      }
       for (const method of data.paymentMethods) {
         if (!Object.values(PaymentMethod).includes(method)) {
           throw new BadRequestException(`Método de pagamento inválido: ${method}`);
         }
       }
-    }
-
-    if (data.startDate || data.endDate) {
-      let startDate: Date | null = null;
-      let endDate: Date | null = null;
-
-      if (data.startDate) {
-        startDate = new Date(data.startDate);
-        if (isNaN(startDate.getTime())) {
-          throw new BadRequestException('Data de início inválida. Use o formato YYYY-MM-DD');
-        }
-      }
-
-      if (data.endDate) {
-        endDate = new Date(data.endDate);
-        if (isNaN(endDate.getTime())) {
-          throw new BadRequestException('Data de fim inválida. Use o formato YYYY-MM-DD');
-        }
-      }
-
-      if (startDate && endDate && startDate >= endDate) {
-        throw new BadRequestException('Data de início deve ser anterior à data de fim');
-      }
-
-      const minDate = new Date('2020-01-01');
-      const maxDate = new Date('2050-12-31');
-
-      if (startDate && (startDate < minDate || startDate > maxDate)) {
-        throw new BadRequestException('Data de início deve estar entre 2020 e 2050');
-      }
-
-      if (endDate && (endDate < minDate || endDate > maxDate)) {
-        throw new BadRequestException('Data de fim deve estar entre 2020 e 2050');
-      }
+    } else if (isCreate) {
+      throw new BadRequestException('Métodos de pagamento são obrigatórios e devem ser um array');
     }
   }
 } 

@@ -1,4 +1,4 @@
-import { Entity, Column, OneToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { SeasonRegistration } from './season-registration.entity';
 
@@ -33,6 +33,9 @@ export class AsaasPayment extends BaseEntity {
 
   @Column({ length: 100, nullable: false, unique: true })
   asaasPaymentId: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  asaasInstallmentId: string | null;
 
   @Column({ length: 100, nullable: false })
   asaasCustomerId: string;
@@ -88,7 +91,7 @@ export class AsaasPayment extends BaseEntity {
   webhookData: any;
 
   // Relacionamento
-  @OneToOne(() => SeasonRegistration, { eager: true })
+  @ManyToOne(() => SeasonRegistration, (registration) => registration.payments)
   @JoinColumn({ name: 'registrationId' })
   registration: SeasonRegistration;
 } 

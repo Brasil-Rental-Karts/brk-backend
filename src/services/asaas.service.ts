@@ -80,6 +80,12 @@ export interface AsaasPayment {
   remoteIp?: string;
 }
 
+export interface AsaasInstallment extends Omit<AsaasPayment, 'billingType' | 'value'> {
+  billingType: 'BOLETO' | 'PIX'; // Parcelamento só para boleto e pix
+  installmentCount: number;
+  totalValue: number;
+}
+
 export interface AsaasPaymentResponse {
   object: string;
   id: string;
@@ -99,6 +105,7 @@ export interface AsaasPaymentResponse {
   paymentDate: string | null;
   clientPaymentDate: string | null;
   installmentNumber: number | null;
+  installment?: string;
   invoiceUrl: string;
   bankSlipUrl: string | null;
   transactionReceiptUrl: string | null;
@@ -117,6 +124,8 @@ export interface AsaasPaymentResponse {
     expirationDate: string;
   };
 }
+
+export type AsaasInstallmentResponse = AsaasPaymentResponse[];
 
 export interface AsaasSubAccount {
   id?: string;
@@ -277,7 +286,7 @@ export class AsaasService {
     } catch (error: any) {
       console.error('[ASAAS] Error creating payment:', error.response?.data || error.message);
       throw new BadRequestException(
-        error.response?.data?.errors?.[0]?.description || error.message
+        error.response?.data?.errors?.[0]?.description || 'Erro ao criar cobrança no Asaas.'
       );
     }
   }
@@ -594,5 +603,23 @@ export class AsaasService {
     });
 
     return subAccountData;
+  }
+
+  /**
+   * Cria um parcelamento (carnê) no Asaas
+   */
+  async createInstallmentPlan(paymentData: AsaasInstallment): Promise<AsaasInstallmentResponse> {
+    try {
+      const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.post(
+        '/installments',
+        paymentData
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('[ASAAS] Error creating installment plan:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || 'Erro ao criar parcelamento no Asaas.'
+      );
+    }
   }
 } 

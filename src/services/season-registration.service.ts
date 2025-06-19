@@ -18,13 +18,17 @@ export interface CreateRegistrationData {
   categoryIds: string[]; // Array de IDs das categorias selecionadas
   paymentMethod: 'boleto' | 'pix' | 'cartao_credito';
   userDocument?: string; // CPF do usuário para o Asaas
+  installments?: number;
 }
 
 export interface RegistrationPaymentData {
+  id: string; // AsaasPayment ID
   registrationId: string;
   billingType: string;
   value: number;
   dueDate: string;
+  status: string;
+  installmentNumber?: number | null;
   invoiceUrl?: string | null;
   bankSlipUrl?: string | null;
   paymentLink?: string | null;
@@ -70,6 +74,16 @@ export class SeasonRegistrationService {
     const season = await this.seasonRepository.findOne({ where: { id: data.seasonId } });
     if (!season) {
       throw new NotFoundException('Temporada não encontrada');
+    }
+
+    // Validar se o parcelamento é permitido e se o número de parcelas é válido
+    if (data.installments && data.installments > 1) {
+      if (!season.allowInstallment) {
+        throw new BadRequestException('Esta temporada não permite pagamento parcelado.');
+      }
+      if (data.installments > season.maxInstallments!) {
+        throw new BadRequestException(`O número máximo de parcelas para esta temporada é ${season.maxInstallments}.`);
+      }
     }
 
     // Validar se as categorias existem e pertencem à temporada
@@ -145,107 +159,155 @@ export class SeasonRegistrationService {
       const asaasCustomerData: AsaasCustomer = {
         name: user.name,
         email: user.email,
-        cpfCnpj: data.userDocument ? removeDocumentMask(data.userDocument) : user.email.replace('@', '_'), // Remove máscara do CPF/CNPJ
+        cpfCnpj: data.userDocument ? removeDocumentMask(data.userDocument) : user.email.replace('@', '_'),
         notificationDisabled: false
       };
 
       const asaasCustomer = await this.asaasService.createOrUpdateCustomer(asaasCustomerData);
 
-      // Calcular data de vencimento (7 dias a partir de hoje)
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 7);
 
-      // Criar cobrança no Asaas com split payment
       const categoriesNames = categories.map(c => c.name).join(', ');
-      const asaasPaymentData: AsaasPaymentData = {
-        customer: asaasCustomer.id!,
-        billingType: asaasBillingType,
-        value: totalAmount,
-        dueDate: this.asaasService.formatDateForAsaas(dueDate),
-        description: `Inscrição de ${user.name} na temporada: ${season.name} - Categorias: ${categoriesNames}`,
-        externalReference: savedRegistration.id,
-      };
+      const description = `Inscrição de ${user.name} na temporada: ${season.name} - Categorias: ${categoriesNames}`;
 
-      // Configurações específicas para cartão de crédito
-      if (asaasBillingType === 'CREDIT_CARD') {
-        // Para cartão de crédito, adicionar callback para retornar à página de pagamento
-        asaasPaymentData.callback = {
-          successUrl: `${process.env.FRONTEND_URL}/registration/${savedRegistration.id}/payment?success=true`,
-          autoRedirect: true
+      const isInstallment = data.installments && data.installments > 1;
+
+      if (isInstallment && (asaasBillingType === 'BOLETO' || asaasBillingType === 'PIX')) {
+        // --- Lógica para Parcelamento no Boleto/PIX (Carnê) ---
+        const installmentData = {
+          customer: asaasCustomer.id!,
+          billingType: asaasBillingType,
+          totalValue: totalAmount,
+          installmentCount: data.installments!,
+          dueDate: this.asaasService.formatDateForAsaas(dueDate),
+          description,
+          externalReference: savedRegistration.id,
+        };
+        
+        const asaasInstallmentResponse = await this.asaasService.createInstallmentPlan(installmentData);
+
+        const savedPayments: AsaasPayment[] = [];
+        for (const payment of asaasInstallmentResponse) {
+          const newPayment = new AsaasPayment();
+          newPayment.registrationId = savedRegistration.id;
+          newPayment.asaasPaymentId = payment.id;
+          newPayment.asaasInstallmentId = payment.installment || null;
+          newPayment.asaasCustomerId = asaasCustomer.id!;
+          newPayment.billingType = asaasBillingType as any;
+          newPayment.status = payment.status as AsaasPaymentStatus;
+          newPayment.value = payment.value;
+          newPayment.netValue = payment.netValue;
+          newPayment.dueDate = new Date(payment.dueDate);
+          newPayment.description = payment.description;
+          newPayment.invoiceUrl = payment.invoiceUrl;
+          newPayment.bankSlipUrl = payment.bankSlipUrl;
+          newPayment.rawResponse = payment;
+          const saved = await this.paymentRepository.save(newPayment);
+          savedPayments.push(saved);
+        }
+
+        const firstPayment = asaasInstallmentResponse[0];
+        const firstSavedPayment = savedPayments[0];
+
+        const paymentData: RegistrationPaymentData = {
+          id: firstSavedPayment.id,
+          registrationId: savedRegistration.id,
+          billingType: firstPayment.billingType,
+          value: firstPayment.value,
+          dueDate: firstPayment.dueDate,
+          status: firstPayment.status,
+          installmentNumber: firstPayment.installmentNumber,
+          invoiceUrl: firstPayment.invoiceUrl,
+          bankSlipUrl: firstPayment.bankSlipUrl,
+          paymentLink: firstPayment.paymentLink,
+        };
+        return { registration: savedRegistration, paymentData };
+
+      } else {
+        // --- Lógica para Pagamento Único ou Parcelado no Cartão ---
+        const paymentPayload: any = {
+          customer: asaasCustomer.id!,
+          billingType: asaasBillingType,
+          value: totalAmount,
+          dueDate: this.asaasService.formatDateForAsaas(dueDate),
+          description: description,
+          externalReference: savedRegistration.id,
+        };
+        
+        if (isInstallment && asaasBillingType === 'CREDIT_CARD') {
+          paymentPayload.installmentCount = data.installments;
+        }
+
+        if (asaasBillingType === 'CREDIT_CARD') {
+          paymentPayload.callback = {
+            successUrl: `${process.env.FRONTEND_URL}/registration/${savedRegistration.id}/payment?success=true`,
+            autoRedirect: true
+          };
+        }
+
+        if (championship.splitEnabled && championship.asaasWalletId) {
+          const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+          const championshipPercentage = 100 - platformCommission;
+          paymentPayload.split = [{
+            walletId: championship.asaasWalletId,
+            percentualValue: championshipPercentage,
+          }];
+        }
+
+        const asaasPaymentResponse = await this.asaasService.createPayment(paymentPayload);
+
+        const asaasPayment = new AsaasPayment();
+        asaasPayment.registrationId = savedRegistration.id;
+        asaasPayment.asaasPaymentId = asaasPaymentResponse.id;
+        asaasPayment.asaasCustomerId = asaasCustomer.id!;
+        asaasPayment.billingType = asaasBillingType as any;
+        asaasPayment.status = asaasPaymentResponse.status as AsaasPaymentStatus;
+        asaasPayment.value = totalAmount;
+        asaasPayment.netValue = asaasPaymentResponse.netValue;
+        asaasPayment.dueDate = new Date(asaasPaymentResponse.dueDate);
+        asaasPayment.description = asaasPaymentResponse.description || null;
+        asaasPayment.invoiceUrl = asaasPaymentResponse.invoiceUrl || null;
+        asaasPayment.bankSlipUrl = asaasPaymentResponse.bankSlipUrl || null;
+        asaasPayment.rawResponse = asaasPaymentResponse;
+
+        if (asaasBillingType === 'PIX') {
+          try {
+            const pixQrCode = await this.asaasService.getPixQrCode(asaasPaymentResponse.id);
+            asaasPayment.pixQrCode = pixQrCode.encodedImage;
+            asaasPayment.pixCopyPaste = pixQrCode.payload;
+          } catch (error) {
+            console.warn('Erro ao buscar QR Code PIX:', error);
+          }
+        }
+
+        const savedAsaasPayment = await this.paymentRepository.save(asaasPayment);
+
+        const paymentData: RegistrationPaymentData = {
+          id: savedAsaasPayment.id,
+          registrationId: savedRegistration.id,
+          billingType: asaasBillingType,
+          value: totalAmount,
+          dueDate: this.asaasService.formatDateForAsaas(dueDate),
+          status: asaasPaymentResponse.status,
+          installmentNumber: asaasPaymentResponse.installmentNumber,
+          invoiceUrl: asaasPaymentResponse.invoiceUrl,
+          bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
+          paymentLink: asaasPaymentResponse.paymentLink || (asaasBillingType === 'CREDIT_CARD' ? asaasPaymentResponse.invoiceUrl : null),
+          pixQrCode: asaasPayment.pixQrCode || undefined,
+          pixCopyPaste: asaasPayment.pixCopyPaste || undefined
+        };
+
+        return {
+          registration: savedRegistration,
+          paymentData
         };
       }
 
-      // Aplicar split payment se estiver habilitado e configurado
-      if (championship.splitEnabled && championship.asaasWalletId) {
-        const platformCommission = Number(championship.platformCommissionPercentage) || 10;
-        const championshipPercentage = 100 - platformCommission;
-        
-        console.log(`[SPLIT PAYMENT] Aplicando split para ${user.name}: ${platformCommission}% plataforma, ${championshipPercentage}% campeonato`);
-        console.log(`[SPLIT PAYMENT] Temporada: ${season.name}, Valor total: R$ ${totalAmount}, WalletID: ${championship.asaasWalletId}`);
-        
-        asaasPaymentData.split = [
-          {
-            walletId: championship.asaasWalletId,
-            percentualValue: championshipPercentage,
-            description: `Pagamento de ${user.name} para temporada ${season.name} do campeonato ${championship.name} - ${categories.length} categoria(s)`
-          }
-        ];
-      } else {
-        console.warn(`[SPLIT PAYMENT] Split não aplicado - Habilitado: ${championship.splitEnabled}, WalletID: ${championship.asaasWalletId}`);
-      }
-
-      const asaasPaymentResponse = await this.asaasService.createPayment(asaasPaymentData);
-
-      // Salvar dados do pagamento no banco
-      const asaasPayment = new AsaasPayment();
-      asaasPayment.registrationId = savedRegistration.id;
-      asaasPayment.asaasPaymentId = asaasPaymentResponse.id;
-      asaasPayment.asaasCustomerId = asaasCustomer.id!;
-             asaasPayment.billingType = asaasBillingType as any;
-      asaasPayment.status = AsaasPaymentStatus.PENDING;
-      asaasPayment.value = totalAmount;
-      asaasPayment.netValue = asaasPaymentResponse.netValue;
-      asaasPayment.dueDate = new Date(asaasPaymentResponse.dueDate);
-             asaasPayment.description = asaasPaymentResponse.description || null;
-       asaasPayment.invoiceUrl = asaasPaymentResponse.invoiceUrl || null;
-       asaasPayment.bankSlipUrl = asaasPaymentResponse.bankSlipUrl || null;
-      asaasPayment.rawResponse = asaasPaymentResponse;
-
-      // Se for PIX, buscar QR Code
-      if (asaasBillingType === 'PIX') {
-        try {
-          const pixQrCode = await this.asaasService.getPixQrCode(asaasPaymentResponse.id);
-          asaasPayment.pixQrCode = pixQrCode.encodedImage;
-          asaasPayment.pixCopyPaste = pixQrCode.payload;
-        } catch (error) {
-          console.warn('Erro ao buscar QR Code PIX:', error);
-        }
-      }
-
-      await this.paymentRepository.save(asaasPayment);
-
-      // Preparar dados de retorno
-      const paymentData: RegistrationPaymentData = {
-        registrationId: savedRegistration.id,
-        billingType: asaasBillingType,
-        value: totalAmount,
-        dueDate: this.asaasService.formatDateForAsaas(dueDate),
-        invoiceUrl: asaasPaymentResponse.invoiceUrl,
-        bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
-        // Para cartão de crédito, se paymentLink for null, usar invoiceUrl
-        paymentLink: asaasPaymentResponse.paymentLink || (asaasBillingType === 'CREDIT_CARD' ? asaasPaymentResponse.invoiceUrl : null),
-        pixQrCode: asaasPayment.pixQrCode || undefined,
-        pixCopyPaste: asaasPayment.pixCopyPaste || undefined
-      };
-
-      return {
-        registration: savedRegistration,
-        paymentData
-      };
-
     } catch (error) {
       // Se houve erro na criação do pagamento, remover a inscrição
-      await this.registrationRepository.remove(savedRegistration);
+      await this.registrationCategoryRepository.delete({ registrationId: savedRegistration.id });
+      await this.registrationRepository.delete(savedRegistration.id);
       throw error;
     }
   }
@@ -326,23 +388,15 @@ export class SeasonRegistrationService {
    * Lista todas as inscrições de um campeonato (busca por todas as temporadas do campeonato)
    */
   async findByChampionshipId(championshipId: string): Promise<SeasonRegistration[]> {
-    // Buscar temporadas do campeonato
-    const seasons = await this.seasonRepository.find({
-      where: { championshipId },
-      select: ['id']
-    });
-
-    if (seasons.length === 0) {
+    const seasons = await this.seasonRepository.find({ where: { championshipId }, select: ['id'] });
+    if (!seasons.length) {
       return [];
     }
 
-    const seasonIds = seasons.map(season => season.id);
-
-    // Buscar registrações de todas as temporadas
+    const seasonIds = seasons.map(s => s.id);
     return await this.registrationRepository.find({
       where: { seasonId: In(seasonIds) },
-      relations: ['user', 'season', 'categories', 'categories.category'],
-      order: { createdAt: 'DESC' }
+      relations: ['user', 'season', 'categories', 'categories.category', 'payments'],
     });
   }
 
@@ -457,38 +511,36 @@ export class SeasonRegistrationService {
     registration.cancelledAt = new Date();
     registration.cancellationReason = reason;
 
-    return await this.registrationRepository.save(registration);
+    await this.registrationRepository.save(registration);
+    return registration;
   }
 
   /**
    * Busca dados de pagamento de uma inscrição
    */
-  async getPaymentData(registrationId: string): Promise<RegistrationPaymentData | null> {
-    const asaasPayment = await this.paymentRepository.findOne({
+  async getPaymentData(registrationId: string): Promise<RegistrationPaymentData[] | null> {
+    const payments = await this.paymentRepository.find({ 
       where: { registrationId },
-      relations: ['registration']
+      order: { dueDate: 'ASC' } 
     });
 
-    if (!asaasPayment) {
+    if (!payments || payments.length === 0) {
       return null;
     }
 
-    // Converter dueDate para string se necessário
-    const dueDateString = asaasPayment.dueDate instanceof Date ? 
-      this.asaasService.formatDateForAsaas(asaasPayment.dueDate) : 
-      String(asaasPayment.dueDate);
-
-    return {
-      registrationId,
-      billingType: asaasPayment.billingType,
-      value: Number(asaasPayment.value),
-      dueDate: dueDateString,
-      invoiceUrl: asaasPayment.invoiceUrl || undefined,
-      bankSlipUrl: asaasPayment.bankSlipUrl || undefined,
-      // Para cartão de crédito, se paymentLink for null, usar invoiceUrl
-      paymentLink: asaasPayment.rawResponse?.paymentLink || (asaasPayment.billingType === 'CREDIT_CARD' ? asaasPayment.invoiceUrl : null),
-      pixQrCode: asaasPayment.pixQrCode || undefined,
-      pixCopyPaste: asaasPayment.pixCopyPaste || undefined
-    };
+    return payments.map(p => ({
+      id: p.id,
+      registrationId: p.registrationId,
+      billingType: p.billingType,
+      value: p.value,
+      dueDate: this.asaasService.formatDateForAsaas(p.dueDate),
+      status: p.status,
+      installmentNumber: (p.rawResponse as any)?.installmentNumber,
+      invoiceUrl: p.invoiceUrl,
+      bankSlipUrl: p.bankSlipUrl,
+      paymentLink: (p.rawResponse as any)?.paymentLink || p.invoiceUrl,
+      pixQrCode: p.pixQrCode,
+      pixCopyPaste: p.pixCopyPaste,
+    }));
   }
 } 

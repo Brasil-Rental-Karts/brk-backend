@@ -60,6 +60,16 @@ export class Season extends BaseEntity {
   @Column({ type: 'simple-array', nullable: false })
   paymentMethods: PaymentMethod[];
 
+  // Parcelamento
+  @Column({ type: 'boolean', default: false })
+  allowInstallment: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  maxInstallments: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  interestRate: number;
+
   // Relacionamento com o campeonato
   @Column({ nullable: false })
   championshipId: string;
