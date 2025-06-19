@@ -78,7 +78,7 @@ AppDataSource.initialize()
     // Initialize services
     const emailService = new EmailService();
     const authService = new AuthService(userRepository, memberProfileRepository, emailService);
-    const userService = new UserService(userRepository);
+    const userService = new UserService(userRepository, memberProfileRepository);
     const championshipService = new ChampionshipService(championshipRepository);
     const championshipStaffService = new ChampionshipStaffService(championshipStaffRepository, userService, championshipService);
     const googleAuthService = new GoogleAuthService(userRepository, memberProfileRepository);

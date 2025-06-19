@@ -1,8 +1,11 @@
 import 'reflect-metadata';
-import { AppDataSource } from '../config/database.config';
+import { DataSource } from 'typeorm';
 import { User, UserRole } from '../models/user.entity';
-import { UserRepository } from '../repositories/user.repository';
 import { UserService } from '../services/user.service';
+import { UserRepository } from '../repositories/user.repository';
+import { MemberProfile } from '../models/member-profile.entity';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import * as path from 'path';
 
 // Função para validar email
 const isValidEmail = (email: string): boolean => {
@@ -15,42 +18,55 @@ const isValidRole = (role: string): boolean => {
   return Object.values(UserRole).includes(role as UserRole);
 };
 
+// This script changes the role of a user
+// Usage: npx ts-node src/scripts/change-user-role.ts <user-email> <new-role>
+// Example: npx ts-node src/scripts/change-user-role.ts 'test@test.com' 'admin'
+
+const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'brk-app',
+  synchronize: false,
+  logging: ['query', 'error'],
+  entities: [path.join(__dirname, '/../models/**/*.entity{.ts,.js}')],
+  migrations: [path.join(__dirname, '/../migrations/*{.ts,.js}')],
+  subscribers: [],
+  migrationsTableName: 'migrations',
+});
+
 async function changeUserRole() {
-  // Obter argumentos da linha de comando
-  const args = process.argv.slice(2);
-  const email = args[0];
-  const newRole = args[1] as UserRole;
+  const email = process.argv[2];
+  const newRole = process.argv[3] as UserRole;
 
-  // Validar argumentos
   if (!email || !newRole) {
-    console.error('Uso: npm run change-role <email> <role>');
-    console.error('Roles disponíveis:', Object.values(UserRole).join(', '));
+    console.error('Usage: npx ts-node src/scripts/change-user-role.ts <user-email> <new-role>');
     process.exit(1);
   }
 
-  if (!isValidEmail(email)) {
-    console.error('Email inválido');
-    process.exit(1);
-  }
-
-  if (!isValidRole(newRole)) {
-    console.error('Role inválida. Roles disponíveis:', Object.values(UserRole).join(', '));
+  const validRoles = Object.values(UserRole);
+  if (!validRoles.includes(newRole)) {
+    console.error(`Invalid role: ${newRole}. Valid roles are: ${validRoles.join(', ')}`);
     process.exit(1);
   }
 
   try {
-    // Inicializar conexão com o banco de dados
+    // Initialize datasource
     await AppDataSource.initialize();
-    console.log('Conexão com o banco de dados estabelecida');
-
-    // Inicializar repositório e serviço
+    
+    // Get user repository
     const userRepository = new UserRepository(AppDataSource.getRepository(User));
-    const userService = new UserService(userRepository);
-
-    // Buscar usuário pelo email
-    const user = await userService.findByEmail(email);
+    const memberProfileRepository = new MemberProfileRepository(AppDataSource.getRepository(MemberProfile));
+    
+    // Create user service
+    const userService = new UserService(userRepository, memberProfileRepository);
+    
+    // Find user by email
+    const user = await userRepository.findByEmail(email);
     if (!user) {
-      console.error(`Usuário com email ${email} não encontrado`);
+      console.error(`User with email ${email} not found`);
       process.exit(1);
     }
 
@@ -80,7 +96,8 @@ async function changeUserRole() {
     console.log(`Usuário ${refreshedUser?.name} agora tem a role: ${refreshedUser?.role}`);
 
   } catch (error) {
-    console.error('Erro ao alterar a role do usuário:', error);
+    console.error('An error occurred:', error);
+    process.exit(1);
   } finally {
     // Fechar conexão com o banco de dados
     if (AppDataSource.isInitialized) {

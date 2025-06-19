@@ -2,6 +2,8 @@ import { BaseCrudController } from './base.crud.controller';
 import { User, UserRole } from '../models/user.entity';
 import { UserService } from '../services/user.service';
 import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
+import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
+import { Request, Response, NextFunction } from 'express';
 
 /**
  * @swagger
@@ -31,6 +33,34 @@ export class UserController extends BaseCrudController<User, CreateUserDto, Upda
   }
 
   initializeRoutes(): void {
+    /**
+     * @swagger
+     * /users/me:
+     *   delete:
+     *     tags: [Users]
+     *     summary: Delete my account
+     *     description: Anonymize the currently authenticated user's account (Members only). This action is permanent.
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: User account deleted successfully
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden - Insufficient permissions
+     *       404:
+     *         description: User not found
+     *       500:
+     *         description: Internal server error
+     */
+    this.router.delete(
+      '/me',
+      authMiddleware,
+      roleMiddleware([UserRole.MEMBER]),
+      this.deleteMyAccount
+    );
+
     /**
      * @swagger
      * /users:
@@ -178,4 +208,14 @@ export class UserController extends BaseCrudController<User, CreateUserDto, Upda
     this.initializeCrudRoutes();
     // Additional custom routes can be added here
   }
-} 
+
+  deleteMyAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as any).user.id;
+      await this.service.anonymizeUser(userId);
+      res.status(200).send({ message: 'User account deleted successfully.' });
+    } catch (error) {
+      next(error);
+    }
+  };
+}

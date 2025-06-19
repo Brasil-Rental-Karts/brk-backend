@@ -3,9 +3,14 @@ import { BaseService } from './base.service';
 import { User, UserRole } from '../models/user.entity';
 import { UserRepository } from '../repositories/user.repository';
 import { HttpException } from '../exceptions/http.exception';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { v4 as uuidv4 } from 'uuid';
 
 export class UserService extends BaseService<User> {
-  constructor(private userRepository: UserRepository) {
+  constructor(
+    private userRepository: UserRepository,
+    private memberProfileRepository: MemberProfileRepository
+    ) {
     super(userRepository);
   }
 
@@ -101,5 +106,32 @@ export class UserService extends BaseService<User> {
     }
     
     return user;
+  }
+
+  async anonymizeUser(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new HttpException(404, 'User not found');
+    }
+
+    const memberProfile = await this.memberProfileRepository.findById(userId);
+
+    // Anonymize User
+    const anonymizedEmail = `deleted-user-${uuidv4()}@brk.com.br`;
+    user.name = 'Usuário Removido';
+    user.email = anonymizedEmail;
+    user.phone = '';
+    user.password = uuidv4(); // Set a new random, unusable password
+    user.active = false;
+    user.googleId = '';
+    user.profilePicture = '';
+    user.emailConfirmed = false;
+    
+    await this.userRepository.update(user.id, user);
+
+    // Delete MemberProfile
+    if (memberProfile) {
+      await this.memberProfileRepository.delete(memberProfile.id);
+    }
   }
 } 

@@ -101,8 +101,8 @@ export class AuthService {
     const tokens = this.generateTokens(user, displayName);
 
     if (!profile) {
-      // First login - set the flag
-      tokens.firstLogin = true;
+      // First login - create a new profile
+      await this.memberProfileRepository.create({ id: user.id });
     } else {
       // Not first login - update last login timestamp
       await this.memberProfileRepository.updateLastLogin(user.id);
@@ -213,7 +213,8 @@ export class AuthService {
     const displayName = profile?.nickName || user.name;
     const tokens = this.generateTokens(user, displayName);
     if (!profile) {
-      tokens.firstLogin = true;
+      // First login - create a new profile
+      await this.memberProfileRepository.create({ id: user.id });
     } else {
       await this.memberProfileRepository.updateLastLogin(user.id);
     }

@@ -386,7 +386,7 @@ export class AuthController extends BaseController {
       res.cookie('accessToken', tokens.accessToken, cookieOptions);
       res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
       // Return only firstLogin indicator
-      res.status(200).json({ firstLogin: !!tokens.firstLogin });
+      res.status(200).json({});
     } catch (error) {
       if (error instanceof Error && 
           (error.message === 'Email ou senha incorretos' || 
@@ -522,7 +522,7 @@ export class AuthController extends BaseController {
       res.cookie('accessToken', tokens.accessToken, cookieOptions);
       res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
       // Redirect to frontend with only firstLogin indicator
-      const redirectUrl = `${config.frontendUrl}/login-success?firstLogin=${tokens.firstLogin ? 'true' : 'false'}`;
+      const redirectUrl = `${config.frontendUrl}/login-success`;
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('Google callback error:', error);
@@ -555,7 +555,7 @@ export class AuthController extends BaseController {
       res.cookie('accessToken', tokens.accessToken, cookieOptions);
       res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
       // Return only firstLogin indicator
-      res.status(200).json({ firstLogin: !!tokens.firstLogin });
+      res.status(200).json({});
     } catch (error) {
       console.error('Google authentication error:', error);
       res.status(401).json({ message: 'Invalid Google token' });
