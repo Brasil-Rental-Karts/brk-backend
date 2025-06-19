@@ -6,7 +6,7 @@ export class Stage extends BaseEntity {
   @Column({ length: 255, nullable: false })
   name: string;
 
-  @Column({ type: 'date', nullable: false })
+  @Column({ type: 'timestamp', nullable: false })
   date: Date;
 
   @Column({ type: 'time', nullable: false })

@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsArray, IsUUID, IsDateString, Matches } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsArray, IsUUID, IsDateString, Matches, IsDate } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { BaseDto } from './base.dto';
 
 /**
@@ -74,8 +74,10 @@ export class CreateStageDto extends BaseDto {
   @MaxLength(255, { message: 'Nome da etapa deve ter no máximo 255 caracteres' })
   name: string;
 
-  @IsDateString({}, { message: 'Data deve estar no formato YYYY-MM-DD' })
-  date: string;
+  @Type(() => Date)
+  @IsDate({ message: 'Data inválida' })
+  @IsNotEmpty({ message: 'Data é obrigatória' })
+  date: Date;
 
   @IsString()
   @IsNotEmpty({ message: 'Horário é obrigatório' })
@@ -180,8 +182,10 @@ export class UpdateStageDto extends BaseDto {
   name?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'Data deve estar no formato YYYY-MM-DD' })
-  date?: string;
+  @Type(() => Date)
+  @IsDate({ message: 'Data inválida' })
+  @IsNotEmpty({ message: 'Data é obrigatória' })
+  date?: Date;
 
   @IsOptional()
   @IsString()
