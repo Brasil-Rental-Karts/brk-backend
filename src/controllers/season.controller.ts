@@ -65,7 +65,7 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           type: array
  *           items:
  *             type: string
- *             enum: [pix, cartao_credito, boleto]
+    *             enum: [pix, cartao_credito]
  *           description: Métodos de pagamento aceitos
  *         championshipId:
  *           type: string
@@ -83,12 +83,7 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           minimum: 1
  *           maximum: 12
  *           description: Número máximo de parcelas para pagamento via cartão de crédito
- *         boletoInstallments:
- *           type: integer
- *           default: 1
- *           minimum: 1
- *           maximum: 12
- *           description: Número máximo de parcelas para pagamento via boleto
+
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -331,7 +326,7 @@ export class SeasonController extends BaseController {
         championshipId: req.body.championshipId,
         pixInstallments: req.body.pixInstallments || 1,
         creditCardInstallments: req.body.creditCardInstallments || 1,
-        boletoInstallments: req.body.boletoInstallments || 1
+
       };
 
       const season = await this.seasonService.create(seasonData);
@@ -378,7 +373,7 @@ export class SeasonController extends BaseController {
       if (req.body.paymentMethods) seasonData.paymentMethods = req.body.paymentMethods;
       if (req.body.pixInstallments !== undefined) seasonData.pixInstallments = req.body.pixInstallments;
       if (req.body.creditCardInstallments !== undefined) seasonData.creditCardInstallments = req.body.creditCardInstallments;
-      if (req.body.boletoInstallments !== undefined) seasonData.boletoInstallments = req.body.boletoInstallments;
+
 
       const season = await this.seasonService.update(id, seasonData);
 
@@ -458,9 +453,7 @@ export class SeasonController extends BaseController {
       throw new BadRequestException('Número de parcelas do cartão de crédito deve ser entre 1 e 12.');
     }
   
-    if (data.boletoInstallments !== undefined && (typeof data.boletoInstallments !== 'number' || data.boletoInstallments < 1 || data.boletoInstallments > 12)) {
-      throw new BadRequestException('Número de parcelas do boleto deve ser entre 1 e 12.');
-    }
+
   
     if (data.startDate !== undefined && isNaN(new Date(data.startDate).getTime())) {
       throw new BadRequestException('Data de início inválida. Use o formato YYYY-MM-DD');

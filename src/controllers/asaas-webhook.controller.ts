@@ -57,7 +57,7 @@ import { BadRequestException } from '../exceptions/bad-request.exception';
  *               nullable: true
  *             billingType:
  *               type: string
- *               enum: [BOLETO, CREDIT_CARD, PIX]
+ *               enum: [CREDIT_CARD, PIX]
  *             status:
  *               type: string
  *               enum: [PENDING, RECEIVED, CONFIRMED, OVERDUE, REFUNDED, RECEIVED_IN_CASH, REFUND_REQUESTED, REFUND_IN_PROGRESS, CHARGEBACK_REQUESTED, CHARGEBACK_DISPUTE, AWAITING_CHARGEBACK_REVERSAL, DUNNING_REQUESTED, DUNNING_RECEIVED, AWAITING_RISK_ANALYSIS]

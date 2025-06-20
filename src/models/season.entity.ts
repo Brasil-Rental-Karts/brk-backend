@@ -18,8 +18,7 @@ export enum InscriptionType {
 
 export enum PaymentMethod {
   PIX = 'pix',
-  CARTAO_CREDITO = 'cartao_credito',
-  BOLETO = 'boleto'
+  CARTAO_CREDITO = 'cartao_credito'
 }
 
 @Entity('Seasons')
@@ -73,8 +72,7 @@ export class Season extends BaseEntity {
   @Column({ type: 'int', default: 1 })
   creditCardInstallments: number;
 
-  @Column({ type: 'int', default: 1 })
-  boletoInstallments: number;
+
 
   // Relacionamento com o campeonato
   @Column({ nullable: false })

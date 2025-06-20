@@ -3,7 +3,6 @@ import { BaseEntity } from './base.entity';
 import { SeasonRegistration } from './season-registration.entity';
 
 export enum AsaasBillingType {
-  BOLETO = 'BOLETO',
   CREDIT_CARD = 'CREDIT_CARD',
   PIX = 'PIX'
 }

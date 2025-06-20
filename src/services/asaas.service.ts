@@ -28,7 +28,7 @@ export interface AsaasCustomer {
 export interface AsaasPayment {
   id?: string;
   customer: string;
-  billingType: 'BOLETO' | 'CREDIT_CARD' | 'PIX';
+  billingType: 'CREDIT_CARD' | 'PIX';
   value: number;
   dueDate: string;
   description?: string;
@@ -627,7 +627,7 @@ export class AsaasService {
   /**
    * Cria um parcelamento (carnê) no Asaas
    * Para PIX parcelado, usa o endpoint /installments que cria um carnê
-   * onde a primeira parcela é PIX e as demais são boletos
+   * onde todas as parcelas são PIX
    */
   async createInstallmentPlan(paymentData: AsaasInstallment): Promise<AsaasInstallmentResponse> {
     try {

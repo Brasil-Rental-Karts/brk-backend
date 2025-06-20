@@ -71,7 +71,7 @@ import { SeasonService } from '../services/season.service';
  *               format: uuid
  *             billingType:
  *               type: string
- *               enum: [BOLETO, CREDIT_CARD, PIX]
+ *               enum: [CREDIT_CARD, PIX]
  *             value:
  *               type: number
  *             dueDate:
