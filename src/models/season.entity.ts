@@ -1,7 +1,8 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany, BeforeInsert, BeforeUpdate } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Championship } from './championship.entity';
 import { Category } from './category.entity';
+import { slugify } from '../utils/slugify';
 
 export enum SeasonStatus {
   AGENDADO = 'agendado',
@@ -11,10 +12,8 @@ export enum SeasonStatus {
 }
 
 export enum InscriptionType {
-  MENSAL = 'mensal',
-  ANUAL = 'anual', 
-  SEMESTRAL = 'semestral',
-  TRIMESTRAL = 'trimestral'
+  POR_TEMPORADA = 'por_temporada',
+  POR_ETAPA = 'por_etapa'
 }
 
 export enum PaymentMethod {
@@ -28,6 +27,9 @@ export class Season extends BaseEntity {
   // Dados Gerais
   @Column({ length: 75, nullable: false })
   name: string;
+
+  @Column({ length: 100, unique: true, nullable: false })
+  slug: string;
 
   @Column({ type: 'varchar', length: 1000, nullable: false })
   description: string;
@@ -64,15 +66,15 @@ export class Season extends BaseEntity {
   @Column({ type: 'simple-array', nullable: false })
   paymentMethods: PaymentMethod[];
 
-  // Parcelamento
-  @Column({ type: 'boolean', default: false })
-  allowInstallment: boolean;
+  // Parcelamento por método de pagamento
+  @Column({ type: 'int', default: 1 })
+  pixInstallments: number;
 
-  @Column({ type: 'int', nullable: true })
-  maxInstallments: number;
+  @Column({ type: 'int', default: 1 })
+  creditCardInstallments: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  interestRate: number;
+  @Column({ type: 'int', default: 1 })
+  boletoInstallments: number;
 
   // Relacionamento com o campeonato
   @Column({ nullable: false })
@@ -84,4 +86,12 @@ export class Season extends BaseEntity {
 
   @OneToMany(() => Category, (category) => category.season)
   categories: Category[];
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  generateSlug() {
+    if (this.name) {
+      this.slug = slugify(this.name);
+    }
+  }
 } 

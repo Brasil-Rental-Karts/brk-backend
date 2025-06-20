@@ -52,6 +52,17 @@ export class SeasonService extends BaseService<Season> {
     return season;
   }
 
+  async findBySlugOrId(slugOrId: string): Promise<Season | null> {
+    // Verifica se é um UUID
+    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
+    
+    if (isUUID) {
+      return await this.findById(slugOrId);
+    } else {
+      return await this.seasonRepository.findBySlug(slugOrId);
+    }
+  }
+
   async findAll(): Promise<Season[]> {
     // Apenas busca no banco, sem interferir no cache
     const seasons = await super.findAll();

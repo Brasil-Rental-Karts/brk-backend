@@ -59,7 +59,7 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           description: Valor da inscrição
  *         inscriptionType:
  *           type: string
- *           enum: [mensal, anual, semestral, trimestral]
+ *           enum: [por_temporada, por_etapa]
  *           description: Tipo da inscrição
  *         paymentMethods:
  *           type: array
@@ -71,15 +71,24 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           type: string
  *           format: uuid
  *           description: ID do campeonato
- *         allowInstallment:
- *           type: boolean
- *           description: Define se o parcelamento é permitido
- *         maxInstallments:
+ *         pixInstallments:
  *           type: integer
- *           description: Número máximo de parcelas
- *         interestRate:
- *           type: number
- *           description: Taxa de juros para parcelamento
+ *           default: 1
+ *           minimum: 1
+ *           maximum: 12
+ *           description: Número máximo de parcelas para pagamento via PIX
+ *         creditCardInstallments:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *           maximum: 12
+ *           description: Número máximo de parcelas para pagamento via cartão de crédito
+ *         boletoInstallments:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *           maximum: 12
+ *           description: Número máximo de parcelas para pagamento via boleto
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -280,7 +289,7 @@ export class SeasonController extends BaseController {
   private async getSeasonById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const season = await this.seasonService.findById(id);
+      const season = await this.seasonService.findBySlugOrId(id);
       if (!season) {
         throw new NotFoundException('Temporada não encontrada');
       }
@@ -319,7 +328,10 @@ export class SeasonController extends BaseController {
         inscriptionValue: parseFloat(req.body.inscriptionValue),
         inscriptionType: req.body.inscriptionType,
         paymentMethods: req.body.paymentMethods,
-        championshipId: req.body.championshipId
+        championshipId: req.body.championshipId,
+        pixInstallments: req.body.pixInstallments || 1,
+        creditCardInstallments: req.body.creditCardInstallments || 1,
+        boletoInstallments: req.body.boletoInstallments || 1
       };
 
       const season = await this.seasonService.create(seasonData);
@@ -364,6 +376,9 @@ export class SeasonController extends BaseController {
       if (req.body.inscriptionValue) seasonData.inscriptionValue = parseFloat(req.body.inscriptionValue);
       if (req.body.inscriptionType) seasonData.inscriptionType = req.body.inscriptionType;
       if (req.body.paymentMethods) seasonData.paymentMethods = req.body.paymentMethods;
+      if (req.body.pixInstallments !== undefined) seasonData.pixInstallments = req.body.pixInstallments;
+      if (req.body.creditCardInstallments !== undefined) seasonData.creditCardInstallments = req.body.creditCardInstallments;
+      if (req.body.boletoInstallments !== undefined) seasonData.boletoInstallments = req.body.boletoInstallments;
 
       const season = await this.seasonService.update(id, seasonData);
 
@@ -434,16 +449,17 @@ export class SeasonController extends BaseController {
       throw new BadRequestException('Descrição da temporada inválida ou excede 1000 caracteres.');
     }
   
-    if (data.allowInstallment === true && (data.maxInstallments === undefined || data.maxInstallments === null)) {
-      throw new BadRequestException('O número máximo de parcelas é obrigatório quando o parcelamento é permitido.');
+    // Validação de parcelamento por método de pagamento
+    if (data.pixInstallments !== undefined && (typeof data.pixInstallments !== 'number' || data.pixInstallments < 1 || data.pixInstallments > 12)) {
+      throw new BadRequestException('Número de parcelas PIX deve ser entre 1 e 12.');
     }
   
-    if (data.maxInstallments !== undefined && data.maxInstallments !== null && (typeof data.maxInstallments !== 'number' || data.maxInstallments <= 1)) {
-      throw new BadRequestException('O número de parcelas deve ser um número maior que 1.');
+    if (data.creditCardInstallments !== undefined && (typeof data.creditCardInstallments !== 'number' || data.creditCardInstallments < 1 || data.creditCardInstallments > 12)) {
+      throw new BadRequestException('Número de parcelas do cartão de crédito deve ser entre 1 e 12.');
     }
   
-    if (data.interestRate !== undefined && data.interestRate !== null && (typeof data.interestRate !== 'number' || data.interestRate < 0)) {
-      throw new BadRequestException('A taxa de juros deve ser um número positivo.');
+    if (data.boletoInstallments !== undefined && (typeof data.boletoInstallments !== 'number' || data.boletoInstallments < 1 || data.boletoInstallments > 12)) {
+      throw new BadRequestException('Número de parcelas do boleto deve ser entre 1 e 12.');
     }
   
     if (data.startDate !== undefined && isNaN(new Date(data.startDate).getTime())) {

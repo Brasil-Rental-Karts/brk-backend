@@ -59,4 +59,8 @@ export class SeasonRepository extends BaseRepositoryImpl<Season> {
       totalPages
     };
   }
+
+  async findBySlug(slug: string): Promise<Season | null> {
+    return this.repository.findOneBy({ slug });
+  }
 } 

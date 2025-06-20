@@ -16,8 +16,8 @@ export interface CreateRegistrationData {
   userId: string;
   seasonId: string;
   categoryIds: string[]; // Array de IDs das categorias selecionadas
-  paymentMethod: 'boleto' | 'pix' | 'cartao_credito';
-  userDocument?: string; // CPF do usuário para o Asaas
+  paymentMethod: 'pix' | 'cartao_credito';
+  userDocument: string; // CPF/CNPJ do usuário (obrigatório)
   installments?: number;
 }
 
@@ -29,6 +29,7 @@ export interface RegistrationPaymentData {
   dueDate: string;
   status: string;
   installmentNumber?: number | null;
+  installmentCount?: number | null;
   invoiceUrl?: string | null;
   bankSlipUrl?: string | null;
   paymentLink?: string | null;
@@ -64,6 +65,11 @@ export class SeasonRegistrationService {
     registration: SeasonRegistration;
     paymentData: RegistrationPaymentData;
   }> {
+    console.log('=== DADOS RECEBIDOS NO BACKEND ===');
+    console.log('data:', data);
+    console.log('data.installments:', data.installments);
+    console.log('data.paymentMethod:', data.paymentMethod);
+    
     // Validar se o usuário existe
     const user = await this.userRepository.findOne({ where: { id: data.userId } });
     if (!user) {
@@ -76,13 +82,32 @@ export class SeasonRegistrationService {
       throw new NotFoundException('Temporada não encontrada');
     }
 
+    // Verificar se as inscrições estão abertas para esta temporada
+    if (!season.registrationOpen) {
+      throw new BadRequestException('As inscrições para esta temporada não estão abertas');
+    }
+
+    // Validar se o CPF/CNPJ foi fornecido
+    if (!data.userDocument || data.userDocument.trim() === '') {
+      throw new BadRequestException('CPF/CNPJ é obrigatório para realizar a inscrição');
+    }
+
     // Validar se o parcelamento é permitido e se o número de parcelas é válido
     if (data.installments && data.installments > 1) {
-      if (!season.allowInstallment) {
-        throw new BadRequestException('Esta temporada não permite pagamento parcelado.');
+      let maxInstallments = 1;
+      
+      // Verificar o número máximo de parcelas baseado no método de pagamento
+      switch (data.paymentMethod) {
+        case 'pix':
+          maxInstallments = season.pixInstallments;
+          break;
+        case 'cartao_credito':
+          maxInstallments = season.creditCardInstallments;
+          break;
       }
-      if (data.installments > season.maxInstallments!) {
-        throw new BadRequestException(`O número máximo de parcelas para esta temporada é ${season.maxInstallments}.`);
+      
+      if (data.installments > maxInstallments) {
+        throw new BadRequestException(`O número máximo de parcelas para ${data.paymentMethod} nesta temporada é ${maxInstallments}.`);
       }
     }
 
@@ -163,7 +188,18 @@ export class SeasonRegistrationService {
         notificationDisabled: false
       };
 
+      console.log('=== CRIANDO/ATUALIZANDO CLIENTE ASAAS ===');
+      console.log('asaasCustomerData:', asaasCustomerData);
+
       const asaasCustomer = await this.asaasService.createOrUpdateCustomer(asaasCustomerData);
+      
+      console.log('=== CLIENTE ASAAS CRIADO/ATUALIZADO ===');
+      console.log('asaasCustomer.id:', asaasCustomer.id);
+      console.log('asaasCustomer:', asaasCustomer);
+      
+      if (!asaasCustomer.id) {
+        throw new Error('Cliente Asaas não possui ID válido');
+      }
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 7);
@@ -173,75 +209,114 @@ export class SeasonRegistrationService {
 
       const isInstallment = data.installments && data.installments > 1;
 
-      if (isInstallment && (asaasBillingType === 'BOLETO' || asaasBillingType === 'PIX')) {
-        // --- Lógica para Parcelamento no Boleto/PIX (Carnê) ---
-        const installmentData = {
+      let asaasPaymentResponse: any;
+
+      if (isInstallment && asaasBillingType === 'PIX') {
+        // --- PIX Parcelado: usar endpoint /installments (cria carnê) ---
+        const installmentPayload: any = {
           customer: asaasCustomer.id!,
           billingType: asaasBillingType,
           totalValue: totalAmount,
-          installmentCount: data.installments!,
-          dueDate: this.asaasService.formatDateForAsaas(dueDate),
-          description,
-          externalReference: savedRegistration.id,
-        };
-        
-        const asaasInstallmentResponse = await this.asaasService.createInstallmentPlan(installmentData);
-
-        const savedPayments: AsaasPayment[] = [];
-        for (const payment of asaasInstallmentResponse) {
-          const newPayment = new AsaasPayment();
-          newPayment.registrationId = savedRegistration.id;
-          newPayment.asaasPaymentId = payment.id;
-          newPayment.asaasInstallmentId = payment.installment || null;
-          newPayment.asaasCustomerId = asaasCustomer.id!;
-          newPayment.billingType = asaasBillingType as any;
-          newPayment.status = payment.status as AsaasPaymentStatus;
-          newPayment.value = payment.value;
-          newPayment.netValue = payment.netValue;
-          newPayment.dueDate = new Date(payment.dueDate);
-          newPayment.description = payment.description;
-          newPayment.invoiceUrl = payment.invoiceUrl;
-          newPayment.bankSlipUrl = payment.bankSlipUrl;
-          newPayment.rawResponse = payment;
-          const saved = await this.paymentRepository.save(newPayment);
-          savedPayments.push(saved);
-        }
-
-        const firstPayment = asaasInstallmentResponse[0];
-        const firstSavedPayment = savedPayments[0];
-
-        const paymentData: RegistrationPaymentData = {
-          id: firstSavedPayment.id,
-          registrationId: savedRegistration.id,
-          billingType: firstPayment.billingType,
-          value: firstPayment.value,
-          dueDate: firstPayment.dueDate,
-          status: firstPayment.status,
-          installmentNumber: firstPayment.installmentNumber,
-          invoiceUrl: firstPayment.invoiceUrl,
-          bankSlipUrl: firstPayment.bankSlipUrl,
-          paymentLink: firstPayment.paymentLink,
-        };
-        return { registration: savedRegistration, paymentData };
-
-      } else {
-        // --- Lógica para Pagamento Único ou Parcelado no Cartão ---
-        const paymentPayload: any = {
-          customer: asaasCustomer.id!,
-          billingType: asaasBillingType,
-          value: totalAmount,
+          installmentCount: data.installments,
           dueDate: this.asaasService.formatDateForAsaas(dueDate),
           description: description,
           externalReference: savedRegistration.id,
         };
+
+        if (championship.splitEnabled && championship.asaasWalletId) {
+          const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+          const championshipPercentage = 100 - platformCommission;
+          installmentPayload.split = [{
+            walletId: championship.asaasWalletId,
+            percentualValue: championshipPercentage,
+          }];
+        }
+
+        console.log('=== PIX PARCELADO ===');
+        console.log('Usando /installments - Parcelas:', data.installments, 'Total:', totalAmount);
+        console.log('installmentPayload:', JSON.stringify(installmentPayload, null, 2));
+
+        try {
+          const installmentPlan = await this.asaasService.createInstallmentPlan(installmentPayload);
+          console.log('=== INSTALLMENT PLAN RESPONSE ===');
+          console.log('installmentPlan:', installmentPlan);
+          
+          if (!installmentPlan || !installmentPlan.id) {
+            throw new Error('Plano de parcelamento não foi criado corretamente');
+          }
+          
+          // Para PIX parcelado, o Asaas retorna o plano geral, não as parcelas individuais
+          // As parcelas individuais chegam via webhook depois
+          // Vamos criar um objeto de resposta compatível usando os dados do plano
+          asaasPaymentResponse = {
+            id: installmentPlan.id,
+            status: 'PENDING', // Status inicial do plano
+            value: installmentPlan.paymentValue, // Valor da primeira parcela
+            netValue: installmentPlan.netValue / installmentPlan.installmentCount, // Valor líquido por parcela
+            dueDate: `2025-06-27`, // Data de vencimento da primeira parcela
+            description: installmentPlan.description,
+            billingType: installmentPlan.billingType,
+            installmentNumber: 1, // Primeira parcela
+            invoiceUrl: null, // Será preenchido via webhook
+            bankSlipUrl: null,
+            paymentLink: null,
+            externalReference: installmentPlan.externalReference || savedRegistration.id
+          };
+          
+          console.log('=== PLANO DE PARCELAMENTO CRIADO ===');
+          console.log('installmentPlan.id:', installmentPlan.id);
+          console.log('installmentPlan.installmentCount:', installmentPlan.installmentCount);
+          console.log('installmentPlan.paymentValue:', installmentPlan.paymentValue);
+          console.log('asaasPaymentResponse criado:', asaasPaymentResponse);
+        } catch (installmentError) {
+          console.error('=== ERRO NO PIX PARCELADO ===');
+          console.error('Erro:', installmentError);
+          throw installmentError;
+        }
         
+      } else {
+        // --- Pagamentos únicos OU Cartão parcelado: usar endpoint /payments ---
+        const paymentPayload: any = {
+          customer: asaasCustomer.id!,
+          billingType: asaasBillingType,
+          dueDate: this.asaasService.formatDateForAsaas(dueDate),
+          description: description,
+          externalReference: savedRegistration.id,
+        };
+
+        // Para cartão parcelado, usar installmentCount + totalValue
+        // Para pagamentos únicos, usar value
         if (isInstallment && asaasBillingType === 'CREDIT_CARD') {
           paymentPayload.installmentCount = data.installments;
+          paymentPayload.totalValue = totalAmount;
+          console.log('=== CARTÃO PARCELADO ===');
+          console.log('Usando /payments - Parcelas:', data.installments, 'Total:', totalAmount);
+        } else {
+          paymentPayload.value = totalAmount;
+          console.log('=== PAGAMENTO ÚNICO ===');
+          console.log('Usando /payments - Valor:', totalAmount);
         }
 
         if (asaasBillingType === 'CREDIT_CARD') {
+          // Usar ngrok URL se disponível, senão usar frontend URL
+          let callbackUrl: string;
+          
+          if (process.env.ASAAS_WEBHOOK_URL && process.env.ASAAS_WEBHOOK_URL.includes('ngrok')) {
+            // Usar ngrok URL apontando para o backend callback endpoint
+            const ngrokBaseUrl = process.env.ASAAS_WEBHOOK_URL.split('/webhooks')[0];
+            callbackUrl = `${ngrokBaseUrl}/season-registrations/${savedRegistration.id}/payment-callback`;
+            console.log('=== USANDO NGROK PARA CALLBACK ===');
+            console.log('ngrokBaseUrl:', ngrokBaseUrl);
+          } else {
+            // Fallback para localhost backend
+            callbackUrl = `http://localhost:3000/season-registrations/${savedRegistration.id}/payment-callback`;
+            console.log('=== USANDO LOCALHOST BACKEND PARA CALLBACK ===');
+          }
+          
+          console.log('callbackUrl final:', callbackUrl);
+          
           paymentPayload.callback = {
-            successUrl: `${process.env.FRONTEND_URL}/registration/${savedRegistration.id}/payment?success=true`,
+            successUrl: callbackUrl,
             autoRedirect: true
           };
         }
@@ -255,7 +330,8 @@ export class SeasonRegistrationService {
           }];
         }
 
-        const asaasPaymentResponse = await this.asaasService.createPayment(paymentPayload);
+        asaasPaymentResponse = await this.asaasService.createPayment(paymentPayload);
+      }
 
         const asaasPayment = new AsaasPayment();
         asaasPayment.registrationId = savedRegistration.id;
@@ -263,7 +339,7 @@ export class SeasonRegistrationService {
         asaasPayment.asaasCustomerId = asaasCustomer.id!;
         asaasPayment.billingType = asaasBillingType as any;
         asaasPayment.status = asaasPaymentResponse.status as AsaasPaymentStatus;
-        asaasPayment.value = totalAmount;
+        asaasPayment.value = asaasPaymentResponse.value; // Usar valor da resposta (parcela ou total)
         asaasPayment.netValue = asaasPaymentResponse.netValue;
         asaasPayment.dueDate = new Date(asaasPaymentResponse.dueDate);
         asaasPayment.description = asaasPaymentResponse.description || null;
@@ -287,10 +363,11 @@ export class SeasonRegistrationService {
           id: savedAsaasPayment.id,
           registrationId: savedRegistration.id,
           billingType: asaasBillingType,
-          value: totalAmount,
+          value: asaasPaymentResponse.value, // Usar o valor da resposta (150 para PIX parcelado, totalAmount para outros)
           dueDate: this.asaasService.formatDateForAsaas(dueDate),
           status: asaasPaymentResponse.status,
           installmentNumber: asaasPaymentResponse.installmentNumber,
+          installmentCount: isInstallment ? data.installments : null,
           invoiceUrl: asaasPaymentResponse.invoiceUrl,
           bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
           paymentLink: asaasPaymentResponse.paymentLink || (asaasBillingType === 'CREDIT_CARD' ? asaasPaymentResponse.invoiceUrl : null),
@@ -298,11 +375,16 @@ export class SeasonRegistrationService {
           pixCopyPaste: asaasPayment.pixCopyPaste || undefined
         };
 
+        console.log('=== PAYMENT DATA CRIADO ===');
+        console.log('installmentCount:', paymentData.installmentCount);
+        console.log('isInstallment:', isInstallment);
+        console.log('data.installments:', data.installments);
+        console.log('billingType:', asaasBillingType);
+
         return {
           registration: savedRegistration,
           paymentData
         };
-      }
 
     } catch (error) {
       // Se houve erro na criação do pagamento, remover a inscrição
@@ -528,19 +610,33 @@ export class SeasonRegistrationService {
       return null;
     }
 
-    return payments.map(p => ({
-      id: p.id,
-      registrationId: p.registrationId,
-      billingType: p.billingType,
-      value: p.value,
-      dueDate: this.asaasService.formatDateForAsaas(p.dueDate),
-      status: p.status,
-      installmentNumber: (p.rawResponse as any)?.installmentNumber,
-      invoiceUrl: p.invoiceUrl,
-      bankSlipUrl: p.bankSlipUrl,
-      paymentLink: (p.rawResponse as any)?.paymentLink || p.invoiceUrl,
-      pixQrCode: p.pixQrCode,
-      pixCopyPaste: p.pixCopyPaste,
-    }));
+    return payments.map(p => {
+      // Garantir que dueDate seja um objeto Date válido
+      let formattedDueDate: string;
+      try {
+        const dueDate = p.dueDate instanceof Date ? p.dueDate : new Date(p.dueDate);
+        formattedDueDate = this.asaasService.formatDateForAsaas(dueDate);
+      } catch (error) {
+        console.error('Erro ao formatar dueDate:', error, 'Valor original:', p.dueDate);
+        // Fallback: usar a data como string se não conseguir converter
+        formattedDueDate = typeof p.dueDate === 'string' ? p.dueDate : new Date().toISOString().split('T')[0];
+      }
+
+      return {
+        id: p.id,
+        registrationId: p.registrationId,
+        billingType: p.billingType,
+        value: p.value,
+        dueDate: formattedDueDate,
+        status: p.status,
+        installmentNumber: (p.rawResponse as any)?.installmentNumber,
+        installmentCount: (p.rawResponse as any)?.installmentCount || null,
+        invoiceUrl: p.invoiceUrl,
+        bankSlipUrl: p.bankSlipUrl,
+        paymentLink: (p.rawResponse as any)?.paymentLink || p.invoiceUrl,
+        pixQrCode: p.pixQrCode,
+        pixCopyPaste: p.pixCopyPaste,
+      };
+    });
   }
 } 

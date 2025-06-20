@@ -18,6 +18,7 @@ import { SeasonService } from '../services/season.service';
  *         - seasonId
  *         - categoryIds
  *         - paymentMethod
+ *         - userDocument
  *       properties:
  *         seasonId:
  *           type: string
@@ -32,11 +33,12 @@ import { SeasonService } from '../services/season.service';
  *           minItems: 1
  *         paymentMethod:
  *           type: string
- *           enum: [boleto, pix, cartao_credito]
+          *           enum: [pix, cartao_credito]
  *           description: Método de pagamento desejado
  *         userDocument:
  *           type: string
- *           description: CPF do usuário (opcional)
+ *           description: CPF/CNPJ do usuário
+ *           example: "123.456.789-00"
  *     
  *     RegistrationResponse:
  *       type: object
@@ -190,6 +192,25 @@ export class SeasonRegistrationController extends BaseController {
 
     /**
      * @swagger
+     * /season-registrations/{id}/payment-callback:
+     *   get:
+     *     summary: Callback de pagamento (redirecionamento do Asaas)
+     *     tags: [Season Registrations]
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       302:
+     *         description: Redirecionamento para o frontend
+     */
+    this.router.get('/:id/payment-callback', this.handlePaymentCallback.bind(this));
+
+    /**
+     * @swagger
      * /season-registrations/{id}/cancel:
      *   post:
      *     summary: Cancelar inscrição
@@ -302,19 +323,19 @@ export class SeasonRegistrationController extends BaseController {
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
     try {
-      const { seasonId, categoryIds, paymentMethod, userDocument } = req.body;
+      const { seasonId, categoryIds, paymentMethod, userDocument, installments } = req.body;
       const userId = req.user!.id;
 
       // Validar dados de entrada
-      if (!seasonId || !paymentMethod || !categoryIds) {
-        throw new BadRequestException('seasonId, categoryIds e paymentMethod são obrigatórios');
+      if (!seasonId || !paymentMethod || !categoryIds || !userDocument) {
+        throw new BadRequestException('seasonId, categoryIds, paymentMethod e userDocument são obrigatórios');
       }
 
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
         throw new BadRequestException('Pelo menos uma categoria deve ser selecionada');
       }
 
-      const validPaymentMethods = ['boleto', 'pix', 'cartao_credito'];
+      const validPaymentMethods = ['pix', 'cartao_credito'];
       if (!validPaymentMethods.includes(paymentMethod)) {
         throw new BadRequestException('Método de pagamento inválido');
       }
@@ -324,7 +345,8 @@ export class SeasonRegistrationController extends BaseController {
         seasonId,
         categoryIds,
         paymentMethod,
-        userDocument
+        userDocument,
+        installments
       };
 
       const result = await this.registrationService.createRegistration(registrationData);
@@ -542,6 +564,31 @@ export class SeasonRegistrationController extends BaseController {
       res.status(500).json({
         message: 'Erro interno do servidor ao verificar status de split'
       });
+    }
+  }
+
+  /**
+   * Handle payment callback from Asaas and redirect to frontend
+   */
+  private async handlePaymentCallback(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: registrationId } = req.params;
+      
+      // Extrair primeira URL do FRONTEND_URL
+      const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+      const redirectUrl = `${frontendUrl}/registration/${registrationId}/payment?success=true`;
+      
+      console.log('=== CALLBACK DE PAGAMENTO ===');
+      console.log('registrationId:', registrationId);
+      console.log('Redirecionando para:', redirectUrl);
+      
+      // Redirecionar para o frontend com parâmetro de sucesso
+      res.redirect(302, redirectUrl);
+    } catch (error: any) {
+      console.error('Erro no callback de pagamento:', error);
+      // Em caso de erro, redirecionar para página de erro
+      const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+      res.redirect(302, `${frontendUrl}/error?message=callback_error`);
     }
   }
 } 

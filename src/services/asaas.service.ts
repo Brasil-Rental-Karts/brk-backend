@@ -80,8 +80,8 @@ export interface AsaasPayment {
   remoteIp?: string;
 }
 
-export interface AsaasInstallment extends Omit<AsaasPayment, 'billingType' | 'value'> {
-  billingType: 'BOLETO' | 'PIX'; // Parcelamento só para boleto e pix
+export interface AsaasInstallment extends Omit<AsaasPayment, 'billingType' | 'value' | 'installmentCount' | 'installmentValue'> {
+  billingType: 'PIX'; // Parcelamento só para PIX
   installmentCount: number;
   totalValue: number;
 }
@@ -125,7 +125,27 @@ export interface AsaasPaymentResponse {
   };
 }
 
-export type AsaasInstallmentResponse = AsaasPaymentResponse[];
+export interface AsaasInstallmentResponse {
+  object: string;
+  id: string;
+  value: number;
+  netValue: number;
+  paymentValue: number;
+  installmentCount: number;
+  billingType: string;
+  paymentDate: string | null;
+  description: string;
+  expirationDay: number;
+  deleted: boolean;
+  dateCreated: string;
+  checkoutSession: any;
+  customer: string;
+  paymentLink: string | null;
+  transactionReceiptUrl: string | null;
+  creditCard: any;
+  refunds: any;
+  externalReference?: string;
+}
 
 export interface AsaasSubAccount {
   id?: string;
@@ -344,9 +364,8 @@ export class AsaasService {
   /**
    * Mapeia os métodos de pagamento do sistema interno para os aceitos pela Asaas
    */
-  mapPaymentMethodToAsaas(paymentMethod: string): 'BOLETO' | 'CREDIT_CARD' | 'PIX' {
-    const mapping: Record<string, 'BOLETO' | 'CREDIT_CARD' | 'PIX'> = {
-      'boleto': 'BOLETO',
+  mapPaymentMethodToAsaas(paymentMethod: string): 'CREDIT_CARD' | 'PIX' {
+    const mapping: Record<string, 'CREDIT_CARD' | 'PIX'> = {
       'cartao_credito': 'CREDIT_CARD',
       'pix': 'PIX'
     };
@@ -607,13 +626,21 @@ export class AsaasService {
 
   /**
    * Cria um parcelamento (carnê) no Asaas
+   * Para PIX parcelado, usa o endpoint /installments que cria um carnê
+   * onde a primeira parcela é PIX e as demais são boletos
    */
   async createInstallmentPlan(paymentData: AsaasInstallment): Promise<AsaasInstallmentResponse> {
     try {
+      console.log('[ASAAS] Criando carnê (installment plan) com dados:', paymentData);
+      
       const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.post(
         '/installments',
         paymentData
       );
+      
+      console.log('[ASAAS] Carnê criado com sucesso. ID:', response.data.id);
+      console.log('[ASAAS] Plano de parcelamento:', response.data);
+      
       return response.data;
     } catch (error: any) {
       console.error('[ASAAS] Error creating installment plan:', error.response?.data || error.message);

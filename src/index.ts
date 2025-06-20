@@ -85,7 +85,7 @@ AppDataSource.initialize()
     const memberProfileService = new MemberProfileService(memberProfileRepository, userService);
     const seasonService = new SeasonService(seasonRepository);
     const vipPreregisterService = new VipPreregisterService(vipPreregisterRepository);
-    const categoryService = new CategoryService(categoryRepository);
+    const categoryService = new CategoryService(categoryRepository, seasonService);
     const scoringSystemService = new ScoringSystemService();
     const asaasService = new AsaasService();
     const seasonRegistrationService = new SeasonRegistrationService();
