@@ -9,6 +9,7 @@ export interface SeasonCacheData {
   startDate: Date;
   endDate: Date;
   championshipId: string;
+  registrationOpen: boolean;
 }
 
 export class SeasonService extends BaseService<Season> {

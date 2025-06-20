@@ -50,6 +50,10 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           type: string
  *           enum: [agendado, em_andamento, cancelado, finalizado]
  *           description: Status da temporada
+ *         registrationOpen:
+ *           type: boolean
+ *           default: true
+ *           description: Indica se as inscrições estão abertas para esta temporada
  *         inscriptionValue:
  *           type: number
  *           description: Valor da inscrição
@@ -311,6 +315,7 @@ export class SeasonController extends BaseController {
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
         status: req.body.status || SeasonStatus.AGENDADO,
+        registrationOpen: req.body.registrationOpen !== undefined ? req.body.registrationOpen : true,
         inscriptionValue: parseFloat(req.body.inscriptionValue),
         inscriptionType: req.body.inscriptionType,
         paymentMethods: req.body.paymentMethods,
@@ -355,6 +360,7 @@ export class SeasonController extends BaseController {
       if (req.body.startDate) seasonData.startDate = new Date(req.body.startDate);
       if (req.body.endDate) seasonData.endDate = new Date(req.body.endDate);
       if (req.body.status) seasonData.status = req.body.status;
+      if (req.body.registrationOpen !== undefined) seasonData.registrationOpen = req.body.registrationOpen;
       if (req.body.inscriptionValue) seasonData.inscriptionValue = parseFloat(req.body.inscriptionValue);
       if (req.body.inscriptionType) seasonData.inscriptionType = req.body.inscriptionType;
       if (req.body.paymentMethods) seasonData.paymentMethods = req.body.paymentMethods;
