@@ -459,6 +459,11 @@ export class SeasonRegistrationController extends BaseController {
         throw new NotFoundException('Dados de pagamento não encontrados');
       }
 
+      console.log(`[CONTROLLER] Retornando ${paymentData.length} parcelas para frontend:`);
+      paymentData.forEach((p, index) => {
+        console.log(`  ${index + 1}. ID: ${p.id} | Status: ${p.status} | InstallmentNumber: ${p.installmentNumber} | DueDate: ${p.dueDate} | Value: ${p.value}`);
+      });
+
       res.json({
         message: 'Dados de pagamento encontrados',
         data: paymentData

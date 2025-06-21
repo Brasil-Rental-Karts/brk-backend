@@ -920,7 +920,7 @@ export class SeasonRegistrationService {
       return null;
     }
 
-    return payments.map(p => {
+    const paymentData = payments.map(p => {
       // Garantir que dueDate seja um objeto Date válido
       let formattedDueDate: string;
       try {
@@ -948,6 +948,34 @@ export class SeasonRegistrationService {
         pixCopyPaste: p.pixCopyPaste,
       };
     });
+
+    // Debug log para verificar os dados antes da ordenação
+    console.log(`[GET PAYMENT DATA] Inscrição ${registrationId} - ${paymentData.length} parcelas encontradas:`);
+    paymentData.forEach((p, index) => {
+      console.log(`  ${index + 1}. ID: ${p.id} | Status: ${p.status} | InstallmentNumber: ${p.installmentNumber} | DueDate: ${p.dueDate} | Value: ${p.value}`);
+    });
+
+    // Ordenar corretamente: primeiro por installmentNumber, depois por dueDate
+    const sortedPayments = paymentData.sort((a, b) => {
+      // Se ambos têm installmentNumber, ordenar por ele
+      if (a.installmentNumber && b.installmentNumber) {
+        return a.installmentNumber - b.installmentNumber;
+      }
+      
+      // Se apenas um tem installmentNumber, ele vem primeiro
+      if (a.installmentNumber && !b.installmentNumber) return -1;
+      if (!a.installmentNumber && b.installmentNumber) return 1;
+      
+      // Se nenhum tem installmentNumber, ordenar por data de vencimento
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
+
+    console.log(`[GET PAYMENT DATA] Após ordenação:`);
+    sortedPayments.forEach((p, index) => {
+      console.log(`  ${index + 1}. ID: ${p.id} | Status: ${p.status} | InstallmentNumber: ${p.installmentNumber} | DueDate: ${p.dueDate}`);
+    });
+
+    return sortedPayments;
   }
 
   /**
@@ -1001,9 +1029,11 @@ export class SeasonRegistrationService {
         
         console.log(`Parcela ${payment.installmentNumber || 'N/A'} salva:`, {
           id: payment.id,
+          installmentNumber: payment.installmentNumber,
           value: payment.value,
           dueDate: payment.dueDate,
-          status: payment.status
+          status: payment.status,
+          rawResponse: payment
         });
       }
       
