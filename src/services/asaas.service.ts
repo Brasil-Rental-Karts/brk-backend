@@ -649,4 +649,68 @@ export class AsaasService {
       );
     }
   }
+
+  /**
+   * Busca todas as parcelas de um plano de parcelamento (installment plan)
+   * Este é o endpoint correto conforme documentação do Asaas:
+   * GET /installments/{installment_id}/payments
+   */
+  async getInstallmentPayments(installmentId: string): Promise<AsaasPaymentResponse[]> {
+    try {
+      console.log(`[ASAAS] Buscando TODAS as parcelas do installment plan: ${installmentId}`);
+      
+      const response: AxiosResponse<{
+        object: string;
+        hasMore: boolean;
+        totalCount: number;
+        limit: number;
+        offset: number;
+        data: AsaasPaymentResponse[];
+      }> = await this.apiClient.get(`/installments/${installmentId}/payments`);
+      
+      console.log(`[ASAAS] Encontradas ${response.data.data?.length || 0} parcelas no installment plan`);
+      
+      if (response.data.data && response.data.data.length > 0) {
+        console.log('[ASAAS] Detalhes das parcelas encontradas:');
+        response.data.data.forEach((payment, index) => {
+          console.log(`[ASAAS] Parcela ${index + 1}:`, {
+            id: payment.id,
+            status: payment.status,
+            value: payment.value,
+            dueDate: payment.dueDate,
+            installmentNumber: payment.installmentNumber,
+            paymentDate: payment.paymentDate,
+            clientPaymentDate: payment.clientPaymentDate
+          });
+        });
+      }
+      
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error(`[ASAAS] Erro ao buscar parcelas do installment plan ${installmentId}:`, error.response?.data || error.message);
+      throw new Error(`Erro ao buscar parcelas do plano de parcelamento: ${error.response?.data?.errors?.[0]?.description || error.message}`);
+    }
+  }
+
+  /**
+   * Busca informações de um plano de parcelamento
+   */
+  async getInstallmentPlan(installmentId: string): Promise<AsaasInstallmentResponse> {
+    try {
+      console.log(`[ASAAS] Buscando plano de parcelamento: ${installmentId}`);
+      
+      const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.get(
+        `/installments/${installmentId}`
+      );
+      
+      console.log(`[ASAAS] Plano de parcelamento encontrado: ${response.data.id}`);
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('[ASAAS] Error getting installment plan:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || 'Erro ao buscar plano de parcelamento.'
+      );
+    }
+  }
 } 

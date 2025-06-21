@@ -4,6 +4,12 @@ export class UpdateInscriptionTypeData1750450300000 implements MigrationInterfac
     name = 'UpdateInscriptionTypeData1750450300000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // Commit any pending changes to make the new enum values available
+        if (queryRunner.isTransactionActive) {
+            await queryRunner.commitTransaction();
+            await queryRunner.startTransaction();
+        }
+        
         // Atualizar os dados existentes para usar os novos valores
         await queryRunner.query(`
             UPDATE "Seasons" 

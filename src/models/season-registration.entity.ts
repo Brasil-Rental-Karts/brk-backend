@@ -45,6 +45,9 @@ export class SeasonRegistration extends BaseEntity {
   })
   paymentStatus: PaymentStatus;
 
+  @Column({ length: 20, nullable: true })
+  paymentMethod: string;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   amount: number;
 

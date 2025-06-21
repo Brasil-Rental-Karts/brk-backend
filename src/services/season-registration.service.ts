@@ -1,7 +1,7 @@
 import { Repository, In } from 'typeorm';
 import { AppDataSource } from '../config/database.config';
 import { SeasonRegistration, RegistrationStatus, PaymentStatus } from '../models/season-registration.entity';
-import { AsaasPayment, AsaasPaymentStatus } from '../models/asaas-payment.entity';
+import { AsaasPayment, AsaasPaymentStatus, AsaasBillingType } from '../models/asaas-payment.entity';
 import { User } from '../models/user.entity';
 import { Season } from '../models/season.entity';
 import { Championship } from '../models/championship.entity';
@@ -163,6 +163,7 @@ export class SeasonRegistrationService {
       userId: data.userId,
       seasonId: data.seasonId,
       amount: totalAmount,
+      paymentMethod: data.paymentMethod,
       status: RegistrationStatus.PAYMENT_PENDING,
       paymentStatus: PaymentStatus.PENDING
     });
@@ -245,23 +246,66 @@ export class SeasonRegistrationService {
             throw new Error('Plano de parcelamento não foi criado corretamente');
           }
           
-          // Para PIX parcelado, o Asaas retorna o plano geral, não as parcelas individuais
-          // As parcelas individuais chegam via webhook depois
-          // Vamos criar um objeto de resposta compatível usando os dados do plano
-          asaasPaymentResponse = {
-            id: installmentPlan.id,
-            status: 'PENDING', // Status inicial do plano
-            value: installmentPlan.paymentValue, // Valor da primeira parcela
-            netValue: installmentPlan.netValue / installmentPlan.installmentCount, // Valor líquido por parcela
-            dueDate: `2025-06-27`, // Data de vencimento da primeira parcela
-            description: installmentPlan.description,
-            billingType: installmentPlan.billingType,
-            installmentNumber: 1, // Primeira parcela
-            invoiceUrl: null, // Será preenchido via webhook
-            bankSlipUrl: null,
-            paymentLink: null,
-            externalReference: installmentPlan.externalReference || savedRegistration.id
-          };
+          console.log('=== BUSCANDO PARCELAS INDIVIDUAIS DO PLANO ===');
+          // Buscar as parcelas individuais criadas pelo plano
+          const installmentPayments = await this.asaasService.getInstallmentPayments(installmentPlan.id);
+          console.log(`Encontradas ${installmentPayments.length} parcelas no plano`);
+          
+          if (!installmentPayments || installmentPayments.length === 0) {
+            console.warn('Nenhuma parcela encontrada para o installment plan. Usando dados do plano.');
+            // Fallback: usar dados do plano como primeira parcela
+            asaasPaymentResponse = {
+              id: installmentPlan.id,
+              status: 'PENDING',
+              value: installmentPlan.paymentValue,
+              netValue: installmentPlan.netValue / installmentPlan.installmentCount,
+              dueDate: `2025-06-27`,
+              description: installmentPlan.description,
+              billingType: installmentPlan.billingType,
+              installmentNumber: 1,
+              invoiceUrl: null,
+              bankSlipUrl: null,
+              paymentLink: null,
+              externalReference: installmentPlan.externalReference || savedRegistration.id
+            };
+          } else {
+            // Salvar TODAS as parcelas no banco de dados
+            await this.saveAllInstallmentPayments(
+              savedRegistration.id,
+              installmentPlan.id,
+              asaasCustomer.id!,
+              installmentPayments
+            );
+            
+            // Usar a primeira parcela retornada pelo endpoint
+            const firstPayment = installmentPayments[0];
+            asaasPaymentResponse = {
+              id: firstPayment.id,
+              status: firstPayment.status,
+              value: firstPayment.value,
+              netValue: firstPayment.netValue,
+              dueDate: firstPayment.dueDate,
+              description: firstPayment.description,
+              billingType: firstPayment.billingType,
+              installmentNumber: firstPayment.installmentNumber || 1,
+              invoiceUrl: firstPayment.invoiceUrl,
+              bankSlipUrl: firstPayment.bankSlipUrl,
+              paymentLink: firstPayment.paymentLink,
+              externalReference: firstPayment.externalReference || savedRegistration.id,
+              installmentPlanId: installmentPlan.id // ID do plano de parcelamento
+            };
+            
+            console.log('=== TODAS AS PARCELAS ENCONTRADAS ===');
+            installmentPayments.forEach((payment, index) => {
+              console.log(`Parcela ${index + 1}:`, {
+                id: payment.id,
+                status: payment.status,
+                value: payment.value,
+                dueDate: payment.dueDate,
+                installmentNumber: payment.installmentNumber
+              });
+            });
+          }
           
           console.log('=== PLANO DE PARCELAMENTO CRIADO ===');
           console.log('installmentPlan.id:', installmentPlan.id);
@@ -333,13 +377,35 @@ export class SeasonRegistrationService {
         asaasPaymentResponse = await this.asaasService.createPayment(paymentPayload);
       }
 
+      // Para PIX parcelado, as parcelas já foram salvas pelo método saveAllInstallmentPayments
+      // Não precisamos salvar novamente. Para outros tipos de pagamento, salvar normalmente.
+      let savedAsaasPayment;
+      
+      if (isInstallment && asaasBillingType === 'PIX') {
+        console.log('=== PIX PARCELADO: Parcelas já salvas, buscando a primeira parcela ===');
+        // Buscar a primeira parcela que já foi salva
+        savedAsaasPayment = await this.paymentRepository.findOne({
+          where: { 
+            registrationId: savedRegistration.id,
+            asaasPaymentId: asaasPaymentResponse.id 
+          }
+        });
+        
+        if (!savedAsaasPayment) {
+          throw new Error('Erro: Primeira parcela não encontrada no banco após salvar installment payments');
+        }
+        
+        console.log('=== PRIMEIRA PARCELA ENCONTRADA NO BANCO ===');
+        console.log('savedAsaasPayment.id:', savedAsaasPayment.id);
+      } else {
+        // Para pagamentos únicos ou cartão parcelado
         const asaasPayment = new AsaasPayment();
         asaasPayment.registrationId = savedRegistration.id;
         asaasPayment.asaasPaymentId = asaasPaymentResponse.id;
         asaasPayment.asaasCustomerId = asaasCustomer.id!;
         asaasPayment.billingType = asaasBillingType as any;
         asaasPayment.status = asaasPaymentResponse.status as AsaasPaymentStatus;
-        asaasPayment.value = asaasPaymentResponse.value; // Usar valor da resposta (parcela ou total)
+        asaasPayment.value = asaasPaymentResponse.value;
         asaasPayment.netValue = asaasPaymentResponse.netValue;
         asaasPayment.dueDate = new Date(asaasPaymentResponse.dueDate);
         asaasPayment.description = asaasPaymentResponse.description || null;
@@ -357,7 +423,8 @@ export class SeasonRegistrationService {
           }
         }
 
-        const savedAsaasPayment = await this.paymentRepository.save(asaasPayment);
+        savedAsaasPayment = await this.paymentRepository.save(asaasPayment);
+      }
 
         const paymentData: RegistrationPaymentData = {
           id: savedAsaasPayment.id,
@@ -371,8 +438,8 @@ export class SeasonRegistrationService {
           invoiceUrl: asaasPaymentResponse.invoiceUrl,
           bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
           paymentLink: asaasPaymentResponse.paymentLink || (asaasBillingType === 'CREDIT_CARD' ? asaasPaymentResponse.invoiceUrl : null),
-          pixQrCode: asaasPayment.pixQrCode || undefined,
-          pixCopyPaste: asaasPayment.pixCopyPaste || undefined
+          pixQrCode: savedAsaasPayment.pixQrCode || undefined,
+          pixCopyPaste: savedAsaasPayment.pixCopyPaste || undefined
         };
 
         console.log('=== PAYMENT DATA CRIADO ===');
@@ -440,7 +507,7 @@ export class SeasonRegistrationService {
   async findById(id: string): Promise<SeasonRegistration | null> {
     return await this.registrationRepository.findOne({
       where: { id },
-      relations: ['user', 'season', 'categories', 'categories.category']
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category']
     });
   }
 
@@ -450,7 +517,7 @@ export class SeasonRegistrationService {
   async findByUserId(userId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { userId },
-      relations: ['season', 'categories', 'categories.category'],
+      relations: ['season', 'season.championship', 'categories', 'categories.category'],
       order: { createdAt: 'DESC' }
     });
   }
@@ -461,7 +528,7 @@ export class SeasonRegistrationService {
   async findBySeasonId(seasonId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { seasonId },
-      relations: ['user', 'categories', 'categories.category'],
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category'],
       order: { createdAt: 'DESC' }
     });
   }
@@ -478,7 +545,7 @@ export class SeasonRegistrationService {
     const seasonIds = seasons.map(s => s.id);
     return await this.registrationRepository.find({
       where: { seasonId: In(seasonIds) },
-      relations: ['user', 'season', 'categories', 'categories.category', 'payments'],
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'payments'],
     });
   }
 
@@ -598,6 +665,249 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Sincroniza manualmente o status de pagamentos de uma inscrição com o Asaas
+   */
+  async syncPaymentStatusFromAsaas(registrationId: string): Promise<RegistrationPaymentData[] | null> {
+    console.log(`=== SYNC PAYMENT STATUS - Inscrição ${registrationId} ===`);
+    
+    // Buscar todos os pagamentos da inscrição no banco de dados
+    const localPayments = await this.paymentRepository.find({ 
+      where: { registrationId },
+      order: { dueDate: 'ASC' } 
+    });
+
+    if (!localPayments || localPayments.length === 0) {
+      console.log('Nenhum pagamento encontrado no banco de dados local');
+      return null;
+    }
+
+    console.log(`Encontrados ${localPayments.length} pagamentos no banco local`);
+
+    // Verificar se é um PIX parcelado (installment plan)
+    const firstPayment = localPayments[0];
+    const isInstallmentPlan = firstPayment.asaasInstallmentId && firstPayment.billingType === 'PIX';
+    
+    if (isInstallmentPlan && firstPayment.asaasInstallmentId) {
+      console.log(`=== PIX PARCELADO DETECTADO - Plano: ${firstPayment.asaasInstallmentId} ===`);
+      return await this.syncInstallmentPayments(registrationId, firstPayment.asaasInstallmentId);
+    }
+
+    // Para pagamentos únicos ou cartão, usar o método existente
+    const updatedPayments: RegistrationPaymentData[] = [];
+    
+    for (const localPayment of localPayments) {
+      try {
+        console.log(`Sincronizando pagamento ${localPayment.asaasPaymentId}...`);
+        
+        // Buscar dados atualizados do Asaas
+        const asaasPayment = await this.asaasService.getPayment(localPayment.asaasPaymentId);
+        
+        console.log(`Status no Asaas: ${asaasPayment.status}, Status local: ${localPayment.status}`);
+        
+        // Atualizar apenas se o status mudou
+        if (asaasPayment.status !== localPayment.status) {
+          console.log(`Atualizando status de ${localPayment.status} para ${asaasPayment.status}`);
+          
+          localPayment.status = asaasPayment.status as AsaasPaymentStatus;
+          localPayment.webhookData = { 
+            lastSync: new Date().toISOString(),
+            syncSource: 'manual',
+            previousStatus: localPayment.status 
+          };
+          
+          if (asaasPayment.paymentDate) {
+            localPayment.paymentDate = new Date(asaasPayment.paymentDate);
+          }
+          
+          if (asaasPayment.clientPaymentDate) {
+            localPayment.clientPaymentDate = new Date(asaasPayment.clientPaymentDate);
+          }
+          
+          // Atualizar outras informações que podem ter mudado
+          if (asaasPayment.invoiceUrl) {
+            localPayment.invoiceUrl = asaasPayment.invoiceUrl;
+          }
+          
+          // Salvar as mudanças
+          await this.paymentRepository.save(localPayment);
+          console.log(`Pagamento ${localPayment.asaasPaymentId} atualizado com sucesso`);
+        } else {
+          console.log(`Status inalterado para pagamento ${localPayment.asaasPaymentId}`);
+        }
+        
+        // Adicionar à lista de resultados
+        const paymentData: RegistrationPaymentData = {
+          id: localPayment.id,
+          registrationId: localPayment.registrationId,
+          billingType: localPayment.billingType,
+          value: localPayment.value,
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
+          status: localPayment.status,
+          installmentNumber: asaasPayment.installmentNumber,
+          installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
+          invoiceUrl: localPayment.invoiceUrl,
+          bankSlipUrl: localPayment.bankSlipUrl,
+          paymentLink: asaasPayment.paymentLink || localPayment.invoiceUrl,
+          pixQrCode: localPayment.pixQrCode,
+          pixCopyPaste: localPayment.pixCopyPaste,
+        };
+        
+        updatedPayments.push(paymentData);
+        
+      } catch (error) {
+        console.error(`Erro ao sincronizar pagamento ${localPayment.asaasPaymentId}:`, error);
+        
+        // Em caso de erro, retornar os dados locais
+        const fallbackData: RegistrationPaymentData = {
+          id: localPayment.id,
+          registrationId: localPayment.registrationId,
+          billingType: localPayment.billingType,
+          value: localPayment.value,
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
+          status: localPayment.status,
+          installmentNumber: (localPayment.rawResponse as any)?.installmentNumber,
+          installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
+          invoiceUrl: localPayment.invoiceUrl,
+          bankSlipUrl: localPayment.bankSlipUrl,
+          paymentLink: (localPayment.rawResponse as any)?.paymentLink || localPayment.invoiceUrl,
+          pixQrCode: localPayment.pixQrCode,
+          pixCopyPaste: localPayment.pixCopyPaste,
+        };
+        
+        updatedPayments.push(fallbackData);
+      }
+    }
+
+    console.log(`=== SYNC CONCLUÍDO - ${updatedPayments.length} pagamentos sincronizados ===`);
+    return updatedPayments;
+  }
+
+  /**
+   * Sincroniza pagamentos de um plano de parcelamento PIX
+   * Usa o endpoint correto: GET /installments/{installment_id}/payments
+   */
+  private async syncInstallmentPayments(registrationId: string, installmentId: string): Promise<RegistrationPaymentData[]> {
+    try {
+      console.log(`=== SINCRONIZANDO PLANO DE PARCELAMENTO PIX: ${installmentId} ===`);
+      
+      // Buscar TODAS as parcelas do plano diretamente do Asaas via endpoint correto
+      const asaasInstallmentPayments = await this.asaasService.getInstallmentPayments(installmentId);
+      
+      console.log(`=== ENDPOINT ASAAS RETORNOU ${asaasInstallmentPayments.length} PARCELAS ===`);
+      
+      const updatedPayments: RegistrationPaymentData[] = [];
+      
+      // Para cada parcela do Asaas, verificar se existe no banco local
+      for (const asaasPayment of asaasInstallmentPayments) {
+        let localPayment = await this.paymentRepository.findOne({
+          where: { asaasPaymentId: asaasPayment.id }
+        });
+        
+        if (!localPayment) {
+          // Parcela não existe no banco local - criar nova entrada
+          console.log(`Criando nova parcela no banco local: ${asaasPayment.id} (Parcela ${asaasPayment.installmentNumber})`);
+          
+          localPayment = new AsaasPayment();
+          localPayment.registrationId = registrationId;
+          localPayment.asaasPaymentId = asaasPayment.id;
+          localPayment.asaasInstallmentId = installmentId;
+          localPayment.asaasCustomerId = asaasPayment.customer;
+          localPayment.billingType = asaasPayment.billingType as any;
+          localPayment.status = asaasPayment.status as AsaasPaymentStatus;
+          localPayment.value = asaasPayment.value;
+          localPayment.netValue = asaasPayment.netValue;
+          localPayment.dueDate = new Date(asaasPayment.dueDate);
+          localPayment.description = asaasPayment.description;
+          localPayment.invoiceUrl = asaasPayment.invoiceUrl;
+          localPayment.bankSlipUrl = asaasPayment.bankSlipUrl;
+          localPayment.rawResponse = asaasPayment;
+          localPayment.webhookData = {
+            createdBy: 'sync',
+            syncDate: new Date().toISOString()
+          };
+          
+          if (asaasPayment.paymentDate) {
+            localPayment.paymentDate = new Date(asaasPayment.paymentDate);
+          }
+          
+          if (asaasPayment.clientPaymentDate) {
+            localPayment.clientPaymentDate = new Date(asaasPayment.clientPaymentDate);
+          }
+          
+          // Buscar QR Code PIX se for necessário
+          if (asaasPayment.billingType === 'PIX' && asaasPayment.status === 'PENDING') {
+            try {
+              const pixQrCode = await this.asaasService.getPixQrCode(asaasPayment.id);
+              localPayment.pixQrCode = pixQrCode.encodedImage;
+              localPayment.pixCopyPaste = pixQrCode.payload;
+            } catch (error) {
+              console.warn(`Erro ao buscar QR Code PIX para parcela ${asaasPayment.id}:`, error);
+            }
+          }
+          
+          localPayment = await this.paymentRepository.save(localPayment);
+          console.log(`Nova parcela criada no banco local: ${localPayment.id}`);
+          
+        } else {
+          // Parcela existe - atualizar se necessário
+          console.log(`Atualizando parcela existente: ${asaasPayment.id} (${localPayment.status} -> ${asaasPayment.status})`);
+          
+          if (localPayment.status !== asaasPayment.status) {
+            localPayment.status = asaasPayment.status as AsaasPaymentStatus;
+            localPayment.webhookData = {
+              ...localPayment.webhookData,
+              lastSync: new Date().toISOString(),
+              syncSource: 'manual',
+              previousStatus: localPayment.status
+            };
+            
+            if (asaasPayment.paymentDate) {
+              localPayment.paymentDate = new Date(asaasPayment.paymentDate);
+            }
+            
+            if (asaasPayment.clientPaymentDate) {
+              localPayment.clientPaymentDate = new Date(asaasPayment.clientPaymentDate);
+            }
+            
+            if (asaasPayment.invoiceUrl) {
+              localPayment.invoiceUrl = asaasPayment.invoiceUrl;
+            }
+            
+            localPayment = await this.paymentRepository.save(localPayment);
+            console.log(`Parcela atualizada: ${localPayment.id}`);
+          }
+        }
+        
+        // Adicionar à lista de resultados
+        const paymentData: RegistrationPaymentData = {
+          id: localPayment.id,
+          registrationId: localPayment.registrationId,
+          billingType: localPayment.billingType,
+          value: localPayment.value,
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
+          status: localPayment.status,
+          installmentNumber: asaasPayment.installmentNumber,
+          installmentCount: asaasInstallmentPayments.length,
+          invoiceUrl: localPayment.invoiceUrl,
+          bankSlipUrl: localPayment.bankSlipUrl,
+          paymentLink: asaasPayment.paymentLink || localPayment.invoiceUrl,
+          pixQrCode: localPayment.pixQrCode,
+          pixCopyPaste: localPayment.pixCopyPaste,
+        };
+        
+        updatedPayments.push(paymentData);
+      }
+      
+      console.log(`=== PLANO PIX SINCRONIZADO - ${updatedPayments.length} parcelas processadas ===`);
+      return updatedPayments.sort((a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0));
+      
+    } catch (error) {
+      console.error(`Erro ao sincronizar plano de parcelamento ${installmentId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Busca dados de pagamento de uma inscrição
    */
   async getPaymentData(registrationId: string): Promise<RegistrationPaymentData[] | null> {
@@ -638,5 +948,69 @@ export class SeasonRegistrationService {
         pixCopyPaste: p.pixCopyPaste,
       };
     });
+  }
+
+  /**
+   * Salva todas as parcelas de um installment plan no banco de dados
+   */
+  private async saveAllInstallmentPayments(
+    registrationId: string, 
+    installmentPlanId: string, 
+    asaasCustomerId: string,
+    installmentPayments: any[]
+  ): Promise<void> {
+    try {
+      console.log(`=== SALVANDO TODAS AS ${installmentPayments.length} PARCELAS ===`);
+      
+      for (const payment of installmentPayments) {
+        // Verificar se a parcela já existe no banco
+        const existingPayment = await this.paymentRepository.findOne({
+          where: { asaasPaymentId: payment.id }
+        });
+        
+        if (existingPayment) {
+          console.log(`Parcela ${payment.id} já existe no banco, pulando...`);
+          continue;
+        }
+        
+        const asaasPayment = new AsaasPayment();
+        asaasPayment.registrationId = registrationId;
+        asaasPayment.asaasPaymentId = payment.id;
+        asaasPayment.asaasInstallmentId = installmentPlanId;
+        asaasPayment.asaasCustomerId = asaasCustomerId;
+        asaasPayment.billingType = AsaasBillingType.PIX;
+        asaasPayment.status = payment.status as AsaasPaymentStatus;
+        asaasPayment.value = payment.value;
+        asaasPayment.netValue = payment.netValue;
+        asaasPayment.dueDate = new Date(payment.dueDate);
+        asaasPayment.description = payment.description || null;
+        asaasPayment.invoiceUrl = payment.invoiceUrl || null;
+        asaasPayment.bankSlipUrl = payment.bankSlipUrl || null;
+        asaasPayment.rawResponse = payment;
+        
+        // Buscar QR Code PIX para cada parcela
+        try {
+          const pixQrCode = await this.asaasService.getPixQrCode(payment.id);
+          asaasPayment.pixQrCode = pixQrCode.encodedImage;
+          asaasPayment.pixCopyPaste = pixQrCode.payload;
+        } catch (error) {
+          console.warn(`Erro ao buscar QR Code PIX para parcela ${payment.id}:`, error);
+        }
+        
+        await this.paymentRepository.save(asaasPayment);
+        
+        console.log(`Parcela ${payment.installmentNumber || 'N/A'} salva:`, {
+          id: payment.id,
+          value: payment.value,
+          dueDate: payment.dueDate,
+          status: payment.status
+        });
+      }
+      
+      console.log(`=== TODAS AS ${installmentPayments.length} PARCELAS SALVAS COM SUCESSO ===`);
+    } catch (error) {
+      console.error('Erro ao salvar parcelas do installment plan:', error);
+      throw error;
+    }
   }
 } 

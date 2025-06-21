@@ -192,6 +192,31 @@ export class SeasonRegistrationController extends BaseController {
 
     /**
      * @swagger
+     * /season-registrations/{id}/sync-payment:
+     *   post:
+     *     summary: Sincronizar status de pagamento com Asaas
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Status de pagamento sincronizado com sucesso
+     *       404:
+     *         description: Inscrição não encontrada
+     *       500:
+     *         description: Erro ao sincronizar com Asaas
+     */
+    this.router.post('/:id/sync-payment', authMiddleware, this.syncPaymentStatus.bind(this));
+
+    /**
+     * @swagger
      * /season-registrations/{id}/payment-callback:
      *   get:
      *     summary: Callback de pagamento (redirecionamento do Asaas)
@@ -589,6 +614,42 @@ export class SeasonRegistrationController extends BaseController {
       // Em caso de erro, redirecionar para página de erro
       const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
       res.redirect(302, `${frontendUrl}/error?message=callback_error`);
+    }
+  }
+
+  private async syncPaymentStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      
+      // Verificar se a inscrição existe e se o usuário tem permissão
+      const registration = await this.registrationService.findById(id);
+      if (!registration) {
+        throw new NotFoundException('Inscrição não encontrada');
+      }
+
+      if (registration.userId !== req.user!.id && 
+          ![UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role)) {
+        res.status(403).json({
+          message: 'Sem permissão para sincronizar status de pagamento desta inscrição'
+        });
+        return;
+      }
+
+      const syncStatus = await this.registrationService.syncPaymentStatusFromAsaas(id);
+
+      if (!syncStatus) {
+        throw new NotFoundException('Erro ao sincronizar status de pagamento');
+      }
+
+      res.json({
+        message: 'Status de pagamento sincronizado com sucesso',
+        data: syncStatus
+      });
+    } catch (error) {
+      console.error('Error syncing payment status:', error);
+      res.status(error instanceof NotFoundException ? 404 : 500).json({
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
     }
   }
 } 
