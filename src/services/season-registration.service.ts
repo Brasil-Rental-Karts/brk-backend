@@ -269,16 +269,34 @@ export class SeasonRegistrationService {
               externalReference: installmentPlan.externalReference || savedRegistration.id
             };
           } else {
-            // Salvar TODAS as parcelas no banco de dados
+            // Ordenar parcelas por installmentNumber antes de processar
+            const sortedPayments = installmentPayments.sort((a, b) => {
+              const aNum = a.installmentNumber || 999;
+              const bNum = b.installmentNumber || 999;
+              return aNum - bNum;
+            });
+            
+            // Salvar TODAS as parcelas no banco de dados (já ordenadas)
             await this.saveAllInstallmentPayments(
               savedRegistration.id,
               installmentPlan.id,
               asaasCustomer.id!,
-              installmentPayments
+              sortedPayments
             );
             
-            // Usar a primeira parcela retornada pelo endpoint
-            const firstPayment = installmentPayments[0];
+            // Usar a primeira parcela (installmentNumber = 1)
+            const firstPayment = sortedPayments[0];
+            
+            console.log('=== PARCELAS ORDENADAS POR INSTALLMENT NUMBER ===');
+            sortedPayments.forEach((payment, index) => {
+              console.log(`Parcela ordenada ${index + 1}:`, {
+                id: payment.id,
+                installmentNumber: payment.installmentNumber,
+                value: payment.value,
+                dueDate: payment.dueDate,
+                status: payment.status
+              });
+            });
             asaasPaymentResponse = {
               id: firstPayment.id,
               status: firstPayment.status,
@@ -295,8 +313,8 @@ export class SeasonRegistrationService {
               installmentPlanId: installmentPlan.id // ID do plano de parcelamento
             };
             
-            console.log('=== TODAS AS PARCELAS ENCONTRADAS ===');
-            installmentPayments.forEach((payment, index) => {
+            console.log('=== TODAS AS PARCELAS ENCONTRADAS (ordenadas) ===');
+            sortedPayments.forEach((payment, index) => {
               console.log(`Parcela ${index + 1}:`, {
                 id: payment.id,
                 status: payment.status,
@@ -990,7 +1008,19 @@ export class SeasonRegistrationService {
     try {
       console.log(`=== SALVANDO TODAS AS ${installmentPayments.length} PARCELAS ===`);
       
-      for (const payment of installmentPayments) {
+      // Ordenar as parcelas por installmentNumber antes de salvar
+      const sortedPayments = installmentPayments.sort((a, b) => {
+        const aNum = a.installmentNumber || 999;
+        const bNum = b.installmentNumber || 999;
+        return aNum - bNum;
+      });
+      
+      console.log('=== ORDEM DAS PARCELAS PARA SALVAR ===');
+      sortedPayments.forEach((payment, index) => {
+        console.log(`${index + 1}. Parcela ${payment.installmentNumber || 'N/A'} - ID: ${payment.id} - Venc: ${payment.dueDate}`);
+      });
+      
+      for (const payment of sortedPayments) {
         // Verificar se a parcela já existe no banco
         const existingPayment = await this.paymentRepository.findOne({
           where: { asaasPaymentId: payment.id }
