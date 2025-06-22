@@ -362,17 +362,13 @@ export class SeasonRegistrationService {
         if (asaasBillingType === 'CREDIT_CARD') {
           // Usar ngrok URL se disponível, senão usar frontend URL
           let callbackUrl: string;
-          
-          if (process.env.ASAAS_WEBHOOK_URL && process.env.ASAAS_WEBHOOK_URL.includes('ngrok')) {
+
+          if (process.env.ASAAS_WEBHOOK_URL ) {
             // Usar ngrok URL apontando para o backend callback endpoint
-            const ngrokBaseUrl = process.env.ASAAS_WEBHOOK_URL.split('/webhooks')[0];
-            callbackUrl = `${ngrokBaseUrl}/season-registrations/${savedRegistration.id}/payment-callback`;
-            console.log('=== USANDO NGROK PARA CALLBACK ===');
-            console.log('ngrokBaseUrl:', ngrokBaseUrl);
-          } else {
-            // Fallback para localhost backend
+            const baseURL = process.env.ASAAS_WEBHOOK_URL.split('/webhooks')[0];
+            callbackUrl = `${baseURL}/season-registrations/${savedRegistration.id}/payment-callback`;
+          }else{
             callbackUrl = `http://localhost:3000/season-registrations/${savedRegistration.id}/payment-callback`;
-            console.log('=== USANDO LOCALHOST BACKEND PARA CALLBACK ===');
           }
           
           console.log('callbackUrl final:', callbackUrl);
