@@ -356,6 +356,7 @@ export class RedisService {
       const seasonData = {
         id: data.id,
         name: data.name,
+        slug: data.slug || '',
         startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
         endDate: data.endDate instanceof Date ? data.endDate.toISOString() : data.endDate,
         championshipId: data.championshipId,
@@ -401,6 +402,7 @@ export class RedisService {
       return {
         id: data.id,
         name: data.name,
+        slug: data.slug || '',
         startDate: new Date(data.startDate),
         endDate: new Date(data.endDate),
         championshipId: data.championshipId,
@@ -447,6 +449,7 @@ export class RedisService {
         .map((data: any) => ({
           id: data.id,
           name: data.name,
+          slug: data.slug || '',
           startDate: new Date(data.startDate),
           endDate: new Date(data.endDate),
           championshipId: data.championshipId,
