@@ -216,6 +216,7 @@ export class DatabaseEventsService {
                 time: event.data.time,
                 kartodrome: event.data.kartodrome,
                 streamLink: event.data.streamLink,
+                briefing: event.data.briefing,
                 seasonId: event.data.seasonId
               };
               await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);

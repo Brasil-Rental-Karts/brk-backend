@@ -719,6 +719,7 @@ export class RedisService {
         time: data.time,
         kartodrome: data.kartodrome,
         streamLink: data.streamLink || '',
+        briefing: data.briefing || '',
         seasonId: data.seasonId
       };
 
@@ -765,6 +766,8 @@ export class RedisService {
         date: new Date(data.date),
         time: data.time,
         kartodrome: data.kartodrome,
+        streamLink: data.streamLink || '',
+        briefing: data.briefing || '',
         seasonId: data.seasonId
       };
     } catch (error) {
@@ -811,6 +814,8 @@ export class RedisService {
           date: new Date(data.date),
           time: data.time,
           kartodrome: data.kartodrome,
+          streamLink: data.streamLink || '',
+          briefing: data.briefing || '',
           seasonId: data.seasonId
         }));
     } catch (error) {
