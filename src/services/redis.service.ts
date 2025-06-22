@@ -356,9 +356,11 @@ export class RedisService {
       const seasonData = {
         id: data.id,
         name: data.name,
+        slug: data.slug || '',
         startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
         endDate: data.endDate instanceof Date ? data.endDate.toISOString() : data.endDate,
-        championshipId: data.championshipId
+        championshipId: data.championshipId,
+        registrationOpen: data.registrationOpen ? 'true' : 'false'
       };
 
       // Store season data as Redis Hash
@@ -400,9 +402,11 @@ export class RedisService {
       return {
         id: data.id,
         name: data.name,
+        slug: data.slug || '',
         startDate: new Date(data.startDate),
         endDate: new Date(data.endDate),
-        championshipId: data.championshipId
+        championshipId: data.championshipId,
+        registrationOpen: data.registrationOpen === 'true'
       };
     } catch (error) {
       console.error('Error getting cached season basic info:', error);
@@ -445,9 +449,11 @@ export class RedisService {
         .map((data: any) => ({
           id: data.id,
           name: data.name,
+          slug: data.slug || '',
           startDate: new Date(data.startDate),
           endDate: new Date(data.endDate),
-          championshipId: data.championshipId
+          championshipId: data.championshipId,
+          registrationOpen: data.registrationOpen === 'true'
         }));
     } catch (error) {
       console.error('Error getting multiple seasons from cache:', error);
@@ -713,6 +719,7 @@ export class RedisService {
         time: data.time,
         kartodrome: data.kartodrome,
         streamLink: data.streamLink || '',
+        briefing: data.briefing || '',
         seasonId: data.seasonId
       };
 
@@ -759,6 +766,8 @@ export class RedisService {
         date: new Date(data.date),
         time: data.time,
         kartodrome: data.kartodrome,
+        streamLink: data.streamLink || '',
+        briefing: data.briefing || '',
         seasonId: data.seasonId
       };
     } catch (error) {
@@ -805,6 +814,8 @@ export class RedisService {
           date: new Date(data.date),
           time: data.time,
           kartodrome: data.kartodrome,
+          streamLink: data.streamLink || '',
+          briefing: data.briefing || '',
           seasonId: data.seasonId
         }));
     } catch (error) {

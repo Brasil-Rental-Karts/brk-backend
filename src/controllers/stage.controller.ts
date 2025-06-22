@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { plainToInstance } from 'class-transformer';
 import { BaseController } from './base.controller';
 import { StageService } from '../services/stage.service';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
@@ -525,11 +526,14 @@ export class StageController extends BaseController {
 
   private async createStage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const createStageDto: CreateStageDto = req.body;
-      console.log('Received DTO for createStage:', JSON.stringify(createStageDto, null, 2));
-
-      const userId = req.user!.id;
-      const seasonId = createStageDto.seasonId;
+      const stageData: CreateStageDto = plainToInstance(CreateStageDto, req.body);
+      
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new BadRequestException('ID do campeonato é obrigatório na criação da etapa.');
+      }
+      
+      const seasonId = stageData.seasonId;
 
       // Buscar a season para obter o championshipId
       const season = await this.seasonService.findById(seasonId);
@@ -547,19 +551,23 @@ export class StageController extends BaseController {
         return;
       }
 
-      const stage = await this.stageService.create(createStageDto);
-      res.status(201).json(stage);
+      const newStage = await this.stageService.create(stageData);
+      res.status(201).json(newStage);
     } catch (error: any) {
       console.error('Error creating stage:', error);
       next(error);
     }
   }
 
-  private async updateStage(req: Request, res: Response): Promise<void> {
+  private async updateStage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const updateStageDto: UpdateStageDto = req.body;
-      const userId = req.user!.id;
+      const stageData: UpdateStageDto = plainToInstance(UpdateStageDto, req.body);
+
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new BadRequestException('Usuário não autenticado.');
+      }
 
       // Buscar a etapa existente para obter o seasonId
       const existingStage = await this.stageService.findById(id);
@@ -584,8 +592,8 @@ export class StageController extends BaseController {
         return;
       }
 
-      const stage = await this.stageService.update(id, updateStageDto);
-      res.json(stage);
+      const updatedStage = await this.stageService.update(id, stageData);
+      res.status(200).json(updatedStage);
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
@@ -594,10 +602,11 @@ export class StageController extends BaseController {
       } else {
         res.status(500).json({ message: error.message });
       }
+      next(error);
     }
   }
 
-  private async deleteStage(req: Request, res: Response): Promise<void> {
+  private async deleteStage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const userId = req.user!.id;
@@ -635,6 +644,7 @@ export class StageController extends BaseController {
       } else {
         res.status(500).json({ message: error.message });
       }
+      next(error);
     }
   }
 } 

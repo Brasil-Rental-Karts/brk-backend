@@ -3,6 +3,7 @@ import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
 import { Season } from './season.entity';
 import { SeasonRegistrationCategory } from './season-registration-category.entity';
+import { AsaasPayment } from './asaas-payment.entity';
 
 export enum RegistrationStatus {
   PENDING = 'pending',
@@ -44,6 +45,9 @@ export class SeasonRegistration extends BaseEntity {
   })
   paymentStatus: PaymentStatus;
 
+  @Column({ length: 20, nullable: true })
+  paymentMethod: string;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   amount: number;
 
@@ -70,4 +74,7 @@ export class SeasonRegistration extends BaseEntity {
 
   @OneToMany(() => SeasonRegistrationCategory, regCategory => regCategory.registration)
   categories: SeasonRegistrationCategory[];
+
+  @OneToMany(() => AsaasPayment, payment => payment.registration)
+  payments: AsaasPayment[];
 } 

@@ -3,6 +3,7 @@ import { Category } from '../models/category.entity';
 import { CategoryRepository } from '../repositories/category.repository';
 import { validateBatteriesConfig } from '../types/category.types';
 import { RedisService } from './redis.service';
+import { SeasonService } from './season.service';
 
 export interface CategoryCacheData {
   id: string;
@@ -16,7 +17,10 @@ export interface CategoryCacheData {
 export class CategoryService extends BaseService<Category> {
   private redisService: RedisService;
 
-  constructor(private categoryRepository: CategoryRepository) {
+  constructor(
+    private categoryRepository: CategoryRepository,
+    private seasonService?: SeasonService
+  ) {
     super(categoryRepository);
     this.redisService = RedisService.getInstance();
   }
@@ -49,8 +53,21 @@ export class CategoryService extends BaseService<Category> {
     return this.categoryRepository.findByName(name);
   }
 
-  async findByNameAndSeason(name: string, seasonId: string): Promise<Category | null> {
-    return this.categoryRepository.findByNameAndSeason(name, seasonId);
+  async findByNameAndSeason(name: string, seasonIdOrSlug: string): Promise<Category | null> {
+    // Try to resolve season by slug or ID if season service is available
+    if (this.seasonService) {
+      try {
+        const season = await this.seasonService.findBySlugOrId(seasonIdOrSlug);
+        if (season) {
+          return this.categoryRepository.findByNameAndSeason(name, season.id);
+        }
+      } catch (error) {
+        console.error('Error resolving season by slug/ID:', error);
+      }
+    }
+    
+    // Fallback to direct ID lookup
+    return this.categoryRepository.findByNameAndSeason(name, seasonIdOrSlug);
   }
 
   async findByBallast(ballast: number): Promise<Category[]> {
@@ -61,8 +78,21 @@ export class CategoryService extends BaseService<Category> {
     return this.categoryRepository.findByBallast(numericBallast);
   }
 
-  async findBySeasonId(seasonId: string): Promise<Category[]> {
-    return this.categoryRepository.findBySeasonId(seasonId);
+  async findBySeasonId(seasonIdOrSlug: string): Promise<Category[]> {
+    // Try to resolve season by slug or ID if season service is available
+    if (this.seasonService) {
+      try {
+        const season = await this.seasonService.findBySlugOrId(seasonIdOrSlug);
+        if (season) {
+          return this.categoryRepository.findBySeasonId(season.id);
+        }
+      } catch (error) {
+        console.error('Error resolving season by slug/ID:', error);
+      }
+    }
+    
+    // Fallback to direct ID lookup
+    return this.categoryRepository.findBySeasonId(seasonIdOrSlug);
   }
 
   // Métodos para buscar dados do cache Redis (para API cache)

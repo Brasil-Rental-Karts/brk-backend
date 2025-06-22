@@ -167,6 +167,7 @@ export class StageService {
    */
   async create(createStageDto: CreateStageDto): Promise<Stage> {
     const dateObj = new Date(createStageDto.date);
+    console.log('aqui ta essa data:', dateObj);
     
     const existingStage = await this.stageRepository.findOne({
       where: {
@@ -220,6 +221,8 @@ export class StageService {
 
     if (updateStageDto.date) {
       const dateObj = new Date(updateStageDto.date);
+      console.log('aqui ta essa data:', dateObj);
+
       const checkDate = updateStageDto.date ? dateObj : stage.date;
       const checkTime = updateStageDto.time || stage.time;
 
@@ -240,7 +243,9 @@ export class StageService {
     const updateData: Partial<Stage> = { ...restOfDto };
 
     if (date) {
-      updateData.date = new Date(date);
+      const isoDateString = date.toISOString().split('T')[0];
+      const [year, month, day] = isoDateString.split('-').map(Number);
+      updateData.date = new Date(Date.UTC(year, month - 1, day));
     }
     
     const updatedStage = this.stageRepository.merge(stage, updateData);

@@ -50,23 +50,40 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
  *           type: string
  *           enum: [agendado, em_andamento, cancelado, finalizado]
  *           description: Status da temporada
+ *         registrationOpen:
+ *           type: boolean
+ *           default: true
+ *           description: Indica se as inscrições estão abertas para esta temporada
  *         inscriptionValue:
  *           type: number
  *           description: Valor da inscrição
  *         inscriptionType:
  *           type: string
- *           enum: [mensal, anual, semestral, trimestral]
+ *           enum: [por_temporada, por_etapa]
  *           description: Tipo da inscrição
  *         paymentMethods:
  *           type: array
  *           items:
  *             type: string
- *             enum: [pix, cartao_credito, boleto]
+    *             enum: [pix, cartao_credito]
  *           description: Métodos de pagamento aceitos
  *         championshipId:
  *           type: string
  *           format: uuid
  *           description: ID do campeonato
+ *         pixInstallments:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *           maximum: 12
+ *           description: Número máximo de parcelas para pagamento via PIX
+ *         creditCardInstallments:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *           maximum: 12
+ *           description: Número máximo de parcelas para pagamento via cartão de crédito
+
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -239,6 +256,29 @@ export class SeasonController extends BaseController {
      *         description: Temporada não encontrada
      */
     this.router.delete('/:id', authMiddleware, this.deleteSeason.bind(this));
+
+    /**
+     * @swagger
+     * /seasons/{id}/refresh-cache:
+     *   post:
+     *     summary: Forçar atualização do cache da temporada
+     *     tags: [Seasons]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Cache atualizado com sucesso
+     *       404:
+     *         description: Temporada não encontrada
+     */
+    this.router.post('/:id/refresh-cache', authMiddleware, this.refreshSeasonCache.bind(this));
   }
 
   private async getAllSeasons(req: Request, res: Response): Promise<void> {
@@ -267,7 +307,7 @@ export class SeasonController extends BaseController {
   private async getSeasonById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const season = await this.seasonService.findById(id);
+      const season = await this.seasonService.findBySlugOrId(id);
       if (!season) {
         throw new NotFoundException('Temporada não encontrada');
       }
@@ -302,10 +342,14 @@ export class SeasonController extends BaseController {
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
         status: req.body.status || SeasonStatus.AGENDADO,
+        registrationOpen: req.body.registrationOpen !== undefined ? req.body.registrationOpen : true,
         inscriptionValue: parseFloat(req.body.inscriptionValue),
         inscriptionType: req.body.inscriptionType,
         paymentMethods: req.body.paymentMethods,
-        championshipId: req.body.championshipId
+        championshipId: req.body.championshipId,
+        pixInstallments: req.body.pixInstallments || 1,
+        creditCardInstallments: req.body.creditCardInstallments || 1,
+
       };
 
       const season = await this.seasonService.create(seasonData);
@@ -346,9 +390,13 @@ export class SeasonController extends BaseController {
       if (req.body.startDate) seasonData.startDate = new Date(req.body.startDate);
       if (req.body.endDate) seasonData.endDate = new Date(req.body.endDate);
       if (req.body.status) seasonData.status = req.body.status;
+      if (req.body.registrationOpen !== undefined) seasonData.registrationOpen = req.body.registrationOpen;
       if (req.body.inscriptionValue) seasonData.inscriptionValue = parseFloat(req.body.inscriptionValue);
       if (req.body.inscriptionType) seasonData.inscriptionType = req.body.inscriptionType;
       if (req.body.paymentMethods) seasonData.paymentMethods = req.body.paymentMethods;
+      if (req.body.pixInstallments !== undefined) seasonData.pixInstallments = req.body.pixInstallments;
+      if (req.body.creditCardInstallments !== undefined) seasonData.creditCardInstallments = req.body.creditCardInstallments;
+
 
       const season = await this.seasonService.update(id, seasonData);
 
@@ -397,86 +445,126 @@ export class SeasonController extends BaseController {
     }
   }
 
-  private validateSeasonData(data: any, isCreate: boolean = true): void {
-    if (isCreate) {
-      if (!data.name || data.name.trim() === '') {
-        throw new BadRequestException('Nome da temporada é obrigatório');
-      }
-      if (!data.description || data.description.trim() === '') {
-        throw new BadRequestException('Descrição da temporada é obrigatória');
-      }
-      if (!data.startDate) {
-        throw new BadRequestException('Data de início é obrigatória');
-      }
-      if (!data.endDate) {
-        throw new BadRequestException('Data de fim é obrigatória');
-      }
-      if (!data.inscriptionValue || isNaN(parseFloat(data.inscriptionValue))) {
-        throw new BadRequestException('Valor da inscrição é obrigatório e deve ser um número válido');
-      }
-      if (!data.inscriptionType) {
-        throw new BadRequestException('Tipo de inscrição é obrigatório');
-      }
-      if (!data.paymentMethods || !Array.isArray(data.paymentMethods) || data.paymentMethods.length === 0) {
-        throw new BadRequestException('Métodos de pagamento são obrigatórios');
-      }
-      if (!data.championshipId) {
-        throw new BadRequestException('ID do campeonato é obrigatório');
-      }
-    }
+  private async refreshSeasonCache(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
 
-    if (data.name && data.name.length > 75) {
-      throw new BadRequestException('Nome da temporada deve ter no máximo 75 caracteres');
+      const existingSeason = await this.seasonService.findById(id);
+      if (!existingSeason) {
+        throw new NotFoundException('Temporada não encontrada');
+      }
+
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, existingSeason.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para atualizar o cache desta temporada.',
+          details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
+        });
+        return;
+      }
+
+      const success = await this.seasonService.refreshSeasonCache(id);
+      if (!success) {
+        res.status(500).json({ message: 'Erro ao atualizar cache da temporada' });
+        return;
+      }
+
+      res.status(200).json({ 
+        message: 'Cache da temporada atualizado com sucesso',
+        season: {
+          id: existingSeason.id,
+          name: existingSeason.name,
+          registrationOpen: existingSeason.registrationOpen
+        }
+      });
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Erro ao atualizar cache da temporada', details: error.message });
+      }
     }
-    if (data.description && data.description.length > 1000) {
-      throw new BadRequestException('Descrição deve ter no máximo 1000 caracteres');
+  }
+
+  private validateSeasonData(data: any, isCreate: boolean = true): void {
+    const requiredFieldsCreate: string[] = [
+      'name', 'description', 'startDate', 'endDate', 
+      'inscriptionValue', 'inscriptionType', 'paymentMethods', 'championshipId'
+    ];
+  
+    if (isCreate) {
+      for (const field of requiredFieldsCreate) {
+        if (data[field] === undefined || data[field] === null || (typeof data[field] === 'string' && data[field].trim() === '')) {
+          throw new BadRequestException(`${field} é obrigatório`);
+        }
+      }
     }
+  
+    if (data.name !== undefined && (typeof data.name !== 'string' || data.name.length > 75)) {
+      throw new BadRequestException('Nome da temporada inválido ou excede 75 caracteres.');
+    }
+    
+    if (data.description !== undefined && (typeof data.description !== 'string' || data.description.length > 1000)) {
+      throw new BadRequestException('Descrição da temporada inválida ou excede 1000 caracteres.');
+    }
+  
+    // Validação de parcelamento por método de pagamento
+    if (data.pixInstallments !== undefined && (typeof data.pixInstallments !== 'number' || data.pixInstallments < 1 || data.pixInstallments > 12)) {
+      throw new BadRequestException('Número de parcelas PIX deve ser entre 1 e 12.');
+    }
+  
+    if (data.creditCardInstallments !== undefined && (typeof data.creditCardInstallments !== 'number' || data.creditCardInstallments < 1 || data.creditCardInstallments > 12)) {
+      throw new BadRequestException('Número de parcelas do cartão de crédito deve ser entre 1 e 12.');
+    }
+  
+
+  
+    if (data.startDate !== undefined && isNaN(new Date(data.startDate).getTime())) {
+      throw new BadRequestException('Data de início inválida. Use o formato YYYY-MM-DD');
+    }
+  
+    if (data.endDate !== undefined && isNaN(new Date(data.endDate).getTime())) {
+      throw new BadRequestException('Data de fim inválida. Use o formato YYYY-MM-DD');
+    }
+  
+    if (data.startDate && data.endDate && new Date(data.startDate) >= new Date(data.endDate)) {
+      throw new BadRequestException('Data de início deve ser anterior à data de fim');
+    }
+  
+    const minDate = new Date('2020-01-01');
+    const maxDate = new Date('2050-12-31');
+    if (data.startDate && (new Date(data.startDate) < minDate || new Date(data.startDate) > maxDate)) {
+      throw new BadRequestException('Data de início deve estar entre 2020 e 2050');
+    }
+  
+    if (data.endDate && (new Date(data.endDate) < minDate || new Date(data.endDate) > maxDate)) {
+      throw new BadRequestException('Data de fim deve estar entre 2020 e 2050');
+    }
+  
     if (data.status && !Object.values(SeasonStatus).includes(data.status)) {
       throw new BadRequestException('Status inválido');
     }
+  
+    if (data.inscriptionValue !== undefined && isNaN(parseFloat(data.inscriptionValue))) {
+      throw new BadRequestException('Valor da inscrição deve ser um número válido');
+    }
+  
     if (data.inscriptionType && !Object.values(InscriptionType).includes(data.inscriptionType)) {
       throw new BadRequestException('Tipo de inscrição inválido');
     }
+  
     if (data.paymentMethods && Array.isArray(data.paymentMethods)) {
+      if (data.paymentMethods.length === 0 && isCreate) {
+        throw new BadRequestException('Métodos de pagamento são obrigatórios');
+      }
       for (const method of data.paymentMethods) {
         if (!Object.values(PaymentMethod).includes(method)) {
           throw new BadRequestException(`Método de pagamento inválido: ${method}`);
         }
       }
-    }
-
-    if (data.startDate || data.endDate) {
-      let startDate: Date | null = null;
-      let endDate: Date | null = null;
-
-      if (data.startDate) {
-        startDate = new Date(data.startDate);
-        if (isNaN(startDate.getTime())) {
-          throw new BadRequestException('Data de início inválida. Use o formato YYYY-MM-DD');
-        }
-      }
-
-      if (data.endDate) {
-        endDate = new Date(data.endDate);
-        if (isNaN(endDate.getTime())) {
-          throw new BadRequestException('Data de fim inválida. Use o formato YYYY-MM-DD');
-        }
-      }
-
-      if (startDate && endDate && startDate >= endDate) {
-        throw new BadRequestException('Data de início deve ser anterior à data de fim');
-      }
-
-      const minDate = new Date('2020-01-01');
-      const maxDate = new Date('2050-12-31');
-
-      if (startDate && (startDate < minDate || startDate > maxDate)) {
-        throw new BadRequestException('Data de início deve estar entre 2020 e 2050');
-      }
-
-      if (endDate && (endDate < minDate || endDate > maxDate)) {
-        throw new BadRequestException('Data de fim deve estar entre 2020 e 2050');
-      }
+    } else if (isCreate) {
+      throw new BadRequestException('Métodos de pagamento são obrigatórios e devem ser um array');
     }
   }
 } 

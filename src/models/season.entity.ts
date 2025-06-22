@@ -1,7 +1,8 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany, BeforeInsert, BeforeUpdate } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Championship } from './championship.entity';
 import { Category } from './category.entity';
+import { slugify } from '../utils/slugify';
 
 export enum SeasonStatus {
   AGENDADO = 'agendado',
@@ -11,16 +12,13 @@ export enum SeasonStatus {
 }
 
 export enum InscriptionType {
-  MENSAL = 'mensal',
-  ANUAL = 'anual', 
-  SEMESTRAL = 'semestral',
-  TRIMESTRAL = 'trimestral'
+  POR_TEMPORADA = 'por_temporada',
+  POR_ETAPA = 'por_etapa'
 }
 
 export enum PaymentMethod {
   PIX = 'pix',
-  CARTAO_CREDITO = 'cartao_credito',
-  BOLETO = 'boleto'
+  CARTAO_CREDITO = 'cartao_credito'
 }
 
 @Entity('Seasons')
@@ -28,6 +26,9 @@ export class Season extends BaseEntity {
   // Dados Gerais
   @Column({ length: 75, nullable: false })
   name: string;
+
+  @Column({ length: 100, unique: true, nullable: false })
+  slug: string;
 
   @Column({ type: 'varchar', length: 1000, nullable: false })
   description: string;
@@ -46,6 +47,10 @@ export class Season extends BaseEntity {
   })
   status: SeasonStatus;
 
+  // Controle de Inscrições
+  @Column({ type: 'boolean', default: true })
+  registrationOpen: boolean;
+
   // Dados Financeiros
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   inscriptionValue: number;
@@ -60,6 +65,15 @@ export class Season extends BaseEntity {
   @Column({ type: 'simple-array', nullable: false })
   paymentMethods: PaymentMethod[];
 
+  // Parcelamento por método de pagamento
+  @Column({ type: 'int', default: 1 })
+  pixInstallments: number;
+
+  @Column({ type: 'int', default: 1 })
+  creditCardInstallments: number;
+
+
+
   // Relacionamento com o campeonato
   @Column({ nullable: false })
   championshipId: string;
@@ -70,4 +84,12 @@ export class Season extends BaseEntity {
 
   @OneToMany(() => Category, (category) => category.season)
   categories: Category[];
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  generateSlug() {
+    if (this.name) {
+      this.slug = slugify(this.name);
+    }
+  }
 } 
