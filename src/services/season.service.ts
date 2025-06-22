@@ -25,7 +25,11 @@ export class SeasonService extends BaseService<Season> {
   async create(seasonData: Partial<Season>): Promise<Season> {
     const season = await super.create(seasonData);
     
-    // O cache será atualizado via database events, não aqui
+    // Adicionar nova temporada ao cache
+    if (season) {
+      await this.redisService.cacheSeasonBasicInfo(season.id, season);
+      console.log(`Nova temporada ${season.id} adicionada ao cache: registrationOpen = ${season.registrationOpen}`);
+    }
     
     return season;
   }
@@ -33,15 +37,26 @@ export class SeasonService extends BaseService<Season> {
   async update(id: string, seasonData: Partial<Season>): Promise<Season | null> {
     const season = await super.update(id, seasonData);
     
-    // O cache será atualizado via database events, não aqui
+    // Atualizar cache manualmente se a temporada foi encontrada e atualizada
+    if (season) {
+      await this.redisService.cacheSeasonBasicInfo(season.id, season);
+      console.log(`Cache atualizado para temporada ${season.id}: registrationOpen = ${season.registrationOpen}`);
+    }
     
     return season;
   }
 
   async delete(id: string): Promise<boolean> {
+    // Buscar informações da temporada antes de deletar para limpar o cache
+    const season = await this.findById(id);
     const result = await super.delete(id);
     
-    // O cache será atualizado via database events, não aqui
+    // Limpar cache se a temporada foi deletada com sucesso
+    if (result && season) {
+      await this.redisService.invalidateSeasonCache(id, season.championshipId);
+      await this.redisService.invalidateSeasonIndexes(id);
+      console.log(`Cache removido para temporada ${id}`);
+    }
     
     return result;
   }
@@ -115,6 +130,24 @@ export class SeasonService extends BaseService<Season> {
     } catch (error) {
       console.error('Error getting multiple seasons from cache:', error);
       return [];
+    }
+  }
+
+  // Método para forçar atualização do cache de uma temporada específica
+  async refreshSeasonCache(id: string): Promise<boolean> {
+    try {
+      const season = await this.findById(id);
+      if (!season) {
+        console.log(`Temporada ${id} não encontrada para atualização de cache`);
+        return false;
+      }
+
+      await this.redisService.cacheSeasonBasicInfo(season.id, season);
+      console.log(`Cache forçadamente atualizado para temporada ${season.id}: registrationOpen = ${season.registrationOpen}`);
+      return true;
+    } catch (error) {
+      console.error('Error refreshing season cache:', error);
+      return false;
     }
   }
 

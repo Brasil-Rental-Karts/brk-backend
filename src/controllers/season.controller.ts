@@ -256,6 +256,29 @@ export class SeasonController extends BaseController {
      *         description: Temporada não encontrada
      */
     this.router.delete('/:id', authMiddleware, this.deleteSeason.bind(this));
+
+    /**
+     * @swagger
+     * /seasons/{id}/refresh-cache:
+     *   post:
+     *     summary: Forçar atualização do cache da temporada
+     *     tags: [Seasons]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Cache atualizado com sucesso
+     *       404:
+     *         description: Temporada não encontrada
+     */
+    this.router.post('/:id/refresh-cache', authMiddleware, this.refreshSeasonCache.bind(this));
   }
 
   private async getAllSeasons(req: Request, res: Response): Promise<void> {
@@ -418,6 +441,48 @@ export class SeasonController extends BaseController {
         res.status(404).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Erro ao deletar temporada', details: error.message });
+      }
+    }
+  }
+
+  private async refreshSeasonCache(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      const existingSeason = await this.seasonService.findById(id);
+      if (!existingSeason) {
+        throw new NotFoundException('Temporada não encontrada');
+      }
+
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, existingSeason.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para atualizar o cache desta temporada.',
+          details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
+        });
+        return;
+      }
+
+      const success = await this.seasonService.refreshSeasonCache(id);
+      if (!success) {
+        res.status(500).json({ message: 'Erro ao atualizar cache da temporada' });
+        return;
+      }
+
+      res.status(200).json({ 
+        message: 'Cache da temporada atualizado com sucesso',
+        season: {
+          id: existingSeason.id,
+          name: existingSeason.name,
+          registrationOpen: existingSeason.registrationOpen
+        }
+      });
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Erro ao atualizar cache da temporada', details: error.message });
       }
     }
   }

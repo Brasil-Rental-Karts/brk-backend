@@ -154,12 +154,14 @@ export class DatabaseEventsService {
               const seasonInfo = {
                 id: event.data.id,
                 name: event.data.name,
+                slug: event.data.slug,
                 startDate: event.data.startDate,
                 endDate: event.data.endDate,
-                championshipId: event.data.championshipId
+                championshipId: event.data.championshipId,
+                registrationOpen: event.data.registrationOpen
               };
               await this.redisService.cacheSeasonBasicInfo(event.data.id, seasonInfo);
-              console.log(`Cached season info for ID: ${event.data.id}, Championship: ${event.data.championshipId}`);
+              console.log(`Cached season info for ID: ${event.data.id}, Championship: ${event.data.championshipId}, Registration Open: ${event.data.registrationOpen}`);
             }
             break;
           case 'DELETE':
