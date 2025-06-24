@@ -7,7 +7,6 @@ import { validationMiddleware } from '../middleware/validator.middleware';
 import { 
   CreateRegulationDto, 
   UpdateRegulationDto, 
-  PublishRegulationDto,
   ReorderSectionsDto
 } from '../dtos/regulation.dto';
 import { BadRequestException } from '../exceptions/bad-request.exception';
@@ -44,7 +43,6 @@ export class RegulationController extends BaseController {
       '/:id/publish',
       authMiddleware,
       roleMiddleware([UserRole.MANAGER, UserRole.ADMINISTRATOR]),
-      validationMiddleware(PublishRegulationDto),
       this.publishRegulation.bind(this)
     );
 

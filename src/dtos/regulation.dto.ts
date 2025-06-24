@@ -52,8 +52,8 @@ export class UpdateRegulationDto extends BaseDto {
   sections?: UpdateRegulationSectionDto[];
 }
 
-export class PublishRegulationDto extends BaseDto {
-  // No additional fields needed
+export class PublishRegulationDto {
+  // No additional fields needed - intentionally not extending BaseDto
 }
 
 export class ReorderSectionsDto extends BaseDto {
