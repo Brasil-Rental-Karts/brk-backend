@@ -3,6 +3,7 @@ import { BaseEntity } from './base.entity';
 import { Championship } from './championship.entity';
 import { Category } from './category.entity';
 import { Regulation } from './regulation.entity';
+import { Stage } from './stage.entity';
 import { slugify } from '../utils/slugify';
 
 export enum SeasonStatus {
@@ -85,6 +86,9 @@ export class Season extends BaseEntity {
 
   @OneToMany(() => Category, (category) => category.season)
   categories: Category[];
+
+  @OneToMany(() => Stage, (stage) => stage.season)
+  stages: Stage[];
 
   @OneToMany(() => Regulation, (regulation) => regulation.season)
   regulations: Regulation[];

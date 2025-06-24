@@ -7,10 +7,12 @@ import { RegisterUserDto, LoginUserDto, TokenDto, ForgotPasswordDto, ResetPasswo
 import { UserRepository } from '../repositories/user.repository';
 import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import { EmailService } from './email.service';
+import config from '../config';
+import { DatabaseChangeEventsService } from './database-change-events.service';
 import { RedisService } from './redis.service';
-import config from '../config/config';
 
 export class AuthService {
+  private databaseEventsService: DatabaseChangeEventsService;
   private redisService: RedisService;
 
   constructor(
@@ -18,57 +20,66 @@ export class AuthService {
     private memberProfileRepository: MemberProfileRepository,
     private emailService: EmailService
   ) {
+    this.databaseEventsService = DatabaseChangeEventsService.getInstance();
     this.redisService = RedisService.getInstance();
   }
 
   async register(registerUserDto: RegisterUserDto): Promise<User> {
-    // Check if user with the same email already exists
-    const existingUser = await this.userRepository.findByEmail(registerUserDto.email);
-
+    const { name, email, password } = registerUserDto;
+    
+    // Check if user already exists
+    const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
-      throw new Error('User with this email already exists');
+      throw new Error('E-mail já cadastrado');
     }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(registerUserDto.password, 10);
-
-    // Generate confirmation token and expiry
-    const emailConfirmationToken = crypto.randomBytes(32).toString('hex');
-    const emailConfirmationExpires = new Date();
-    emailConfirmationExpires.setHours(emailConfirmationExpires.getHours() + 24); // 24 hours expiry
-
-    // Create and save the new user (inactive, not confirmed)
-    const user = await this.userRepository.create({
-      ...registerUserDto,
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Generate email confirmation token
+    const confirmationToken = crypto.randomBytes(32).toString('hex');
+    const confirmationExpires = new Date();
+    confirmationExpires.setHours(confirmationExpires.getHours() + 24);
+    
+    // Create user
+    const newUser = await this.userRepository.create({
+      name,
+      email,
       password: hashedPassword,
-      role: UserRole.MEMBER,
-      registrationDate: new Date(),
-      active: false,
+      emailConfirmationToken: confirmationToken,
+      emailConfirmationExpires: confirmationExpires,
       emailConfirmed: false,
-      emailConfirmationToken,
-      emailConfirmationExpires
+      active: false
     });
-
-    // Try to send confirmation email, but don't fail registration if email fails
-    try {
-      await this.emailService.sendEmailConfirmationEmail(user.email, user.name, emailConfirmationToken);
-    } catch (error) {
-      console.warn('Failed to send email confirmation, but user registration was successful:', error instanceof Error ? error.message : error);
-    }
-
-    return user;
+    
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('INSERT', 'User', {
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+      active: newUser.active,
+      emailConfirmed: newUser.emailConfirmed
+    });
+    
+    // Send confirmation email
+    await this.emailService.sendEmailConfirmationEmail(email, name, confirmationToken);
+    
+    return newUser;
   }
 
   async login(loginUserDto: LoginUserDto): Promise<TokenDto> {
+    const { email, password } = loginUserDto;
+    
     // Find the user
-    const user = await this.userRepository.findByEmail(loginUserDto.email);
-
+    const user = await this.userRepository.findByEmail(email);
+    
     if (!user) {
       throw new Error('Email ou senha incorretos');
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(loginUserDto.password, user.password);
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
     if (!isPasswordValid) {
       throw new Error('Email ou senha incorretos');
     }
@@ -103,22 +114,44 @@ export class AuthService {
     if (!profile) {
       // First login - create a new profile
       await this.memberProfileRepository.create({ id: user.id });
+      
+      // Publish database change event for new profile
+      await this.databaseEventsService.onEntityChange('INSERT', 'MemberProfile', {
+        id: user.id,
+        userId: user.id
+      });
     } else {
       // Not first login - update last login timestamp
       await this.memberProfileRepository.updateLastLogin(user.id);
+      
+      // Publish database change event for profile update
+      await this.databaseEventsService.onEntityChange('UPDATE', 'MemberProfile', {
+        id: user.id,
+        lastLogin: new Date().toISOString()
+      });
     }
 
-    // Store refresh token in Redis with 7 days expiry (matching refresh token expiry)
-    await this.redisService.setData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
+    // Store refresh token in Redis with 7 days expiry (session data - appropriate for Redis)
+    await this.redisService.storeSessionData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
 
     return tokens;
   }
 
   async refreshToken(userId: string, refreshToken: string): Promise<TokenDto> {
-    // Validate refresh token
-    const storedRefreshToken = await this.redisService.getData(`refresh_token:${userId}`);
-
-    if (!storedRefreshToken || storedRefreshToken !== refreshToken) {
+    // Validate refresh token from Redis (session data)
+    try {
+      const storedToken = await this.redisService.getSessionData(`refresh_token:${userId}`);
+      
+      if (!storedToken || storedToken !== refreshToken) {
+        throw new Error('Invalid refresh token');
+      }
+      
+      // Also validate JWT structure
+      const decoded = jwt.verify(refreshToken, config.jwt.secret) as any;
+      if (decoded.id !== userId) {
+        throw new Error('Invalid refresh token');
+      }
+    } catch (error) {
       throw new Error('Invalid refresh token');
     }
 
@@ -137,14 +170,14 @@ export class AuthService {
     const tokens = this.generateTokens(user, displayName);
 
     // Update stored refresh token in Redis with 7 days expiry
-    await this.redisService.setData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
+    await this.redisService.storeSessionData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
 
     return tokens;
   }
 
   async logout(userId: string): Promise<void> {
-    // Remove refresh token from Redis
-    await this.redisService.deleteData(`refresh_token:${userId}`);
+    // Remove refresh token from Redis (session cleanup)
+    await this.redisService.removeSessionData(`refresh_token:${userId}`);
   }
   
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
@@ -170,6 +203,13 @@ export class AuthService {
     user.resetPasswordExpires = resetTokenExpiration;
     
     await this.userRepository.updateUser(user);
+    
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('UPDATE', 'User', {
+      id: user.id,
+      resetPasswordToken: !!resetToken, // Don't expose the actual token
+      resetPasswordExpires: resetTokenExpiration.toISOString()
+    });
     
     // Send the reset password email
     await this.emailService.sendPasswordResetEmail(user.email, user.name, resetToken);
@@ -200,6 +240,13 @@ export class AuthService {
     user.resetPasswordExpires = undefined;
     
     await this.userRepository.updateUser(user);
+    
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('UPDATE', 'User', {
+      id: user.id,
+      passwordChanged: true,
+      resetTokenCleared: true
+    });
   }
 
   /**
@@ -212,13 +259,29 @@ export class AuthService {
     const profile = await this.memberProfileRepository.findByUserId(user.id);
     const displayName = profile?.nickName || user.name;
     const tokens = this.generateTokens(user, displayName);
+    
     if (!profile) {
       // First login - create a new profile
       await this.memberProfileRepository.create({ id: user.id });
+      
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('INSERT', 'MemberProfile', {
+        id: user.id,
+        userId: user.id
+      });
     } else {
       await this.memberProfileRepository.updateLastLogin(user.id);
+      
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('UPDATE', 'MemberProfile', {
+        id: user.id,
+        lastLogin: new Date().toISOString()
+      });
     }
-    await this.redisService.setData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
+    
+    // Store refresh token in Redis with 7 days expiry (session data)
+    await this.redisService.storeSessionData(`refresh_token:${user.id}`, tokens.refreshToken, 7 * 24 * 60 * 60);
+    
     return tokens;
   }
 
@@ -267,5 +330,14 @@ export class AuthService {
     user.emailConfirmationToken = undefined;
     user.emailConfirmationExpires = undefined;
     await this.userRepository.updateUser(user);
+    
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('UPDATE', 'User', {
+      id: user.id,
+      emailConfirmed: true,
+      active: true,
+      emailConfirmationToken: null,
+      emailConfirmationExpires: null
+    });
   }
 } 

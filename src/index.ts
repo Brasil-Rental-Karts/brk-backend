@@ -94,7 +94,7 @@ AppDataSource.initialize()
     const memberProfileService = new MemberProfileService(memberProfileRepository, userService);
     const seasonService = new SeasonService(seasonRepository);
     const vipPreregisterService = new VipPreregisterService(vipPreregisterRepository);
-    const categoryService = new CategoryService(categoryRepository, seasonService);
+    const categoryService = new CategoryService(categoryRepository);
     const scoringSystemService = new ScoringSystemService();
     const asaasService = new AsaasService();
     const seasonRegistrationService = new SeasonRegistrationService();
@@ -150,7 +150,7 @@ AppDataSource.initialize()
     process.on('SIGINT', async () => {
       console.log('Shutting down...');
       await DatabaseEventsService.getInstance().stopListening();
-      await RedisService.getInstance().close();
+      await RedisService.getInstance().disconnect();
       await AppDataSource.destroy();
       process.exit(0);
     });

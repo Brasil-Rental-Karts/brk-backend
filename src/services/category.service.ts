@@ -2,8 +2,7 @@ import { BaseService } from './base.service';
 import { Category } from '../models/category.entity';
 import { CategoryRepository } from '../repositories/category.repository';
 import { validateBatteriesConfig } from '../types/category.types';
-import { RedisService } from './redis.service';
-import { SeasonService } from './season.service';
+import { DatabaseChangeEventsService } from './database-change-events.service';
 
 export interface CategoryCacheData {
   id: string;
@@ -15,20 +14,27 @@ export interface CategoryCacheData {
 }
 
 export class CategoryService extends BaseService<Category> {
-  private redisService: RedisService;
+  private databaseEventsService: DatabaseChangeEventsService;
+  private categoryRepository: CategoryRepository;
 
-  constructor(
-    private categoryRepository: CategoryRepository,
-    private seasonService?: SeasonService
-  ) {
+  constructor(categoryRepository: CategoryRepository) {
     super(categoryRepository);
-    this.redisService = RedisService.getInstance();
+    this.databaseEventsService = DatabaseChangeEventsService.getInstance();
+    this.categoryRepository = categoryRepository;
   }
 
   async create(categoryData: Partial<Category>): Promise<Category> {
     const category = await super.create(categoryData);
     
-    // O cache será atualizado via database events, não aqui
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('INSERT', 'Category', {
+      id: category.id,
+      name: category.name,
+      ballast: category.ballast,
+      maxPilots: category.maxPilots,
+      minimumAge: category.minimumAge,
+      seasonId: category.seasonId
+    });
     
     return category;
   }
@@ -36,38 +42,54 @@ export class CategoryService extends BaseService<Category> {
   async update(id: string, categoryData: Partial<Category>): Promise<Category | null> {
     const category = await super.update(id, categoryData);
     
-    // O cache será atualizado via database events, não aqui
+    if (category) {
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('UPDATE', 'Category', {
+        id: category.id,
+        name: category.name,
+        ballast: category.ballast,
+        maxPilots: category.maxPilots,
+        minimumAge: category.minimumAge,
+        seasonId: category.seasonId
+      });
+    }
     
     return category;
   }
 
   async delete(id: string): Promise<boolean> {
+    const category = await this.findById(id);
     const result = await super.delete(id);
     
-    // O cache será atualizado via database events, não aqui
+    if (result && category) {
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('DELETE', 'Category', {
+        id: category.id,
+        name: category.name,
+        seasonId: category.seasonId
+      });
+    }
     
     return result;
+  }
+
+  async findById(id: string): Promise<Category | null> {
+    return super.findById(id);
+  }
+
+  async findAll(): Promise<Category[]> {
+    return super.findAll();
   }
 
   async findByName(name: string): Promise<Category[]> {
     return this.categoryRepository.findByName(name);
   }
 
-  async findByNameAndSeason(name: string, seasonIdOrSlug: string): Promise<Category | null> {
-    // Try to resolve season by slug or ID if season service is available
-    if (this.seasonService) {
-      try {
-        const season = await this.seasonService.findBySlugOrId(seasonIdOrSlug);
-        if (season) {
-          return this.categoryRepository.findByNameAndSeason(name, season.id);
-        }
-      } catch (error) {
-        console.error('Error resolving season by slug/ID:', error);
-      }
-    }
-    
-    // Fallback to direct ID lookup
-    return this.categoryRepository.findByNameAndSeason(name, seasonIdOrSlug);
+  async findByNameAndSeason(name: string, seasonId: string): Promise<Category | null> {
+    // Direct ID lookup - query the repository directly
+    return this.categoryRepository['repository'].findOne({
+      where: { name, seasonId }
+    });
   }
 
   async findByBallast(ballast: number): Promise<Category[]> {
@@ -78,71 +100,76 @@ export class CategoryService extends BaseService<Category> {
     return this.categoryRepository.findByBallast(numericBallast);
   }
 
-  async findBySeasonId(seasonIdOrSlug: string): Promise<Category[]> {
-    // Try to resolve season by slug or ID if season service is available
-    if (this.seasonService) {
-      try {
-        const season = await this.seasonService.findBySlugOrId(seasonIdOrSlug);
-        if (season) {
-          return this.categoryRepository.findBySeasonId(season.id);
-        }
-      } catch (error) {
-        console.error('Error resolving season by slug/ID:', error);
-      }
-    }
-    
-    // Fallback to direct ID lookup
-    return this.categoryRepository.findBySeasonId(seasonIdOrSlug);
+  async findBySeasonId(seasonId: string): Promise<Category[]> {
+    return this.categoryRepository['repository'].find({
+      where: { seasonId }
+    });
   }
 
-  // Métodos para buscar dados do cache Redis (para API cache)
+  // Métodos que anteriormente usavam cache agora consultam diretamente o banco
   async getCategoryBasicInfo(id: string): Promise<CategoryCacheData | null> {
-    const cachedData = await this.getCachedCategoryData(id);
-    return cachedData;
-  }
-
-  // Buscar todas as categorias de uma temporada no cache (alta performance)
-  async getSeasonCategoriesBasicInfo(seasonId: string): Promise<CategoryCacheData[]> {
     try {
-      // Busca a lista de IDs das categorias da temporada
-      const categoryIds = await this.redisService.getSeasonCategoryIds(seasonId);
+      const category = await this.findById(id);
       
-      if (!categoryIds || categoryIds.length === 0) {
-        return [];
+      if (!category) {
+        return null;
       }
-
-      // Busca os dados de todas as categorias em paralelo
-      const categoriesPromises = categoryIds.map(id => this.getCachedCategoryData(id));
-      const categories = await Promise.all(categoriesPromises);
       
-      // Filtra apenas as categorias que foram encontradas no cache
-      return categories.filter(category => category !== null) as CategoryCacheData[];
+      return {
+        id: category.id,
+        name: category.name,
+        ballast: category.ballast,
+        maxPilots: category.maxPilots,
+        minimumAge: category.minimumAge,
+        seasonId: category.seasonId
+      };
     } catch (error) {
-      console.error('Error getting season categories from cache:', error);
-      return [];
-    }
-  }
-
-  // Buscar múltiplas categorias por IDs (alta performance)
-  async getMultipleCategoriesBasicInfo(ids: string[]): Promise<CategoryCacheData[]> {
-    try {
-      // Usa o novo método otimizado com Redis pipeline
-      return await this.redisService.getMultipleCategoriesBasicInfo(ids);
-    } catch (error) {
-      console.error('Error getting multiple categories from cache:', error);
-      return [];
-    }
-  }
-
-  // Métodos privados para cache (usados apenas pelos database events)
-  private async getCachedCategoryData(id: string): Promise<CategoryCacheData | null> {
-    try {
-      const key = `category:${id}`;
-      return await this.redisService.getData(key);
-    } catch (error) {
-      console.error('Error getting cached category data:', error);
+      console.error('Error getting category basic info:', error);
       return null;
     }
+  }
+
+  // Buscar categorias por IDs de temporada (substitui consulta de cache)
+  async getSeasonCategoriesBasicInfo(seasonId: string): Promise<CategoryCacheData[]> {
+    try {
+      const categories = await this.findBySeasonId(seasonId);
+      
+      return categories.map(category => ({
+        id: category.id,
+        name: category.name,
+        ballast: category.ballast,
+        maxPilots: category.maxPilots,
+        minimumAge: category.minimumAge,
+        seasonId: category.seasonId
+      }));
+    } catch (error) {
+      console.error('Error getting season categories:', error);
+      return [];
+    }
+  }
+
+  // Buscar múltiplas categorias por IDs
+  async getMultipleCategoriesBasicInfo(ids: string[]): Promise<CategoryCacheData[]> {
+    try {
+      const categories = await this.categoryRepository['repository'].findByIds(ids);
+      
+      return categories.map(category => ({
+        id: category.id,
+        name: category.name,
+        ballast: category.ballast,
+        maxPilots: category.maxPilots,
+        minimumAge: category.minimumAge,
+        seasonId: category.seasonId
+      }));
+    } catch (error) {
+      console.error('Error getting multiple categories:', error);
+      return [];
+    }
+  }
+
+  // Método legado para compatibilidade - agora consulta o banco diretamente
+  async getCachedCategoryData(id: string): Promise<CategoryCacheData | null> {
+    return this.getCategoryBasicInfo(id);
   }
 
   async validateCategoryData(data: any, isUpdate: boolean = false): Promise<string[]> {

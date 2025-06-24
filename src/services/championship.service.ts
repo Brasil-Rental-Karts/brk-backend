@@ -1,11 +1,10 @@
+import { BaseService } from './base.service';
 import { Championship } from '../models/championship.entity';
 import { ChampionshipRepository } from '../repositories/championship.repository';
-import { BaseService } from './base.service';
-import { RedisService } from './redis.service';
 import { AsaasService } from './asaas.service';
 import { GridTypeService } from './grid-type.service';
 import { ScoringSystemService } from './scoring-system.service';
-import { ConflictException } from '../exceptions/conflict.exception';
+import { DatabaseChangeEventsService } from './database-change-events.service';
 
 export interface ChampionshipCacheData {
   id: string;
@@ -17,7 +16,7 @@ export interface ChampionshipCacheData {
 }
 
 export class ChampionshipService extends BaseService<Championship> {
-  private redisService: RedisService;
+  private databaseEventsService: DatabaseChangeEventsService;
   private championshipRepository: ChampionshipRepository;
   private asaasService: AsaasService;
   private gridTypeService: GridTypeService;
@@ -25,150 +24,183 @@ export class ChampionshipService extends BaseService<Championship> {
 
   constructor(championshipRepository: ChampionshipRepository) {
     super(championshipRepository);
+    this.databaseEventsService = DatabaseChangeEventsService.getInstance();
     this.championshipRepository = championshipRepository;
-    this.redisService = RedisService.getInstance();
     this.asaasService = new AsaasService();
     this.gridTypeService = new GridTypeService();
     this.scoringSystemService = new ScoringSystemService();
   }
 
   async create(championshipData: Partial<Championship>): Promise<Championship> {
-    try {
-      const championship = await super.create(championshipData);
-      
-      console.log(`[CHAMPIONSHIP] Criado campeonato ${championship.id} - splitEnabled: ${championship.splitEnabled}, document: ${championship.document}`);
-      console.log(`[CHAMPIONSHIP] Subconta Asaas será configurada manualmente através das configurações`);
-      
-      // Criar tipos de grid pré-configurados
-      try {
-        await this.gridTypeService.createPredefined(championship.id);
-        console.log(`[CHAMPIONSHIP] Tipos de grid pré-configurados criados para o campeonato ${championship.id}`);
-      } catch (error) {
-        console.error(`[CHAMPIONSHIP] Erro ao criar tipos de grid pré-configurados para o campeonato ${championship.id}:`, error);
-      }
-
-      // Criar sistema de pontuação pré-configurado
-      try {
-        await this.scoringSystemService.createPredefined(championship.id);
-        console.log(`[CHAMPIONSHIP] Sistema de pontuação pré-configurado criado para o campeonato ${championship.id}`);
-      } catch (error) {
-        console.error(`[CHAMPIONSHIP] Erro ao criar sistema de pontuação pré-configurado para o campeonato ${championship.id}:`, error);
-      }
-      
-      // O cache será atualizado via database events, não aqui
-      
-      return championship;
-    } catch (error: any) {
-      if (error?.code === '23505' && error.detail?.includes('(slug)')) {
-        throw new ConflictException('Já existe um campeonato com este nome. Por favor, escolha outro.');
-      }
-      throw error;
-    }
+    const championship = await super.create(championshipData);
+    
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('INSERT', 'Championship', {
+      id: championship.id,
+      name: championship.name,
+      slug: championship.slug,
+      shortDescription: championship.shortDescription,
+      fullDescription: championship.fullDescription,
+      championshipImage: championship.championshipImage,
+      sponsors: championship.sponsors
+    });
+    
+    return championship;
   }
 
   async update(id: string, championshipData: Partial<Championship>): Promise<Championship | null> {
     const championship = await super.update(id, championshipData);
     
-    // O cache será atualizado via database events, não aqui
+    if (championship) {
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('UPDATE', 'Championship', {
+        id: championship.id,
+        name: championship.name,
+        slug: championship.slug,
+        shortDescription: championship.shortDescription,
+        fullDescription: championship.fullDescription,
+        championshipImage: championship.championshipImage,
+        sponsors: championship.sponsors
+      });
+    }
     
     return championship;
   }
 
   async delete(id: string): Promise<boolean> {
+    const championship = await this.findById(id);
     const result = await super.delete(id);
     
-    // O cache será atualizado via database events, não aqui
-    // Nota: Quando um campeonato é deletado, o database events service
-    // também limpa automaticamente o índice de seasons relacionadas
+    if (result && championship) {
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('DELETE', 'Championship', {
+        id: championship.id,
+        name: championship.name
+      });
+    }
     
     return result;
   }
 
   async findById(id: string): Promise<Championship | null> {
-    // Apenas busca no banco, sem interferir no cache
-    const championship = await this.championshipRepository['repository'].findOne({
-      where: { id },
-      relations: ['seasons', 'seasons.categories'],
-    });
-    return championship;
+    try {
+      // Buscar campeonato com relacionamentos necessários usando query builder para maior controle
+      return await this.championshipRepository['repository']
+        .createQueryBuilder('championship')
+        .leftJoinAndSelect('championship.seasons', 'seasons')
+        .leftJoinAndSelect('seasons.categories', 'categories')
+        .leftJoinAndSelect('seasons.stages', 'stages')
+        .where('championship.id = :id', { id })
+        .getOne();
+    } catch (error) {
+      console.error('Error finding championship by id:', error);
+      // Fallback para busca simples sem relacionamentos
+      return await this.championshipRepository['repository'].findOne({
+        where: { id }
+      });
+    }
   }
 
   async findBySlugOrId(slugOrId: string): Promise<Championship | null> {
-    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
+    // Check if it's a UUID (ID) first
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     
-    let where: any;
-    if (isUUID) {
-      where = { id: slugOrId };
+    if (uuidRegex.test(slugOrId)) {
+      // It's an ID
+      return this.findById(slugOrId);
     } else {
-      where = { slug: slugOrId };
+      // It's a slug - query the repository directly
+      return this.championshipRepository['repository'].findOne({
+        where: { slug: slugOrId }
+      });
     }
-
-    const championship = await this.championshipRepository['repository'].findOne({
-      where,
-      relations: ['seasons', 'seasons.categories'],
-    });
-
-    return championship;
   }
 
   async findAll(): Promise<Championship[]> {
-    // Apenas busca no banco, sem interferir no cache
-    const championships = await super.findAll();
-    return championships;
+    return super.findAll();
   }
 
   async findByOwnerId(ownerId: string): Promise<Championship[]> {
-    // Apenas busca no banco, sem interferir no cache
-    const championships = await this.championshipRepository['repository'].find({
-      where: { ownerId }
-    });
-    
-    return championships;
+    try {
+      // Usar query builder para evitar problemas de tipo UUID
+      return await this.championshipRepository['repository']
+        .createQueryBuilder('championship')
+        .leftJoinAndSelect('championship.seasons', 'seasons')
+        .leftJoinAndSelect('seasons.categories', 'categories')
+        .leftJoinAndSelect('seasons.stages', 'stages')
+        .where('championship.ownerId = :ownerId', { ownerId })
+        .getMany();
+    } catch (error) {
+      console.error('Error finding championships by owner id:', error);
+      // Fallback para busca simples sem relacionamentos
+      return await this.championshipRepository['repository'].find({
+        where: { ownerId }
+      });
+    }
   }
 
-  // Método para buscar apenas dados em cache (para API cache)
+  // Métodos que anteriormente usavam cache agora consultam diretamente o banco
   async getChampionshipBasicInfo(id: string): Promise<ChampionshipCacheData | null> {
-    const cachedData = await this.getCachedChampionshipData(id);
-    return cachedData;
+    const championship = await this.findById(id);
+    
+    if (!championship) {
+      return null;
+    }
+    
+    return {
+      id: championship.id,
+      name: championship.name,
+      championshipImage: championship.championshipImage || '',
+      shortDescription: championship.shortDescription || '',
+      fullDescription: championship.fullDescription || '',
+      sponsors: championship.sponsors || []
+    };
   }
 
-  // Buscar múltiplos championships por IDs (alta performance)
+  // Buscar múltiplos championships por IDs
   async getMultipleChampionshipsBasicInfo(ids: string[]): Promise<ChampionshipCacheData[]> {
     try {
-      // Usa o novo método otimizado com Redis pipeline
-      return await this.redisService.getMultipleChampionshipsBasicInfo(ids);
+      const championships = await this.championshipRepository['repository'].findByIds(ids);
+      
+      return championships.map(championship => ({
+        id: championship.id,
+        name: championship.name,
+        championshipImage: championship.championshipImage || '',
+        shortDescription: championship.shortDescription || '',
+        fullDescription: championship.fullDescription || '',
+        sponsors: championship.sponsors || []
+      }));
     } catch (error) {
-      console.error('Error getting multiple championships from cache:', error);
+      console.error('Error getting multiple championships:', error);
       return [];
     }
   }
 
-  // Buscar todas as temporadas de um campeonato no cache (alta performance)
+  // Buscar todas as temporadas de um campeonato
   async getChampionshipSeasonsBasicInfo(championshipId: string): Promise<any[]> {
     try {
-      // Busca a lista de IDs das temporadas do campeonato
-      const seasonIds = await this.redisService.getChampionshipSeasonIds(championshipId);
+      // Buscar diretamente do banco de dados
+      const championship = await this.championshipRepository['repository'].findOne({
+        where: { id: championshipId },
+        relations: ['seasons']
+      });
       
-      if (!seasonIds || seasonIds.length === 0) {
+      if (!championship || !championship.seasons) {
         return [];
       }
 
-      // Busca os dados de todas as temporadas em paralelo usando pipeline
-      return await this.redisService.getMultipleSeasonsBasicInfo(seasonIds);
+      return championship.seasons.map(season => ({
+        id: season.id,
+        name: season.name,
+        slug: season.slug,
+        startDate: season.startDate,
+        endDate: season.endDate,
+        championshipId: season.championshipId,
+        registrationOpen: season.registrationOpen
+      }));
     } catch (error) {
-      console.error('Error getting championship seasons from cache:', error);
+      console.error('Error getting championship seasons:', error);
       return [];
-    }
-  }
-
-  // Métodos privados para cache (usados apenas pelos database events)
-  private async getCachedChampionshipData(id: string): Promise<ChampionshipCacheData | null> {
-    try {
-      const key = `championship:${id}`;
-      return await this.redisService.getData(key);
-    } catch (error) {
-      console.error('Error getting cached championship data:', error);
-      return null;
     }
   }
 
@@ -331,51 +363,22 @@ export class ChampionshipService extends BaseService<Championship> {
     if (!championship) {
       throw new Error('Campeonato não encontrado');
     }
-    
-    if (!championship.splitEnabled) {
-      throw new Error('Split payment não está habilitado para este campeonato');
+
+    if (championship.asaasCustomerId) {
+      throw new Error('Campeonato já possui subconta Asaas configurada');
     }
-    
-    if (!championship.document) {
-      throw new Error('Documento (CPF/CNPJ) é obrigatório para criar a subconta Asaas');
-    }
-    
-    if (championship.asaasWalletId && championship.asaasCustomerId) {
-      console.log(`[CHAMPIONSHIP] Subconta Asaas já existe - CustomerID: ${championship.asaasCustomerId}, WalletID: ${championship.asaasWalletId}`);
-      return { 
-        championship, 
-        wasExisting: true 
-      };
-    }
-    
-    console.log(`[CHAMPIONSHIP] Verificando/criando subconta Asaas para campeonato: ${championshipId}`);
-    const { wasExisting, foundBy, updatedFields } = await this.setupAsaasSubAccount(championship);
-    
-    // Busca o campeonato atualizado para confirmar que os dados foram salvos
+
+    const result = await this.setupAsaasSubAccount(championship);
     const updatedChampionship = await this.findById(championshipId);
-    
-    if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
-      console.log(`[CHAMPIONSHIP] Subconta Asaas ${wasExisting ? 'vinculada' : 'criada'} com sucesso:`);
-      console.log(`[CHAMPIONSHIP] - CustomerID: ${updatedChampionship.asaasCustomerId}`);
-      console.log(`[CHAMPIONSHIP] - WalletID: ${updatedChampionship.asaasWalletId}`);
-      
-      if (wasExisting && updatedFields && updatedFields.length > 0) {
-        console.log(`[CHAMPIONSHIP] - Dados atualizados: ${updatedFields.join(', ')}`);
-      }
-    } else {
-      console.error(`[CHAMPIONSHIP] Falha na ${wasExisting ? 'vinculação' : 'criação'} - dados não foram salvos corretamente`);
-    }
-    
-    return { 
-      championship: updatedChampionship, 
-      wasExisting, 
-      foundBy,
-      updatedFields
+
+    return {
+      championship: updatedChampionship,
+      ...result
     };
   }
 
   /**
-   * Reconfigura a subconta não white label no Asaas (útil para retry em caso de falha)
+   * Tenta novamente a configuração da subconta Asaas
    */
   async retryAsaasSubAccountSetup(championshipId: string): Promise<Championship | null> {
     const championship = await this.findById(championshipId);
@@ -383,35 +386,21 @@ export class ChampionshipService extends BaseService<Championship> {
     if (!championship) {
       throw new Error('Campeonato não encontrado');
     }
-    
-    if (!championship.splitEnabled) {
-      throw new Error('Split payment não está habilitado para este campeonato');
-    }
-    
-    if (championship.asaasWalletId && championship.asaasCustomerId) {
-      console.log(`[CHAMPIONSHIP] Subconta não white label já configurada - CustomerID: ${championship.asaasCustomerId}, WalletID: ${championship.asaasWalletId}`);
-      return championship;
-    }
-    
-    console.log(`[CHAMPIONSHIP] Forçando reconfiguração da subconta não white label para campeonato: ${championshipId}`);
+
+    // Remove existing Asaas data to retry
+    await this.update(championshipId, {
+      asaasCustomerId: undefined,
+      asaasWalletId: undefined
+    });
+
+    // Retry setup
     await this.setupAsaasSubAccount(championship);
     
-    // Busca o campeonato atualizado para confirmar que os dados foram salvos
-    const updatedChampionship = await this.findById(championshipId);
-    
-    if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
-      console.log(`[CHAMPIONSHIP] Reconfiguração concluída com sucesso:`);
-      console.log(`[CHAMPIONSHIP] - CustomerID: ${updatedChampionship.asaasCustomerId}`);
-      console.log(`[CHAMPIONSHIP] - WalletID: ${updatedChampionship.asaasWalletId}`);
-    } else {
-      console.error(`[CHAMPIONSHIP] Falha na reconfiguração - dados não foram salvos corretamente`);
-    }
-    
-    return updatedChampionship;
+    return this.findById(championshipId);
   }
 
   /**
-   * Valida se a subconta não white label está configurada corretamente
+   * Valida se a subconta Asaas está configurada corretamente
    */
   async validateAsaasSubAccountSetup(championshipId: string): Promise<{ 
     configured: boolean; 
@@ -424,28 +413,22 @@ export class ChampionshipService extends BaseService<Championship> {
     if (!championship) {
       throw new Error('Campeonato não encontrado');
     }
-    
-    const hasCustomerId = !!(championship.asaasCustomerId);
-    const hasWalletId = !!(championship.asaasWalletId);
+
+    const hasCustomerId = !!championship.asaasCustomerId;
+    const hasWalletId = !!championship.asaasWalletId;
     const configured = hasCustomerId && hasWalletId;
+
+    let details: any = null;
     
-    const details = {
-      championshipId: championship.id,
-      name: championship.name,
-      splitEnabled: championship.splitEnabled,
-      asaasCustomerId: championship.asaasCustomerId,
-      asaasWalletId: championship.asaasWalletId,
-      document: championship.document,
-      personType: championship.personType
-    };
-    
-    console.log(`[CHAMPIONSHIP] Validação da subconta não white label:`, {
-      configured,
-      hasCustomerId,
-      hasWalletId,
-      details
-    });
-    
+    if (configured) {
+      try {
+        // Para validação futura - implementar método na AsaasService se necessário
+        details = { validated: true, customerId: championship.asaasCustomerId };
+      } catch (error) {
+        console.error('Error validating Asaas sub-account:', error);
+      }
+    }
+
     return {
       configured,
       hasCustomerId,

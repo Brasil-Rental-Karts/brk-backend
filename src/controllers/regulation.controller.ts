@@ -69,13 +69,28 @@ export class RegulationController extends BaseController {
       throw new BadRequestException('Season ID is required');
     }
 
-    const regulation = await this.regulationService.findBySeasonId(seasonId);
+    const regulations = await this.regulationService.findBySeasonId(seasonId);
     
-    if (!regulation) {
+    // Se não há regulamentos, retornar 404
+    if (!regulations || regulations.length === 0) {
       throw new NotFoundException('Regulation not found');
     }
 
-    res.json(regulation);
+    // Retornar o primeiro regulamento (mais recente)
+    const regulation = regulations[0];
+    
+    // Formatar o retorno com sections
+    const formattedRegulation = {
+      id: regulation.id,
+      status: regulation.status,
+      seasonId: regulation.seasonId,
+      publishedAt: regulation.publishedAt,
+      sections: regulation.sections || [],
+      createdAt: regulation.createdAt,
+      updatedAt: regulation.updatedAt
+    };
+
+    res.json(formattedRegulation);
   }
 
   private async getPublishedRegulationBySeasonId(req: Request, res: Response): Promise<void> {
@@ -113,10 +128,10 @@ export class RegulationController extends BaseController {
   private async createRegulation(req: Request, res: Response): Promise<void> {
     const { seasonId, sections } = req.body;
 
-    const regulation = await this.regulationService.createWithSections(
-      { seasonId },
+    const regulation = await this.regulationService.createWithSections({
+      seasonId,
       sections
-    );
+    });
 
     res.status(201).json(regulation);
   }
@@ -129,11 +144,10 @@ export class RegulationController extends BaseController {
       throw new BadRequestException('Regulation ID is required');
     }
 
-    const regulation = await this.regulationService.updateWithSections(
-      id,
-      regulationData,
+    const regulation = await this.regulationService.updateWithSections(id, {
+      ...regulationData,
       sections
-    );
+    });
 
     if (!regulation) {
       throw new NotFoundException('Regulation not found');

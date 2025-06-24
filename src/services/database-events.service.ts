@@ -1,8 +1,6 @@
 import { Client } from 'pg';
-import { RedisService } from './redis.service';
+import { DatabaseChangeEventsService } from './database-change-events.service';
 import { redisConfig } from '../config/redis.config';
-import { AppDataSource } from '../config/database.config';
-import { Championship } from '../models/championship.entity';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -17,11 +15,11 @@ export interface DatabaseEvent {
 export class DatabaseEventsService {
   private static instance: DatabaseEventsService;
   private client: Client | null = null;
-  private redisService: RedisService;
+  private databaseChangeEventsService: DatabaseChangeEventsService;
   private isListening = false;
 
   private constructor() {
-    this.redisService = RedisService.getInstance();
+    this.databaseChangeEventsService = DatabaseChangeEventsService.getInstance();
   }
 
   public static getInstance(): DatabaseEventsService {
@@ -31,19 +29,27 @@ export class DatabaseEventsService {
     return DatabaseEventsService.instance;
   }
 
+  /**
+   * Publica um evento de alteração diretamente
+   * Este método é usado pelos serviços quando fazem alterações manuais
+   */
   async publishEvent(event: DatabaseEvent): Promise<boolean> {
     try {
       console.log(`Publishing database event: ${event.operation} on ${event.table}`);
       
-      // Track Championships, Seasons, Categories and Stages tables
-      if (['Championships', 'Seasons', 'Categories', 'Stages'].includes(event.table)) {
-        // Publish the message to Redis
-        const success = await this.redisService.publishMessage(event);
+      // Verifica se a tabela é monitorada
+      if (redisConfig.trackedTables.includes(event.table)) {
+        // Publica o evento usando o novo serviço
+        const success = await this.databaseChangeEventsService.onEntityChange(
+          event.operation,
+          event.table,
+          event.data
+        );
         
         if (success) {
-          console.log('Successfully sent to Redis');
+          console.log('Successfully published to Redis');
         } else {
-          console.error('Failed to send to Redis');
+          console.error('Failed to publish to Redis');
         }
         
         return success;
@@ -56,6 +62,10 @@ export class DatabaseEventsService {
     }
   }
 
+  /**
+   * Inicia o listener do PostgreSQL para capturar triggers de alterações
+   * Este método escuta por notificações do banco e publica eventos no Redis
+   */
   async startListening(): Promise<void> {
     if (this.isListening) {
       console.log('Already listening for database events');
@@ -90,13 +100,17 @@ export class DatabaseEventsService {
             if (redisConfig.trackedTables.includes(payload.table)) {
               console.log(`Received notification for ${payload.table} - ${payload.operation}`);
               
-              // Publish the message to Redis
-              const success = await this.redisService.publishMessage(payload);
+              // Publica o evento usando o novo serviço
+              const success = await this.databaseChangeEventsService.onEntityChange(
+                payload.operation,
+                payload.table,
+                payload.data || payload
+              );
               
               if (success) {
-                console.log('Successfully sent to Redis');
+                console.log('Successfully published to Redis');
               } else {
-                console.error('Failed to send to Redis');
+                console.error('Failed to publish to Redis');
               }
             }
           }
@@ -105,155 +119,45 @@ export class DatabaseEventsService {
         }
       });
 
-      // Subscribe to Redis channel to handle caching
-      await this.redisService.subscribeToChannel(redisConfig.channelName, this.handleDatabaseEvent.bind(this));
-
       this.isListening = true;
-      console.log('Started listening for database events');
+      console.log('Started listening for database events from PostgreSQL triggers');
     } catch (error) {
       console.error('Error setting up database event listener:', error);
     }
   }
 
-  private async handleDatabaseEvent(event: any): Promise<void> {
-    try {
-      console.log(`Processing database event: ${event.operation} on ${event.table}`);
-      
-      if (event.table === 'Championships') {
-        switch (event.operation) {
-          case 'INSERT':
-          case 'UPDATE':
-            // Cache the championship info with image
-            if (event.data && event.data.id) {
-              const championshipRepo = AppDataSource.getRepository(Championship);
-              const fullChampionship = await championshipRepo.findOneBy({ id: event.data.id });
-
-              if (fullChampionship) {
-                await this.redisService.cacheChampionshipBasicInfo(fullChampionship.id, fullChampionship);
-                console.log(`Cached championship info for ID: ${fullChampionship.id}`);
-              }
-            }
-            break;
-          case 'DELETE':
-            // Remove championship from cache and clean up seasons index
-            if (event.data && event.data.id) {
-              await this.redisService.invalidateChampionshipCache(event.data.id);
-              await this.redisService.invalidateChampionshipSeasonsIndex(event.data.id);
-              console.log(`Invalidated cache for championship ID: ${event.data.id}`);
-            }
-            break;
-        }
+  /**
+   * Para o listener do PostgreSQL
+   */
+  async stopListening(): Promise<void> {
+    if (this.client && this.isListening) {
+      try {
+        await this.client.end();
+        this.client = null;
+        this.isListening = false;
+        console.log('Stopped listening for database events');
+      } catch (error) {
+        console.error('Error stopping database event listener:', error);
       }
-
-      if (event.table === 'Seasons') {
-        switch (event.operation) {
-          case 'INSERT':
-          case 'UPDATE':
-            // Cache the season info with championship relationship
-            if (event.data && event.data.id) {
-              const seasonInfo = {
-                id: event.data.id,
-                name: event.data.name,
-                slug: event.data.slug,
-                startDate: event.data.startDate,
-                endDate: event.data.endDate,
-                championshipId: event.data.championshipId,
-                registrationOpen: event.data.registrationOpen
-              };
-              await this.redisService.cacheSeasonBasicInfo(event.data.id, seasonInfo);
-              console.log(`Cached season info for ID: ${event.data.id}, Championship: ${event.data.championshipId}, Registration Open: ${event.data.registrationOpen}`);
-            }
-            break;
-          case 'DELETE':
-            // Remove season from cache and clean up related indexes
-            if (event.data && event.data.id) {
-              await this.redisService.invalidateSeasonCache(event.data.id, event.data.championshipId);
-              await this.redisService.invalidateSeasonIndexes(event.data.id);
-              console.log(`Invalidated cache for season ID: ${event.data.id}`);
-            }
-            break;
-        }
-      }
-
-      if (event.table === 'Categories') {
-        switch (event.operation) {
-          case 'INSERT':
-          case 'UPDATE':
-            // Cache the category info with season relationship
-            if (event.data && event.data.id) {
-              const categoryInfo = {
-                id: event.data.id,
-                name: event.data.name,
-                ballast: event.data.ballast,
-                maxPilots: event.data.maxPilots,
-                minimumAge: event.data.minimumAge,
-                seasonId: event.data.seasonId
-              };
-              await this.redisService.cacheCategoryBasicInfo(event.data.id, categoryInfo);
-              console.log(`Cached category info for ID: ${event.data.id}, Season: ${event.data.seasonId}`);
-            }
-            break;
-          case 'DELETE':
-            // Remove category from cache and season categories index
-            if (event.data && event.data.id) {
-              await this.redisService.invalidateCategoryCache(event.data.id, event.data.seasonId);
-              console.log(`Invalidated cache for category ID: ${event.data.id}`);
-            }
-            break;
-        }
-      }
-
-      if (event.table === 'Stages') {
-        switch (event.operation) {
-          case 'INSERT':
-          case 'UPDATE':
-            // Cache the stage info with season relationship
-            if (event.data && event.data.id) {
-              const stageInfo = {
-                id: event.data.id,
-                name: event.data.name,
-                date: event.data.date,
-                time: event.data.time,
-                kartodrome: event.data.kartodrome,
-                streamLink: event.data.streamLink,
-                briefing: event.data.briefing,
-                seasonId: event.data.seasonId
-              };
-              await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
-              console.log(`Cached stage info for ID: ${event.data.id}, Season: ${event.data.seasonId}`);
-            }
-            break;
-          case 'DELETE':
-            // Remove stage from cache and season stages index
-            if (event.data && event.data.id) {
-              await this.redisService.invalidateStageCache(event.data.id, event.data.seasonId);
-              console.log(`Invalidated cache for stage ID: ${event.data.id}`);
-            }
-            break;
-        }
-      }
-    } catch (error) {
-      console.error('Error handling database event:', error);
     }
   }
 
-  async stopListening(): Promise<void> {
-    if (!this.isListening || !this.client) {
-      return;
-    }
+  /**
+   * Subscreve para receber eventos de alterações do Redis
+   * Usado por outras aplicações que precisam ser notificadas
+   */
+  async subscribeToChanges(callback: (event: any) => void): Promise<boolean> {
+    return this.databaseChangeEventsService.subscribeToEvents(callback);
+  }
 
-    try {
-      // Unlisten
-      this.client.query('UNLISTEN database_events');
-      
-      // End the client connection
-      await this.client.end();
-      this.client = null;
-      this.isListening = false;
-      
-      console.log('Stopped listening for database events');
-    } catch (error) {
-      console.error('Error stopping database event listener:', error);
-    }
+  /**
+   * Método legado para compatibilidade - redireciona para o novo serviço
+   */
+  async onEntityChange(
+    operation: 'INSERT' | 'UPDATE' | 'DELETE',
+    entityName: string,
+    entityData: any
+  ): Promise<void> {
+    await this.databaseChangeEventsService.onEntityChange(operation, entityName, entityData);
   }
 } 

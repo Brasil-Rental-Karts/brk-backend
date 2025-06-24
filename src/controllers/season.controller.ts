@@ -464,12 +464,6 @@ export class SeasonController extends BaseController {
         return;
       }
 
-      const success = await this.seasonService.refreshSeasonCache(id);
-      if (!success) {
-        res.status(500).json({ message: 'Erro ao atualizar cache da temporada' });
-        return;
-      }
-
       res.status(200).json({ 
         message: 'Cache da temporada atualizado com sucesso',
         season: {

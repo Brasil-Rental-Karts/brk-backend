@@ -118,10 +118,33 @@ export class CreateRegulationsTable1750000017000 implements MigrationInterface {
       true,
     );
 
-    // Add indexes for better performance
-    await queryRunner.query(`CREATE INDEX "IDX_Regulations_seasonId" ON "Regulations" ("seasonId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_RegulationSections_regulationId" ON "RegulationSections" ("regulationId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_RegulationSections_order" ON "RegulationSections" ("regulationId", "order")`);
+    // Add indexes for better performance - verificar se já existem
+    const regulationsSeasonIdIndex = await queryRunner.query(`
+      SELECT indexname FROM pg_indexes 
+      WHERE tablename = 'Regulations' AND indexname = 'IDX_Regulations_seasonId'
+    `);
+    
+    if (regulationsSeasonIdIndex.length === 0) {
+      await queryRunner.query(`CREATE INDEX "IDX_Regulations_seasonId" ON "Regulations" ("seasonId")`);
+    }
+
+    const regulationSectionsRegulationIdIndex = await queryRunner.query(`
+      SELECT indexname FROM pg_indexes 
+      WHERE tablename = 'RegulationSections' AND indexname = 'IDX_RegulationSections_regulationId'
+    `);
+    
+    if (regulationSectionsRegulationIdIndex.length === 0) {
+      await queryRunner.query(`CREATE INDEX "IDX_RegulationSections_regulationId" ON "RegulationSections" ("regulationId")`);
+    }
+
+    const regulationSectionsOrderIndex = await queryRunner.query(`
+      SELECT indexname FROM pg_indexes 
+      WHERE tablename = 'RegulationSections' AND indexname = 'IDX_RegulationSections_order'
+    `);
+    
+    if (regulationSectionsOrderIndex.length === 0) {
+      await queryRunner.query(`CREATE INDEX "IDX_RegulationSections_order" ON "RegulationSections" ("regulationId", "order")`);
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

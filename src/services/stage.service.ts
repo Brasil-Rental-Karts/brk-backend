@@ -5,7 +5,7 @@ import { StageParticipation, ParticipationStatus } from '../models/stage-partici
 import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
-import { RedisService } from './redis.service';
+import { DatabaseChangeEventsService } from './database-change-events.service';
 
 export interface StageWithParticipants extends Stage {
   participants?: StageParticipation[];
@@ -24,12 +24,12 @@ export interface StageCacheData {
 export class StageService {
   private stageRepository: Repository<Stage>;
   private participationRepository: Repository<StageParticipation>;
-  private redisService: RedisService;
+  private databaseEventsService: DatabaseChangeEventsService;
 
   constructor() {
     this.stageRepository = AppDataSource.getRepository(Stage);
     this.participationRepository = AppDataSource.getRepository(StageParticipation);
-    this.redisService = RedisService.getInstance();
+    this.databaseEventsService = DatabaseChangeEventsService.getInstance();
   }
 
   /**
@@ -210,6 +210,20 @@ export class StageService {
 
     const savedStage = await this.stageRepository.save(stage);
     
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('INSERT', 'Stage', {
+      id: savedStage.id,
+      name: savedStage.name,
+      date: savedStage.date.toISOString(),
+      time: savedStage.time,
+      kartodrome: savedStage.kartodrome,
+      streamLink: savedStage.streamLink,
+      briefing: savedStage.briefing,
+      briefingTime: savedStage.briefingTime,
+      seasonId: savedStage.seasonId,
+      doublePoints: savedStage.doublePoints
+    });
+    
     return this.formatTimeFields(savedStage);
   }
 
@@ -251,7 +265,19 @@ export class StageService {
     const updatedStage = this.stageRepository.merge(stage, updateData);
     const savedStage = await this.stageRepository.save(updatedStage);
     
-    await this.redisService.invalidateStageCache(id, savedStage.seasonId);
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('UPDATE', 'Stage', {
+      id: savedStage.id,
+      name: savedStage.name,
+      date: savedStage.date.toISOString(),
+      time: savedStage.time,
+      kartodrome: savedStage.kartodrome,
+      streamLink: savedStage.streamLink,
+      briefing: savedStage.briefing,
+      briefingTime: savedStage.briefingTime,
+      seasonId: savedStage.seasonId,
+      doublePoints: savedStage.doublePoints
+    });
 
     return this.formatTimeFields(savedStage);
   }
@@ -266,7 +292,13 @@ export class StageService {
     }
 
     await this.stageRepository.delete(id);
-    await this.redisService.invalidateStageCache(id, stage.seasonId);
+    
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('DELETE', 'Stage', {
+      id: stage.id,
+      name: stage.name,
+      seasonId: stage.seasonId
+    });
   }
 
   /**
@@ -299,5 +331,67 @@ export class StageService {
       .orderBy('stage.date', 'ASC')
       .addOrderBy('stage.time', 'ASC')
       .getOne();
+  }
+
+  /**
+   * Métodos que anteriormente usavam cache agora consultam diretamente o banco
+   */
+  async getStageBasicInfo(id: string): Promise<StageCacheData | null> {
+    try {
+      const stage = await this.findById(id);
+      
+      return {
+        id: stage.id,
+        name: stage.name,
+        date: stage.date,
+        time: stage.time,
+        kartodrome: stage.kartodrome,
+        seasonId: stage.seasonId
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Buscar múltiplas etapas por IDs
+   */
+  async getMultipleStagesBasicInfo(ids: string[]): Promise<StageCacheData[]> {
+    try {
+      const stages = await this.stageRepository.findByIds(ids);
+      
+      return stages.map(stage => ({
+        id: stage.id,
+        name: stage.name,
+        date: stage.date,
+        time: stage.time,
+        kartodrome: stage.kartodrome,
+        seasonId: stage.seasonId
+      }));
+    } catch (error) {
+      console.error('Error getting multiple stages:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Buscar etapas por temporada (substitui consulta de cache)
+   */
+  async getSeasonStages(seasonId: string): Promise<StageCacheData[]> {
+    try {
+      const stages = await this.findBySeasonId(seasonId);
+      
+      return stages.map(stage => ({
+        id: stage.id,
+        name: stage.name,
+        date: stage.date,
+        time: stage.time,
+        kartodrome: stage.kartodrome,
+        seasonId: stage.seasonId
+      }));
+    } catch (error) {
+      console.error('Error getting season stages:', error);
+      return [];
+    }
   }
 }

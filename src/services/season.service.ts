@@ -1,7 +1,7 @@
 import { Season } from '../models/season.entity';
 import { SeasonRepository, PaginatedResult } from '../repositories/season.repository';
 import { BaseService } from './base.service';
-import { RedisService } from './redis.service';
+import { DatabaseChangeEventsService } from './database-change-events.service';
 
 export interface SeasonCacheData {
   id: string;
@@ -13,23 +13,28 @@ export interface SeasonCacheData {
 }
 
 export class SeasonService extends BaseService<Season> {
-  private redisService: RedisService;
+  private databaseEventsService: DatabaseChangeEventsService;
   private seasonRepository: SeasonRepository;
 
   constructor(seasonRepository: SeasonRepository) {
     super(seasonRepository);
+    this.databaseEventsService = DatabaseChangeEventsService.getInstance();
     this.seasonRepository = seasonRepository;
-    this.redisService = RedisService.getInstance();
   }
 
   async create(seasonData: Partial<Season>): Promise<Season> {
     const season = await super.create(seasonData);
     
-    // Adicionar nova temporada ao cache
-    if (season) {
-      await this.redisService.cacheSeasonBasicInfo(season.id, season);
-      console.log(`Nova temporada ${season.id} adicionada ao cache: registrationOpen = ${season.registrationOpen}`);
-    }
+    // Publish database change event
+    await this.databaseEventsService.onEntityChange('INSERT', 'Season', {
+      id: season.id,
+      name: season.name,
+      slug: season.slug,
+      startDate: season.startDate?.toISOString(),
+      endDate: season.endDate?.toISOString(),
+      championshipId: season.championshipId,
+      registrationOpen: season.registrationOpen
+    });
     
     return season;
   }
@@ -37,56 +42,71 @@ export class SeasonService extends BaseService<Season> {
   async update(id: string, seasonData: Partial<Season>): Promise<Season | null> {
     const season = await super.update(id, seasonData);
     
-    // Atualizar cache manualmente se a temporada foi encontrada e atualizada
     if (season) {
-      await this.redisService.cacheSeasonBasicInfo(season.id, season);
-      console.log(`Cache atualizado para temporada ${season.id}: registrationOpen = ${season.registrationOpen}`);
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('UPDATE', 'Season', {
+        id: season.id,
+        name: season.name,
+        slug: season.slug,
+        startDate: season.startDate?.toISOString(),
+        endDate: season.endDate?.toISOString(),
+        championshipId: season.championshipId,
+        registrationOpen: season.registrationOpen
+      });
     }
     
     return season;
   }
 
   async delete(id: string): Promise<boolean> {
-    // Buscar informações da temporada antes de deletar para limpar o cache
     const season = await this.findById(id);
     const result = await super.delete(id);
     
-    // Limpar cache se a temporada foi deletada com sucesso
     if (result && season) {
-      await this.redisService.invalidateSeasonCache(id, season.championshipId);
-      await this.redisService.invalidateSeasonIndexes(id);
-      console.log(`Cache removido para temporada ${id}`);
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('DELETE', 'Season', {
+        id: season.id,
+        name: season.name,
+        championshipId: season.championshipId
+      });
     }
     
     return result;
   }
 
   async findById(id: string): Promise<Season | null> {
-    // Apenas busca no banco, sem interferir no cache
-    const season = await super.findById(id);
-    return season;
+    return super.findById(id);
   }
 
   async findBySlugOrId(slugOrId: string): Promise<Season | null> {
-    // Verifica se é um UUID
-    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
+    // Check if it's a UUID (ID) first
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     
-    if (isUUID) {
-      return await this.findById(slugOrId);
+    if (uuidRegex.test(slugOrId)) {
+      // It's an ID
+      return this.findById(slugOrId);
     } else {
-      return await this.seasonRepository.findBySlug(slugOrId);
+      // It's a slug - query the repository directly
+      return this.seasonRepository['repository'].findOne({
+        where: { slug: slugOrId }
+      });
     }
   }
 
   async findAll(): Promise<Season[]> {
-    // Apenas busca no banco, sem interferir no cache
-    const seasons = await super.findAll();
-    return seasons;
+    return super.findAll();
   }
 
-  async findByChampionshipId(championshipId: string, page: number = 1, limit: number = 10): Promise<PaginatedResult<Season>> {
-    // Apenas busca no banco, sem interferir no cache
-    return await this.seasonRepository.findByChampionshipId(championshipId, page, limit);
+  async findByChampionshipId(championshipId: string, page?: number, limit?: number): Promise<Season[] | PaginatedResult<Season>> {
+    if (page && limit) {
+      // Busca paginada
+      return await this.seasonRepository.findByChampionshipId(championshipId, page, limit);
+    } else {
+      // Busca todas as temporadas
+      return this.seasonRepository['repository'].find({
+        where: { championshipId }
+      });
+    }
   }
 
   async findAllPaginated(page: number = 1, limit: number = 10): Promise<PaginatedResult<Season>> {
@@ -94,71 +114,64 @@ export class SeasonService extends BaseService<Season> {
     return await this.seasonRepository.findAllPaginated(page, limit);
   }
 
-  // Métodos para buscar dados do cache Redis (para API cache)
-  async getSeasonBasicInfo(id: string): Promise<SeasonCacheData | null> {
-    const cachedData = await this.getCachedSeasonData(id);
-    return cachedData;
-  }
-
-  // Buscar todas as temporadas de um campeonato no cache (alta performance)
-  async getChampionshipSeasonsBasicInfo(championshipId: string): Promise<SeasonCacheData[]> {
-    try {
-      // Busca a lista de IDs das seasons do campeonato
-      const seasonIds = await this.redisService.getChampionshipSeasonIds(championshipId);
-      
-      if (!seasonIds || seasonIds.length === 0) {
-        return [];
-      }
-
-      // Busca os dados de todas as seasons em paralelo
-      const seasonsPromises = seasonIds.map(id => this.getCachedSeasonData(id));
-      const seasons = await Promise.all(seasonsPromises);
-      
-      // Filtra apenas as seasons que foram encontradas no cache
-      return seasons.filter(season => season !== null) as SeasonCacheData[];
-    } catch (error) {
-      console.error('Error getting championship seasons from cache:', error);
-      return [];
-    }
-  }
-
-  // Buscar múltiplas temporadas por IDs (alta performance)
-  async getMultipleSeasonsBasicInfo(ids: string[]): Promise<SeasonCacheData[]> {
-    try {
-      // Usa o novo método otimizado com Redis pipeline
-      return await this.redisService.getMultipleSeasonsBasicInfo(ids);
-    } catch (error) {
-      console.error('Error getting multiple seasons from cache:', error);
-      return [];
-    }
-  }
-
-  // Método para forçar atualização do cache de uma temporada específica
-  async refreshSeasonCache(id: string): Promise<boolean> {
-    try {
-      const season = await this.findById(id);
-      if (!season) {
-        console.log(`Temporada ${id} não encontrada para atualização de cache`);
-        return false;
-      }
-
-      await this.redisService.cacheSeasonBasicInfo(season.id, season);
-      console.log(`Cache forçadamente atualizado para temporada ${season.id}: registrationOpen = ${season.registrationOpen}`);
-      return true;
-    } catch (error) {
-      console.error('Error refreshing season cache:', error);
-      return false;
-    }
-  }
-
-  // Métodos privados para cache (usados apenas pelos database events)
-  private async getCachedSeasonData(id: string): Promise<SeasonCacheData | null> {
-    try {
-      const key = `season:${id}`;
-      return await this.redisService.getData(key);
-    } catch (error) {
-      console.error('Error getting cached season data:', error);
+  // Métodos que anteriormente usavam cache agora consultam diretamente o banco
+  async getSeasonBasicInfo(id: string): Promise<any | null> {
+    const season = await this.findById(id);
+    
+    if (!season) {
       return null;
+    }
+    
+    return {
+      id: season.id,
+      name: season.name,
+      slug: season.slug,
+      startDate: season.startDate,
+      endDate: season.endDate,
+      championshipId: season.championshipId,
+      registrationOpen: season.registrationOpen
+    };
+  }
+
+  // Buscar múltiplas temporadas por IDs
+  async getMultipleSeasonsBasicInfo(ids: string[]): Promise<any[]> {
+    try {
+      const seasons = await this.seasonRepository['repository'].findByIds(ids);
+      
+      return seasons.map(season => ({
+        id: season.id,
+        name: season.name,
+        slug: season.slug,
+        startDate: season.startDate,
+        endDate: season.endDate,
+        championshipId: season.championshipId,
+        registrationOpen: season.registrationOpen
+      }));
+    } catch (error) {
+      console.error('Error getting multiple seasons:', error);
+      return [];
+    }
+  }
+
+  // Buscar temporadas por campeonato (substitui consulta de cache)
+  async getChampionshipSeasons(championshipId: string): Promise<any[]> {
+    try {
+      const seasons = await this.seasonRepository['repository'].find({
+        where: { championshipId }
+      });
+      
+      return seasons.map(season => ({
+        id: season.id,
+        name: season.name,
+        slug: season.slug,
+        startDate: season.startDate,
+        endDate: season.endDate,
+        championshipId: season.championshipId,
+        registrationOpen: season.registrationOpen
+      }));
+    } catch (error) {
+      console.error('Error getting championship seasons:', error);
+      return [];
     }
   }
 } 
