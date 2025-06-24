@@ -54,6 +54,11 @@ export class RegulationService extends BaseService<Regulation> {
     // Clear cache when updating
     if (regulation) {
       await this.clearRegulationCache(regulation.seasonId);
+      
+      // If regulation is published, update the cache with new data
+      if (regulation.status === RegulationStatus.PUBLISHED) {
+        await this.cachePublishedRegulation(regulation);
+      }
     }
     
     return regulation;
@@ -64,9 +69,14 @@ export class RegulationService extends BaseService<Regulation> {
     
     // Clear cache when reordering
     if (result) {
-      const regulation = await this.findById(regulationId);
+      const regulation = await this.findByIdWithSections(regulationId);
       if (regulation) {
         await this.clearRegulationCache(regulation.seasonId);
+        
+        // If regulation is published, update the cache with new data
+        if (regulation.status === RegulationStatus.PUBLISHED) {
+          await this.cachePublishedRegulation(regulation);
+        }
       }
     }
     
