@@ -12,4 +12,6 @@ export * from './category.entity';
 export * from './grid-type.entity';
 export * from './scoring-system.entity';
 export * from './stage.entity';
-export * from './stage-participation.entity'; 
+export * from './stage-participation.entity';
+export { Regulation, RegulationStatus } from './regulation.entity';
+export { RegulationSection } from './regulation-section.entity'; 
