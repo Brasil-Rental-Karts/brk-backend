@@ -7,6 +7,7 @@ import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { SeasonService } from '../services/season.service';
+import { getDocumentType, removeDocumentMask } from '../utils/document.util';
 
 /**
  * @swagger
@@ -33,7 +34,7 @@ import { SeasonService } from '../services/season.service';
  *           minItems: 1
  *         paymentMethod:
  *           type: string
-          *           enum: [pix, cartao_credito]
+ *           enum: [pix, cartao_credito]
  *           description: Método de pagamento desejado
  *         userDocument:
  *           type: string
@@ -491,6 +492,12 @@ export class SeasonRegistrationController extends BaseController {
       const validPaymentMethods = ['pix', 'cartao_credito'];
       if (!validPaymentMethods.includes(paymentMethod)) {
         throw new BadRequestException('Método de pagamento inválido');
+      }
+
+      // Validar se o documento é um CPF válido
+      const documentType = getDocumentType(userDocument);
+      if (documentType !== 'CPF') {
+        throw new BadRequestException('Apenas CPF é aceito para inscrições. CNPJ não é permitido.');
       }
 
       const registrationData: CreateRegistrationData = {
