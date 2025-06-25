@@ -344,6 +344,34 @@ export class SeasonRegistrationController extends BaseController {
      *                   type: object
      */
     this.router.get('/championship/:championshipId/split-status', authMiddleware, this.checkChampionshipSplitStatus.bind(this));
+
+    /**
+     * @swagger
+     * /season-registrations/category/{categoryId}/count:
+     *   get:
+     *     summary: Contar inscrições confirmadas de uma categoria
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: categoryId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Número de inscrições confirmadas na categoria
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 count:
+     *                   type: number
+     */
+    this.router.get('/category/:categoryId/count', authMiddleware, this.getCategoryRegistrationCount.bind(this));
   }
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
@@ -654,6 +682,24 @@ export class SeasonRegistrationController extends BaseController {
       console.error('Error syncing payment status:', error);
       res.status(error instanceof NotFoundException ? 404 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async getCategoryRegistrationCount(req: Request, res: Response): Promise<void> {
+    try {
+      const { categoryId } = req.params;
+      
+      const count = await this.registrationService.countRegistrationsByCategory(categoryId);
+      
+      res.json({
+        message: 'Número de inscrições confirmadas na categoria recuperado com sucesso',
+        data: { count }
+      });
+    } catch (error) {
+      console.error('Error getting category registration count:', error);
+      res.status(500).json({
+        message: 'Erro interno do servidor ao contar inscrições'
       });
     }
   }

@@ -564,6 +564,20 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Conta inscrições por categoria
+   */
+  async countRegistrationsByCategory(categoryId: string): Promise<number> {
+    const result = await this.registrationCategoryRepository
+      .createQueryBuilder('regCategory')
+      .innerJoin('regCategory.registration', 'registration')
+      .where('regCategory.categoryId = :categoryId', { categoryId })
+      .andWhere('registration.status = :status', { status: RegistrationStatus.CONFIRMED })
+      .getCount();
+    
+    return result;
+  }
+
+  /**
    * Processa webhook do Asaas para atualizar status de pagamento
    */
   async processAsaasWebhook(webhookData: any): Promise<void> {
