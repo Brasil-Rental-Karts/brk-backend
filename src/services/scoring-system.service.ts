@@ -6,22 +6,18 @@ import { BadRequestException } from '../exceptions/bad-request.exception';
 
 export interface CreateScoringSystemDto {
   name: string;
-  description?: string;
   positions: Array<{ position: number; points: number }>;
   polePositionPoints?: number;
   fastestLapPoints?: number;
-  leaderLapPoints?: number;
   isActive?: boolean;
   isDefault?: boolean;
 }
 
 export interface UpdateScoringSystemDto {
   name?: string;
-  description?: string;
   positions?: Array<{ position: number; points: number }>;
   polePositionPoints?: number;
   fastestLapPoints?: number;
-  leaderLapPoints?: number;
   isActive?: boolean;
   isDefault?: boolean;
 }
@@ -76,8 +72,7 @@ export class ScoringSystemService {
       isActive: data.isActive !== undefined ? data.isActive : true,
       isDefault: data.isDefault || false,
       polePositionPoints: data.polePositionPoints || 0,
-      fastestLapPoints: data.fastestLapPoints || 0,
-      leaderLapPoints: data.leaderLapPoints || 0
+      fastestLapPoints: data.fastestLapPoints || 0
     });
 
     return this.scoringSystemRepository.save(scoringSystem);
@@ -213,7 +208,6 @@ export class ScoringSystemService {
     const predefinedSystems = [
       {
         name: 'Kart Brasileiro',
-        description: 'Sistema tradicional brasileiro: 20-17-15-13-11-10-9-8-7-6-5-4-3-2-1 pontos',
         positions: [
           { position: 1, points: 20 },
           { position: 2, points: 17 },
@@ -241,8 +235,7 @@ export class ScoringSystemService {
       this.scoringSystemRepository.create({
         ...data,
         championshipId,
-        isActive: true, // Sempre ativo por padrão
-        leaderLapPoints: 0 // Default
+        isActive: true // Sempre ativo por padrão
       })
     );
 

@@ -27,9 +27,6 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *           type: string
  *           maxLength: 100
  *           description: Nome do sistema de pontuação
- *         description:
- *           type: string
- *           description: Descrição do sistema de pontuação
  *         positions:
  *           type: array
  *           items:
@@ -52,11 +49,6 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *           minimum: 0
  *           default: 0
  *           description: Pontos extras para volta mais rápida
- *         leaderLapPoints:
- *           type: number
- *           minimum: 0
- *           default: 0
- *           description: Pontos extras por volta liderada
  *         isActive:
  *           type: boolean
  *           default: true
@@ -174,8 +166,6 @@ export class ScoringSystemController extends BaseController {
      *               name:
      *                 type: string
      *                 maxLength: 100
-     *               description:
-     *                 type: string
      *               positions:
      *                 type: array
      *                 items:
@@ -191,9 +181,6 @@ export class ScoringSystemController extends BaseController {
      *                 type: number
      *                 minimum: 0
      *               fastestLapPoints:
-     *                 type: number
-     *                 minimum: 0
-     *               leaderLapPoints:
      *                 type: number
      *                 minimum: 0
      *               isActive:
@@ -241,8 +228,6 @@ export class ScoringSystemController extends BaseController {
      *               name:
      *                 type: string
      *                 maxLength: 100
-     *               description:
-     *                 type: string
      *               positions:
      *                 type: array
      *                 items:
@@ -258,9 +243,6 @@ export class ScoringSystemController extends BaseController {
      *                 type: number
      *                 minimum: 0
      *               fastestLapPoints:
-     *                 type: number
-     *                 minimum: 0
-     *               leaderLapPoints:
      *                 type: number
      *                 minimum: 0
      *               isActive:

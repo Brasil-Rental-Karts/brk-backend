@@ -12,20 +12,14 @@ export class ScoringSystem extends BaseEntity {
   @Column({ length: 100, nullable: false })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  description: string;
-
   @Column({ type: 'jsonb', nullable: false })
   positions: ScoringPosition[];
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'int', default: 0 })
   polePositionPoints: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'int', default: 0 })
   fastestLapPoints: number;
-
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
-  leaderLapPoints: number;
 
   @Column({ default: true })
   isActive: boolean;
