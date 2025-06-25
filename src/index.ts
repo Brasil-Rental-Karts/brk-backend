@@ -101,7 +101,7 @@ AppDataSource.initialize()
       new ChampionshipController(championshipService, userService, authService, memberProfileService, championshipStaffService, seasonRegistrationService),
       new ChampionshipStaffController(championshipStaffService),
       new MemberProfileController(memberProfileService),
-      new SeasonController(seasonService, championshipStaffService),
+      new SeasonController(seasonService, championshipStaffService, championshipService),
       new VipPreregisterController(vipPreregisterService),
       new CategoryController(categoryService, championshipStaffService, seasonService),
       new GridTypeController(championshipStaffService),

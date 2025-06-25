@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { SeasonService } from '../services/season.service';
+import { ChampionshipService } from '../services/championship.service';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { Season, SeasonStatus, InscriptionType, PaymentMethod } from '../models/season.entity';
 import { UserRole } from '../models/user.entity';
@@ -95,7 +96,8 @@ import { ChampionshipStaffService } from '../services/championship-staff.service
 export class SeasonController extends BaseController {
   constructor(
     private seasonService: SeasonService,
-    private championshipStaffService: ChampionshipStaffService
+    private championshipStaffService: ChampionshipStaffService,
+    private championshipService: ChampionshipService
   ) {
     super('/seasons');
     this.initializeRoutes();
@@ -336,13 +338,29 @@ export class SeasonController extends BaseController {
         return;
       }
 
+      // Verificar se as inscrições estão abertas e se o Wallet ID está configurado
+      const registrationOpen = req.body.registrationOpen !== undefined ? req.body.registrationOpen : true;
+      if (registrationOpen) {
+        const championship = await this.championshipService.findById(championshipId);
+        if (!championship) {
+          throw new NotFoundException('Campeonato não encontrado');
+        }
+
+        if (championship.splitEnabled && !championship.asaasWalletId) {
+          throw new BadRequestException(
+            'Não é possível criar uma temporada com inscrições abertas sem configurar o Wallet ID do Asaas. ' +
+            'Configure a conta Asaas em Configurações > Conta Asaas.'
+          );
+        }
+      }
+
       const seasonData: Partial<Season> = {
         name: req.body.name,
         description: req.body.description,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
         status: req.body.status || SeasonStatus.AGENDADO,
-        registrationOpen: req.body.registrationOpen !== undefined ? req.body.registrationOpen : true,
+        registrationOpen: registrationOpen,
         inscriptionValue: parseFloat(req.body.inscriptionValue),
         inscriptionType: req.body.inscriptionType,
         paymentMethods: req.body.paymentMethods,
@@ -381,6 +399,21 @@ export class SeasonController extends BaseController {
           details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
         });
         return;
+      }
+
+      // Verificar se está tentando abrir as inscrições e se o Wallet ID está configurado
+      if (req.body.registrationOpen === true && !existingSeason.registrationOpen) {
+        const championship = await this.championshipService.findById(existingSeason.championshipId);
+        if (!championship) {
+          throw new NotFoundException('Campeonato não encontrado');
+        }
+
+        if (championship.splitEnabled && !championship.asaasWalletId) {
+          throw new BadRequestException(
+            'Não é possível abrir as inscrições sem configurar o Wallet ID do Asaas. ' +
+            'Configure a conta Asaas em Configurações > Conta Asaas.'
+          );
+        }
       }
 
       const seasonData: Partial<Season> = {};

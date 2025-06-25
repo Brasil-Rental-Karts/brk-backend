@@ -99,9 +99,6 @@ export class Championship extends BaseEntity {
 
   // Dados do Asaas para Split Payment
   @Column({ length: 255, nullable: true })
-  asaasCustomerId: string;
-
-  @Column({ length: 255, nullable: true })
   asaasWalletId: string;
 
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 10.00 })

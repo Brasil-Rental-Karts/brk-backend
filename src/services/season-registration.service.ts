@@ -135,7 +135,7 @@ export class SeasonRegistrationService {
 
     // Verificar se o split payment está configurado corretamente
     if (championship.splitEnabled && !championship.asaasWalletId) {
-      throw new BadRequestException('Campeonato com split habilitado deve ter uma subconta Asaas configurada. Entre em contato com o organizador do campeonato.');
+      throw new BadRequestException('Campeonato com split habilitado deve ter um Wallet ID configurado. Entre em contato com o organizador do campeonato.');
     }
 
     // Verificar se já existe uma inscrição para este usuário nesta temporada
@@ -495,10 +495,6 @@ export class SeasonRegistrationService {
     const errors: string[] = [];
 
     if (championship.splitEnabled) {
-      if (!championship.asaasCustomerId) {
-        errors.push('Subconta Asaas não configurada (asaasCustomerId ausente)');
-      }
-      
       if (!championship.asaasWalletId) {
         errors.push('Wallet ID não configurado (asaasWalletId ausente)');
       }
@@ -769,7 +765,7 @@ export class SeasonRegistrationService {
           registrationId: localPayment.registrationId,
           billingType: localPayment.billingType,
           value: localPayment.value,
-          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate instanceof Date ? localPayment.dueDate : new Date(localPayment.dueDate)),
           status: localPayment.status,
           installmentNumber: asaasPayment.installmentNumber,
           installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
@@ -791,7 +787,7 @@ export class SeasonRegistrationService {
           registrationId: localPayment.registrationId,
           billingType: localPayment.billingType,
           value: localPayment.value,
-          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate instanceof Date ? localPayment.dueDate : new Date(localPayment.dueDate)),
           status: localPayment.status,
           installmentNumber: (localPayment.rawResponse as any)?.installmentNumber,
           installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
@@ -912,7 +908,7 @@ export class SeasonRegistrationService {
           registrationId: localPayment.registrationId,
           billingType: localPayment.billingType,
           value: localPayment.value,
-          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate instanceof Date ? localPayment.dueDate : new Date(localPayment.dueDate)),
           status: localPayment.status,
           installmentNumber: asaasPayment.installmentNumber,
           installmentCount: asaasInstallmentPayments.length,

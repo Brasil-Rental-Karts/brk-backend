@@ -127,9 +127,6 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *               website:
  *                 type: string
  *           description: Lista de patrocinadores
- *         asaasCustomerId:
- *           type: string
- *           description: ID do cliente/subconta no Asaas
  *         asaasWalletId:
  *           type: string
  *           description: ID da carteira (wallet) no Asaas para split payment
@@ -311,28 +308,25 @@ export class ChampionshipController extends BaseController {
      *                 type: integer
      *                 enum: [0, 1]
      *               document:
- *                 type: string
- *                 maxLength: 18
- *               socialReason:
- *                 type: string
- *                 maxLength: 255
- *               cep:
- *                 type: string
- *                 maxLength: 9
- *               state:
- *                 type: string
- *                 maxLength: 2
- *               city:
- *                 type: string
- *                 maxLength: 100
- *               fullAddress:
- *                 type: string
- *               number:
- *                 type: string
- *                 maxLength: 10
- *               complement:
- *                 type: string
- *                 maxLength: 100
+     *                 type: string
+     *                 maxLength: 18
+     *               socialReason:
+     *                 type: string
+     *                 maxLength: 255
+     *               cep:
+     *                 type: string
+     *                 maxLength: 9
+     *               state:
+     *                 type: string
+     *                 maxLength: 2
+     *               city:
+     *                 type: string
+     *                 maxLength: 100
+     *               fullAddress:
+     *                 type: string
+     *               number:
+     *                 type: string
+     *                 maxLength: 10
  *               isResponsible:
  *                 type: boolean
  *               responsibleName:
@@ -458,10 +452,10 @@ export class ChampionshipController extends BaseController {
 
     /**
      * @swagger
-     * /championships/{id}/create-asaas-account:
-     *   post:
-     *     summary: Verificar/Criar subconta Asaas manualmente
-     *     description: Verifica se já existe uma subconta Asaas (por CPF/CNPJ ou e-mail) e vincula a conta existente, ou cria uma nova subconta se não existir
+     * /championships/{id}/asaas-status:
+     *   get:
+     *     summary: Verifica o status da configuração Asaas do campeonato
+     *     description: Permite verificar o status da configuração Asaas. Acessível pelo owner do campeonato ou usuários com role Administrator/Manager.
      *     tags: [Championships]
      *     security:
      *       - bearerAuth: []
@@ -475,45 +469,38 @@ export class ChampionshipController extends BaseController {
      *         description: ID do campeonato
      *     responses:
      *       200:
-     *         description: Subconta Asaas criada ou vinculada com sucesso
+     *         description: Status da configuração Asaas
      *         content:
      *           application/json:
      *             schema:
      *               type: object
      *               properties:
-     *                 message:
+     *                 championshipId:
      *                   type: string
-     *                   description: Mensagem indicando se foi criação ou vinculação
-     *                 asaasCustomerId:
-     *                   type: string
+     *                 splitEnabled:
+     *                   type: boolean
      *                 asaasWalletId:
      *                   type: string
-     *                 wasExisting:
+     *                   nullable: true
+     *                 configured:
      *                   type: boolean
-     *                   description: Indica se a conta já existia
-     *                 foundBy:
+     *                 document:
      *                   type: string
-     *                   enum: [cpfCnpj, email]
-     *                   description: Método usado para encontrar conta existente (apenas se wasExisting=true)
-     *                 updatedFields:
-     *                   type: array
-     *                   items:
-     *                     type: string
-     *                   description: Lista de campos do championship que foram atualizados com dados da conta existente (apenas se wasExisting=true)
-     *       400:
-     *         description: Erro na criação da subconta (dados inválidos, split desabilitado, etc.)
+     *                 personType:
+     *                   type: number
+     *       403:
+     *         description: Usuário sem permissão (apenas owner, Administrator ou Manager)
      *       404:
      *         description: Campeonato não encontrado
-     *       500:
-     *         description: Erro interno do servidor
      */
-    this.router.post('/:id/create-asaas-account', authMiddleware, this.createAsaasAccount.bind(this));
+    this.router.get('/:id/asaas-status', authMiddleware, this.checkAsaasStatus.bind(this));
 
     /**
      * @swagger
-     * /championships/{id}/retry-asaas-setup:
-     *   post:
-     *     summary: Força a configuração da subconta Asaas para o campeonato
+     * /championships/{id}/asaas-wallet:
+     *   put:
+     *     summary: Atualiza o Wallet ID do Asaas para o campeonato
+     *     description: Permite atualizar o Wallet ID do Asaas para habilitar o split de pagamentos. Acessível pelo owner do campeonato ou usuários com role Administrator/Manager.
      *     tags: [Championships]
      *     security:
      *       - bearerAuth: []
@@ -525,15 +512,27 @@ export class ChampionshipController extends BaseController {
      *           type: string
      *           format: uuid
      *         description: ID do campeonato
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - walletId
+     *             properties:
+     *               walletId:
+     *                 type: string
+     *                 description: Wallet ID da conta Asaas
      *     responses:
      *       200:
-     *         description: Subconta configurada com sucesso
+     *         description: Wallet ID atualizado com sucesso
      *         content:
      *           application/json:
      *             schema:
      *               $ref: '#/components/schemas/Championship'
      *       400:
-     *         description: Erro de validação ou campeonato já configurado
+     *         description: Dados inválidos ou split desabilitado
      *       401:
      *         description: Token não fornecido ou inválido
      *       403:
@@ -543,55 +542,7 @@ export class ChampionshipController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/:id/retry-asaas-setup', authMiddleware, this.retryAsaasSetup.bind(this));
-
-    /**
-        * @swagger
-   * /championships/{id}/asaas-status:
-   *   get:
-   *     summary: Verifica o status da configuração Asaas do campeonato
-   *     description: Permite verificar o status da configuração Asaas. Acessível pelo owner do campeonato ou usuários com role Administrator/Manager.
-   *     tags: [Championships]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *           format: uuid
-   *         description: ID do campeonato
-   *     responses:
-   *       200:
-   *         description: Status da configuração Asaas
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 championshipId:
-   *                   type: string
-   *                 splitEnabled:
-   *                   type: boolean
-   *                 asaasCustomerId:
-   *                   type: string
-   *                   nullable: true
-   *                 asaasWalletId:
-   *                   type: string
-   *                   nullable: true
-   *                 configured:
-   *                   type: boolean
-   *                 canRetry:
-   *                   type: boolean
-   *                 document:
-   *                   type: string
-   *       403:
-   *         description: Usuário sem permissão (apenas owner, Administrator ou Manager)
-   *       404:
-   *         description: Campeonato não encontrado
-     */
-    this.router.get('/:id/asaas-status', authMiddleware, this.checkAsaasStatus.bind(this));
+    this.router.put('/:id/asaas-wallet', authMiddleware, this.updateAsaasWallet.bind(this));
   }
 
   private async getAllChampionships(req: Request, res: Response): Promise<void> {
@@ -988,111 +939,6 @@ export class ChampionshipController extends BaseController {
       + '-' + Date.now().toString(36); // Adiciona timestamp para garantir unicidade
   }
 
-  private async createAsaasAccount(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-      const userId = (req as any).user.id;
-
-      // Verifica se o campeonato existe
-      const championship = await this.championshipService.findById(id);
-      if (!championship) {
-        res.status(404).json({ message: 'Campeonato não encontrado' });
-        return;
-      }
-
-      // Verifica se o usuário tem permissão para gerenciar este campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
-      if (!hasPermission) {
-        res.status(403).json({ message: 'Você não tem permissão para configurar este campeonato' });
-        return;
-      }
-
-      // Cria/vincula a subconta Asaas
-      const { championship: updatedChampionship, wasExisting, foundBy, updatedFields } = await this.championshipService.createAsaasSubAccount(id);
-
-      if (updatedChampionship && updatedChampionship.asaasCustomerId && updatedChampionship.asaasWalletId) {
-        let message = wasExisting 
-          ? `Conta Asaas vinculada com sucesso! Foi encontrada uma conta existente ${foundBy === 'cpfCnpj' ? 'pelo CPF/CNPJ' : 'pelo e-mail'} informado.`
-          : 'Subconta Asaas criada com sucesso';
-        
-        // Adicionar informação sobre campos atualizados se houver
-        if (wasExisting && updatedFields && updatedFields.length > 0) {
-          message += ` Os seguintes campos foram atualizados com os dados da conta existente: ${updatedFields.join(', ')}.`;
-        }
-        
-        res.json({
-          message,
-          asaasCustomerId: updatedChampionship.asaasCustomerId,
-          asaasWalletId: updatedChampionship.asaasWalletId,
-          wasExisting,
-          foundBy,
-          updatedFields: wasExisting ? updatedFields : undefined
-        });
-      } else {
-        res.status(500).json({ message: 'Erro ao criar subconta Asaas' });
-      }
-    } catch (error: any) {
-      console.error('Error creating Asaas account:', error);
-      
-      if (error.message.includes('não encontrado') || error.message.includes('not found')) {
-        res.status(404).json({ message: error.message });
-      } else if (error.message.includes('não está habilitado') || error.message.includes('obrigatório')) {
-        res.status(400).json({ message: error.message });
-      } else if (error instanceof BadRequestException || error.status === 400) {
-        res.status(400).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: 'Erro interno do servidor ao criar subconta Asaas' });
-      }
-    }
-  }
-
-  private async retryAsaasSetup(req: Request, res: Response): Promise<void> {
-    try {
-      const championshipId = req.params.id;
-      const userId = (req as any).user.id;
-      const userRole = (req as any).user.role;
-
-      // Verifica se o campeonato existe
-      const championship = await this.championshipService.findById(championshipId);
-      if (!championship) {
-        res.status(404).json({ message: 'Campeonato não encontrado' });
-        return;
-      }
-
-      // Verifica se o usuário tem permissão para gerenciar este campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
-      if (!hasPermission) {
-        res.status(403).json({ message: 'Você não tem permissão para configurar este campeonato' });
-        return;
-      }
-
-      console.log(`[CHAMPIONSHIP] Forçando configuração da subconta Asaas para campeonato: ${championshipId}`);
-      console.log(`[CHAMPIONSHIP] Dados atuais - asaasCustomerId: ${championship.asaasCustomerId}, asaasWalletId: ${championship.asaasWalletId}`);
-
-      // Força a configuração da subconta
-      const updatedChampionship = await this.championshipService.retryAsaasSubAccountSetup(championshipId);
-
-      res.json({
-        message: 'Subconta configurada com sucesso',
-        championship: updatedChampionship
-      });
-    } catch (error: any) {
-      console.error('Error in retryAsaasSetup:', error);
-      
-      if (error.message === 'Campeonato não encontrado') {
-        res.status(404).json({ message: error.message });
-      } else if (error.message === 'Split payment não está habilitado para este campeonato') {
-        res.status(400).json({ message: error.message });
-      } else if (error.message.includes('Subconta já configurada')) {
-        res.status(400).json({ message: error.message });
-      } else if (error instanceof BadRequestException || error.status === 400) {
-        res.status(400).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: 'Erro interno do servidor ao configurar subconta' });
-      }
-    }
-  }
-
   private async checkAsaasStatus(req: Request, res: Response): Promise<void> {
     try {
       const championshipId = req.params.id;
@@ -1112,22 +958,54 @@ export class ChampionshipController extends BaseController {
         return;
       }
 
-      const isConfigured = !!(championship.asaasCustomerId && championship.asaasWalletId);
-      const canRetry = championship.splitEnabled && championship.document && !isConfigured;
+      const status = await this.championshipService.getAsaasStatus(championshipId);
 
-      res.json({
-        championshipId: championship.id,
-        splitEnabled: championship.splitEnabled,
-        asaasCustomerId: championship.asaasCustomerId,
-        asaasWalletId: championship.asaasWalletId,
-        configured: isConfigured,
-        canRetry: canRetry,
-        document: championship.document,
-        personType: championship.personType
-      });
+      res.json(status);
     } catch (error: any) {
       console.error('Error checking Asaas status:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+  }
+
+  private async updateAsaasWallet(req: Request, res: Response): Promise<void> {
+    try {
+      const championshipId = req.params.id;
+      const userId = (req as any).user.id;
+      const { walletId } = req.body;
+
+      // Verifica se o campeonato existe
+      const championship = await this.championshipService.findById(championshipId);
+      if (!championship) {
+        res.status(404).json({ message: 'Campeonato não encontrado' });
+        return;
+      }
+
+      // Verifica se o usuário tem permissão para gerenciar este campeonato
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      if (!hasPermission) {
+        res.status(403).json({ message: 'Você não tem permissão para acessar este campeonato' });
+        return;
+      }
+
+      // Verifica se o split está habilitado
+      if (!championship.splitEnabled) {
+        res.status(400).json({ message: 'Split payment não está habilitado para este campeonato' });
+        return;
+      }
+
+      // Verifica se o Wallet ID é válido
+      if (!walletId || walletId.trim().length === 0) {
+        res.status(400).json({ message: 'Wallet ID é obrigatório' });
+        return;
+      }
+
+      // Atualiza o Wallet ID
+      const updatedChampionship = await this.championshipService.updateAsaasWalletId(championshipId, walletId);
+
+      res.json(updatedChampionship);
+    } catch (error: any) {
+      console.error('Error updating Asaas wallet:', error);
+      res.status(500).json({ message: 'Erro interno do servidor ao atualizar Wallet ID' });
     }
   }
 } 
