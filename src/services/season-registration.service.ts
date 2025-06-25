@@ -1300,4 +1300,40 @@ export class SeasonRegistrationService {
       throw error;
     }
   }
+
+  /**
+   * Busca detalhes completos do piloto inscrito
+   */
+  async getPilotDetails(registrationId: string): Promise<{
+    registration: SeasonRegistration;
+    user: User;
+    profile: any;
+    payments: RegistrationPaymentData[];
+  } | null> {
+    // Buscar a inscrição com todas as relações
+    const registration = await this.registrationRepository.findOne({
+      where: { id: registrationId },
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'payments']
+    });
+
+    if (!registration) {
+      return null;
+    }
+
+    // Buscar o perfil completo do usuário
+    const memberProfileRepository = AppDataSource.getRepository('MemberProfiles');
+    const profile = await memberProfileRepository.findOne({
+      where: { id: registration.userId }
+    });
+
+    // Buscar dados de pagamento
+    const paymentData = await this.getPaymentData(registrationId);
+
+    return {
+      registration,
+      user: registration.user,
+      profile: profile || null,
+      payments: paymentData || []
+    };
+  }
 } 

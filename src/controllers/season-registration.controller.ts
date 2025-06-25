@@ -414,6 +414,55 @@ export class SeasonRegistrationController extends BaseController {
      *         description: Inscrição não encontrada
      */
     this.router.put('/:id/categories', authMiddleware, this.updateRegistrationCategories.bind(this));
+
+    /**
+     * @swagger
+     * /season-registrations/{id}/pilot-details:
+     *   get:
+     *     summary: Buscar detalhes completos do piloto inscrito
+     *     description: Retorna todos os dados do piloto incluindo perfil completo, informações de inscrição e pagamento
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da inscrição
+     *     responses:
+     *       200:
+     *         description: Detalhes do piloto encontrados
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     registration:
+     *                       type: object
+     *                       description: Dados da inscrição
+     *                     user:
+     *                       type: object
+     *                       description: Dados básicos do usuário
+     *                     profile:
+     *                       type: object
+     *                       description: Perfil completo do piloto
+     *                     payments:
+     *                       type: array
+     *                       description: Histórico de pagamentos
+     *       403:
+     *         description: Sem permissão para acessar estes dados
+     *       404:
+     *         description: Inscrição não encontrada
+     */
+    this.router.get('/:id/pilot-details', authMiddleware, this.getPilotDetails.bind(this));
   }
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
@@ -792,6 +841,42 @@ export class SeasonRegistrationController extends BaseController {
     } catch (error) {
       console.error('Error updating registration categories:', error);
       res.status(error instanceof BadRequestException ? 400 : 500).json({
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async getPilotDetails(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      
+      // Verificar se a inscrição existe e se o usuário tem permissão
+      const registration = await this.registrationService.findById(id);
+      if (!registration) {
+        throw new NotFoundException('Inscrição não encontrada');
+      }
+
+      if (registration.userId !== req.user!.id && 
+          ![UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role)) {
+        res.status(403).json({
+          message: 'Sem permissão para acessar detalhes do piloto inscrito'
+        });
+        return;
+      }
+
+      const pilotDetails = await this.registrationService.getPilotDetails(id);
+
+      if (!pilotDetails) {
+        throw new NotFoundException('Detalhes do piloto não encontrados');
+      }
+
+      res.json({
+        message: 'Detalhes do piloto encontrados',
+        data: pilotDetails
+      });
+    } catch (error) {
+      console.error('Error getting pilot details:', error);
+      res.status(error instanceof NotFoundException ? 404 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
     }
