@@ -364,20 +364,20 @@ export class AsaasService {
   }
 
   /**
-   * Cria um parcelamento (carnê) no Asaas
-   * Para PIX parcelado, usa o endpoint /installments que cria um carnê
+   * Cria um parcelamento no Asaas
+   * Para PIX parcelado, usa o endpoint /installments que cria um parcelamento
    * onde todas as parcelas são PIX
    */
   async createInstallmentPlan(paymentData: AsaasInstallment): Promise<AsaasInstallmentResponse> {
     try {
-      console.log('[ASAAS] Criando carnê (installment plan) com dados:', paymentData);
+      console.log('[ASAAS] Criando Parcelamento (installment plan) com dados:', paymentData);
       
       const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.post(
         '/installments',
         paymentData
       );
       
-      console.log('[ASAAS] Carnê criado com sucesso. ID:', response.data.id);
+      console.log('[ASAAS] Parcelamento criado com sucesso. ID:', response.data.id);
       console.log('[ASAAS] Plano de parcelamento:', response.data);
       
       return response.data;

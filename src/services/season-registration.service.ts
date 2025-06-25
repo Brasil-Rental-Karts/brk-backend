@@ -213,7 +213,7 @@ export class SeasonRegistrationService {
       let asaasPaymentResponse: any;
 
       if (isInstallment && asaasBillingType === 'PIX') {
-        // --- PIX Parcelado: usar endpoint /installments (cria carnê) ---
+        // --- PIX Parcelado: usar endpoint /installments (cria parcelamento) ---
         const installmentPayload: any = {
           customer: asaasCustomer.id!,
           billingType: asaasBillingType,
@@ -438,6 +438,9 @@ export class SeasonRegistrationService {
         }
 
         savedAsaasPayment = await this.paymentRepository.save(asaasPayment);
+        
+        // Atualizar o status da inscrição após criar o pagamento
+        await this.updateSeasonRegistrationStatus(savedRegistration.id);
       }
 
         const paymentData: RegistrationPaymentData = {
@@ -606,44 +609,11 @@ export class SeasonRegistrationService {
       asaasPayment.clientPaymentDate = new Date(payment.clientPaymentDate);
     }
 
-    // Atualizar status da inscrição baseado no evento
-    const registration = asaasPayment.registration;
-
-    switch (event) {
-      case 'PAYMENT_RECEIVED':
-      case 'PAYMENT_CONFIRMED':
-        registration.paymentStatus = PaymentStatus.PAID;
-        registration.status = RegistrationStatus.CONFIRMED;
-        registration.paymentDate = new Date(payment.paymentDate || payment.clientPaymentDate);
-        registration.confirmedAt = new Date();
-        break;
-
-      case 'PAYMENT_OVERDUE':
-        registration.paymentStatus = PaymentStatus.FAILED;
-        registration.status = RegistrationStatus.EXPIRED;
-        break;
-
-      case 'PAYMENT_DELETED':
-        registration.paymentStatus = PaymentStatus.CANCELLED;
-        registration.status = RegistrationStatus.CANCELLED;
-        registration.cancelledAt = new Date();
-        registration.cancellationReason = 'Pagamento cancelado via Asaas';
-        break;
-
-      case 'PAYMENT_REFUNDED':
-        registration.paymentStatus = PaymentStatus.REFUNDED;
-        registration.status = RegistrationStatus.CANCELLED;
-        registration.cancelledAt = new Date();
-        registration.cancellationReason = 'Pagamento estornado';
-        break;
-
-      default:
-        console.log(`Evento não tratado: ${event}`);
-    }
-
-    // Salvar alterações
+    // Salvar as alterações do pagamento
     await this.paymentRepository.save(asaasPayment);
-    await this.registrationRepository.save(registration);
+
+    // Atualizar o status da inscrição usando a nova lógica
+    await this.updateSeasonRegistrationStatus(asaasPayment.registrationId);
 
     console.log(`Processado webhook para pagamento ${payment.id}, evento: ${event}, status: ${payment.status}`);
   }
@@ -673,6 +643,9 @@ export class SeasonRegistrationService {
         await this.asaasService.cancelPayment(asaasPayment.asaasPaymentId);
         asaasPayment.status = AsaasPaymentStatus.PENDING; // Status será atualizado via webhook
         await this.paymentRepository.save(asaasPayment);
+        
+        // Atualizar o status da inscrição após cancelar o pagamento
+        await this.updateSeasonRegistrationStatus(registrationId);
       } catch (error) {
         console.warn('Erro ao cancelar pagamento no Asaas:', error);
       }
@@ -754,6 +727,10 @@ export class SeasonRegistrationService {
           
           // Salvar as mudanças
           await this.paymentRepository.save(localPayment);
+          
+          // Atualizar o status da inscrição após atualizar o pagamento
+          await this.updateSeasonRegistrationStatus(localPayment.registrationId);
+          
           console.log(`Pagamento ${localPayment.asaasPaymentId} atualizado com sucesso`);
         } else {
           console.log(`Status inalterado para pagamento ${localPayment.asaasPaymentId}`);
@@ -803,6 +780,10 @@ export class SeasonRegistrationService {
     }
 
     console.log(`=== SYNC CONCLUÍDO - ${updatedPayments.length} pagamentos sincronizados ===`);
+    
+    // Atualizar o status da inscrição após sincronizar todos os pagamentos
+    await this.updateSeasonRegistrationStatus(registrationId);
+    
     return updatedPayments;
   }
 
@@ -870,6 +851,10 @@ export class SeasonRegistrationService {
           }
           
           localPayment = await this.paymentRepository.save(localPayment);
+          
+          // Atualizar o status da inscrição após criar nova parcela
+          await this.updateSeasonRegistrationStatus(registrationId);
+          
           console.log(`Nova parcela criada no banco local: ${localPayment.id}`);
           
         } else {
@@ -898,6 +883,10 @@ export class SeasonRegistrationService {
             }
             
             localPayment = await this.paymentRepository.save(localPayment);
+            
+            // Atualizar o status da inscrição após atualizar parcela existente
+            await this.updateSeasonRegistrationStatus(registrationId);
+            
             console.log(`Parcela atualizada: ${localPayment.id}`);
           }
         }
@@ -923,6 +912,10 @@ export class SeasonRegistrationService {
       }
       
       console.log(`=== PLANO PIX SINCRONIZADO - ${updatedPayments.length} parcelas processadas ===`);
+      
+      // Atualizar o status da inscrição após sincronizar todas as parcelas
+      await this.updateSeasonRegistrationStatus(registrationId);
+      
       return updatedPayments.sort((a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0));
       
     } catch (error) {
@@ -1063,6 +1056,9 @@ export class SeasonRegistrationService {
         
         await this.paymentRepository.save(asaasPayment);
         
+        // Atualizar o status da inscrição após salvar cada parcela
+        await this.updateSeasonRegistrationStatus(registrationId);
+        
         console.log(`Parcela ${payment.installmentNumber || 'N/A'} salva:`, {
           id: payment.id,
           installmentNumber: payment.installmentNumber,
@@ -1074,8 +1070,233 @@ export class SeasonRegistrationService {
       }
       
       console.log(`=== TODAS AS ${installmentPayments.length} PARCELAS SALVAS COM SUCESSO ===`);
+      
+      // Atualizar o status da inscrição após salvar todas as parcelas
+      await this.updateSeasonRegistrationStatus(registrationId);
+      
     } catch (error) {
       console.error('Erro ao salvar parcelas do installment plan:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Atualiza as categorias de uma inscrição
+   * Mantém a mesma quantidade de categorias que o piloto se inscreveu originalmente
+   */
+  async updateRegistrationCategories(registrationId: string, newCategoryIds: string[]): Promise<SeasonRegistration> {
+    const registration = await this.findById(registrationId);
+    if (!registration) {
+      throw new NotFoundException('Inscrição não encontrada');
+    }
+
+    // Verificar se a inscrição pode ser alterada
+    if (registration.status === RegistrationStatus.CANCELLED || registration.status === RegistrationStatus.EXPIRED) {
+      throw new BadRequestException('Não é possível alterar categorias de uma inscrição cancelada ou expirada');
+    }
+
+    // Verificar se a quantidade de categorias é a mesma
+    const currentCategoryCount = registration.categories?.length || 0;
+    if (newCategoryIds.length !== currentCategoryCount) {
+      throw new BadRequestException(`A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${newCategoryIds.length}`);
+    }
+
+    // Verificar se as novas categorias existem e pertencem à temporada
+    const categories = await this.categoryRepository.find({
+      where: { 
+        id: In(newCategoryIds),
+        seasonId: registration.seasonId
+      }
+    });
+
+    if (categories.length !== newCategoryIds.length) {
+      throw new BadRequestException('Uma ou mais categorias são inválidas ou não pertencem a esta temporada');
+    }
+
+    // Remover categorias atuais
+    if (registration.categories && registration.categories.length > 0) {
+      await this.registrationCategoryRepository.delete({
+        registrationId: registrationId
+      });
+    }
+
+    // Adicionar novas categorias
+    const registrationCategories = categories.map(category => 
+      this.registrationCategoryRepository.create({
+        registrationId: registrationId,
+        categoryId: category.id
+      })
+    );
+    
+    await this.registrationCategoryRepository.save(registrationCategories);
+
+    // Buscar a inscrição atualizada com as novas categorias
+    const updatedRegistration = await this.findById(registrationId);
+    if (!updatedRegistration) {
+      throw new NotFoundException('Erro ao atualizar inscrição');
+    }
+
+    return updatedRegistration;
+  }
+
+  /**
+   * Atualiza o status da SeasonRegistration baseado nos status dos pagamentos
+   * Este método é chamado sempre que um pagamento é criado ou atualizado
+   */
+  private async updateSeasonRegistrationStatus(registrationId: string): Promise<void> {
+    try {
+      console.log(`[UPDATE REGISTRATION STATUS] Atualizando status da inscrição ${registrationId}`);
+      
+      // Buscar todos os pagamentos da inscrição
+      const payments = await this.paymentRepository.find({
+        where: { registrationId },
+        order: { dueDate: 'ASC' }
+      });
+
+      if (!payments || payments.length === 0) {
+        console.log(`[UPDATE REGISTRATION STATUS] Nenhum pagamento encontrado para inscrição ${registrationId}`);
+        return;
+      }
+
+      // Buscar a inscrição
+      const registration = await this.registrationRepository.findOne({
+        where: { id: registrationId }
+      });
+
+      if (!registration) {
+        console.error(`[UPDATE REGISTRATION STATUS] Inscrição ${registrationId} não encontrada`);
+        return;
+      }
+
+      // Calcular totais e verificar status
+      let totalPayments = 0;
+      let totalPaid = 0;
+      let allPaymentsPaid = true;
+      let anyPaymentFailed = false;
+      let anyPaymentCancelled = false;
+      let anyPaymentRefunded = false;
+
+      for (const payment of payments) {
+        totalPayments += payment.value;
+
+        // Verificar se todos os pagamentos estão pagos
+        if (!['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status)) {
+          allPaymentsPaid = false;
+        }
+
+        // Verificar se algum pagamento falhou
+        if (['OVERDUE', 'AWAITING_RISK_ANALYSIS'].includes(payment.status)) {
+          anyPaymentFailed = true;
+        }
+
+        // Verificar se algum pagamento foi cancelado
+        if (['REFUND_REQUESTED', 'REFUND_IN_PROGRESS'].includes(payment.status)) {
+          anyPaymentCancelled = true;
+        }
+
+        // Verificar se algum pagamento foi reembolsado
+        if (payment.status === 'REFUNDED') {
+          anyPaymentRefunded = true;
+        }
+
+        // Somar valores pagos
+        if (['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status)) {
+          totalPaid += payment.value;
+        }
+      }
+
+      console.log(`[UPDATE REGISTRATION STATUS] Análise dos pagamentos:`, {
+        totalPayments,
+        totalPaid,
+        allPaymentsPaid,
+        anyPaymentFailed,
+        anyPaymentCancelled,
+        anyPaymentRefunded,
+        paymentCount: payments.length
+      });
+
+      // Determinar o novo status baseado na análise
+      let newPaymentStatus: PaymentStatus;
+      let newRegistrationStatus: RegistrationStatus;
+      let paymentDate: Date | null = null;
+      let confirmedAt: Date | null = null;
+      let cancelledAt: Date | null = null;
+      let cancellationReason: string | null = null;
+
+      if (anyPaymentRefunded) {
+        // Se algum pagamento foi reembolsado
+        newPaymentStatus = PaymentStatus.REFUNDED;
+        newRegistrationStatus = RegistrationStatus.CANCELLED;
+        cancelledAt = new Date();
+        cancellationReason = 'Pagamento reembolsado';
+      } else if (anyPaymentCancelled) {
+        // Se algum pagamento foi cancelado
+        newPaymentStatus = PaymentStatus.CANCELLED;
+        newRegistrationStatus = RegistrationStatus.CANCELLED;
+        cancelledAt = new Date();
+        cancellationReason = 'Pagamento cancelado';
+      } else if (anyPaymentFailed) {
+        // Se algum pagamento falhou
+        newPaymentStatus = PaymentStatus.FAILED;
+        newRegistrationStatus = RegistrationStatus.PAYMENT_PENDING;
+      } else if (allPaymentsPaid && totalPaid >= totalPayments) {
+        // Se todos os pagamentos estão pagos e o valor total foi pago
+        newPaymentStatus = PaymentStatus.PAID;
+        newRegistrationStatus = RegistrationStatus.CONFIRMED;
+        paymentDate = new Date();
+        confirmedAt = new Date();
+      } else if (totalPaid > 0 && totalPaid < totalPayments) {
+        // Se parte do valor foi pago (pagamento parcial)
+        newPaymentStatus = PaymentStatus.PROCESSING;
+        newRegistrationStatus = RegistrationStatus.PAYMENT_PENDING;
+      } else {
+        // Caso padrão: pagamento pendente
+        newPaymentStatus = PaymentStatus.PENDING;
+        newRegistrationStatus = RegistrationStatus.PAYMENT_PENDING;
+      }
+
+      // Verificar se houve mudança de status
+      const statusChanged = 
+        registration.paymentStatus !== newPaymentStatus ||
+        registration.status !== newRegistrationStatus;
+
+      if (statusChanged) {
+        console.log(`[UPDATE REGISTRATION STATUS] Status alterado:`, {
+          oldPaymentStatus: registration.paymentStatus,
+          newPaymentStatus,
+          oldRegistrationStatus: registration.status,
+          newRegistrationStatus
+        });
+
+        // Atualizar a inscrição
+        registration.paymentStatus = newPaymentStatus;
+        registration.status = newRegistrationStatus;
+        
+        if (paymentDate) {
+          registration.paymentDate = paymentDate;
+        }
+        
+        if (confirmedAt) {
+          registration.confirmedAt = confirmedAt;
+        }
+        
+        if (cancelledAt) {
+          registration.cancelledAt = cancelledAt;
+        }
+        
+        if (cancellationReason) {
+          registration.cancellationReason = cancellationReason;
+        }
+
+        registration.updatedAt = new Date();
+
+        await this.registrationRepository.save(registration);
+        console.log(`[UPDATE REGISTRATION STATUS] Inscrição ${registrationId} atualizada com sucesso`);
+      } else {
+        console.log(`[UPDATE REGISTRATION STATUS] Nenhuma mudança de status necessária para inscrição ${registrationId}`);
+      }
+    } catch (error) {
+      console.error(`[UPDATE REGISTRATION STATUS] Erro ao atualizar status da inscrição ${registrationId}:`, error);
       throw error;
     }
   }

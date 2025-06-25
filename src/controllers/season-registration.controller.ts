@@ -372,6 +372,48 @@ export class SeasonRegistrationController extends BaseController {
      *                   type: number
      */
     this.router.get('/category/:categoryId/count', authMiddleware, this.getCategoryRegistrationCount.bind(this));
+
+    /**
+     * @swagger
+     * /season-registrations/{id}/categories:
+     *   put:
+     *     summary: Atualizar categorias de uma inscrição (apenas organizadores/staff)
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - categoryIds
+     *             properties:
+     *               categoryIds:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                   format: uuid
+     *                 description: IDs das novas categorias (mesma quantidade da inscrição original)
+     *     responses:
+     *       200:
+     *         description: Categorias atualizadas com sucesso
+     *       400:
+     *         description: Quantidade de categorias diferente ou dados inválidos
+     *       403:
+     *         description: Usuário não tem permissão para alterar esta inscrição
+     *       404:
+     *         description: Inscrição não encontrada
+     */
+    this.router.put('/:id/categories', authMiddleware, this.updateRegistrationCategories.bind(this));
   }
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
@@ -700,6 +742,57 @@ export class SeasonRegistrationController extends BaseController {
       console.error('Error getting category registration count:', error);
       res.status(500).json({
         message: 'Erro interno do servidor ao contar inscrições'
+      });
+    }
+  }
+
+  private async updateRegistrationCategories(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { categoryIds } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ message: 'Usuário não autenticado' });
+        return;
+      }
+
+      if (!categoryIds || !Array.isArray(categoryIds)) {
+        throw new BadRequestException('Dados de categorias inválidos');
+      }
+
+      // Buscar a inscrição para verificar a quantidade atual de categorias
+      const registration = await this.registrationService.findById(id);
+      if (!registration) {
+        res.status(404).json({ message: 'Inscrição não encontrada' });
+        return;
+      }
+
+      const currentCategoryCount = registration.categories?.length || 0;
+      if (categoryIds.length !== currentCategoryCount) {
+        throw new BadRequestException(`A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${categoryIds.length}`);
+      }
+
+      // Verificar se o usuário tem permissão (é owner ou staff do campeonato)
+      const championshipId = registration.season.championshipId;
+      const isOwner = registration.season.championship.ownerId === userId;
+      const isStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+
+      if (!isOwner && !isStaff) {
+        res.status(403).json({ message: 'Usuário não tem permissão para alterar esta inscrição' });
+        return;
+      }
+
+      const updatedRegistration = await this.registrationService.updateRegistrationCategories(id, categoryIds);
+
+      res.json({
+        message: 'Categorias atualizadas com sucesso',
+        data: updatedRegistration
+      });
+    } catch (error) {
+      console.error('Error updating registration categories:', error);
+      res.status(error instanceof BadRequestException ? 400 : 500).json({
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
     }
   }
