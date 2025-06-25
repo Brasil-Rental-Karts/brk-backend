@@ -97,9 +97,16 @@ export class StageService {
    * Buscar etapas por temporada
    */
   async findBySeasonId(seasonId: string): Promise<Stage[]> {
+    console.log('🔍 [STAGE SERVICE] Buscando etapas no banco para seasonId:', seasonId);
+    
     const stages = await this.stageRepository.find({
       where: { seasonId },
       order: { date: 'ASC', time: 'ASC' }
+    });
+    
+    console.log('✅ [STAGE SERVICE] Etapas encontradas no banco:', {
+      count: stages.length,
+      stages: stages.map(s => ({ id: s.id, name: s.name, date: s.date, seasonId: s.seasonId }))
     });
     
     return stages.map(stage => this.formatTimeFields(stage));

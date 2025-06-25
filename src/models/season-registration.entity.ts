@@ -3,6 +3,7 @@ import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
 import { Season } from './season.entity';
 import { SeasonRegistrationCategory } from './season-registration-category.entity';
+import { SeasonRegistrationStage } from './season-registration-stage.entity';
 import { AsaasPayment } from './asaas-payment.entity';
 
 export enum RegistrationStatus {
@@ -74,6 +75,9 @@ export class SeasonRegistration extends BaseEntity {
 
   @OneToMany(() => SeasonRegistrationCategory, regCategory => regCategory.registration)
   categories: SeasonRegistrationCategory[];
+
+  @OneToMany(() => SeasonRegistrationStage, regStage => regStage.registration)
+  stages: SeasonRegistrationStage[];
 
   @OneToMany(() => AsaasPayment, payment => payment.registration)
   payments: AsaasPayment[];

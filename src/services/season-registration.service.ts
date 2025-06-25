@@ -6,7 +6,9 @@ import { User } from '../models/user.entity';
 import { Season } from '../models/season.entity';
 import { Championship } from '../models/championship.entity';
 import { Category } from '../models/category.entity';
+import { Stage } from '../models/stage.entity';
 import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
+import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
 import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from './asaas.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
@@ -16,6 +18,7 @@ export interface CreateRegistrationData {
   userId: string;
   seasonId: string;
   categoryIds: string[]; // Array de IDs das categorias selecionadas
+  stageIds?: string[]; // Array de IDs das etapas selecionadas (opcional)
   paymentMethod: 'pix' | 'cartao_credito';
   userDocument: string; // CPF/CNPJ do usuário (obrigatório)
   installments?: number;
@@ -44,7 +47,9 @@ export class SeasonRegistrationService {
   private seasonRepository: Repository<Season>;
   private championshipRepository: Repository<Championship>;
   private categoryRepository: Repository<Category>;
+  private stageRepository: Repository<Stage>;
   private registrationCategoryRepository: Repository<SeasonRegistrationCategory>;
+  private registrationStageRepository: Repository<SeasonRegistrationStage>;
   private asaasService: AsaasService;
 
   constructor() {
@@ -54,7 +59,9 @@ export class SeasonRegistrationService {
     this.seasonRepository = AppDataSource.getRepository(Season);
     this.championshipRepository = AppDataSource.getRepository(Championship);
     this.categoryRepository = AppDataSource.getRepository(Category);
+    this.stageRepository = AppDataSource.getRepository(Stage);
     this.registrationCategoryRepository = AppDataSource.getRepository(SeasonRegistrationCategory);
+    this.registrationStageRepository = AppDataSource.getRepository(SeasonRegistrationStage);
     this.asaasService = new AsaasService();
   }
 
@@ -66,7 +73,10 @@ export class SeasonRegistrationService {
     paymentData: RegistrationPaymentData;
   }> {
     console.log('=== DADOS RECEBIDOS NO BACKEND ===');
-    console.log('data:', data);
+    console.log('data:', JSON.stringify(data, null, 2));
+    console.log('data.stageIds:', data.stageIds);
+    console.log('data.stageIds type:', typeof data.stageIds);
+    console.log('data.stageIds length:', data.stageIds?.length || 0);
     console.log('data.installments:', data.installments);
     console.log('data.paymentMethod:', data.paymentMethod);
     
@@ -155,8 +165,54 @@ export class SeasonRegistrationService {
       throw new BadRequestException(`Método de pagamento ${data.paymentMethod} não aceito para esta temporada`);
     }
 
-    // Calcular o valor total baseado na quantidade de categorias
-    const totalAmount = Number(season.inscriptionValue) * categories.length;
+    // Buscar etapas se for inscrição por etapa
+    let stages: Stage[] = [];
+    console.log('🔍 [BACKEND] Verificando se é inscrição por etapa:', {
+      seasonInscriptionType: season.inscriptionType,
+      hasStageIds: !!data.stageIds,
+      stageIdsLength: data.stageIds?.length || 0,
+      stageIds: data.stageIds
+    });
+    
+    if (season.inscriptionType === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
+      console.log('🔍 [BACKEND] Buscando etapas para inscrição por etapa:', {
+        stageIds: data.stageIds,
+        seasonId: data.seasonId
+      });
+      
+      stages = await this.stageRepository.find({
+        where: { 
+          id: In(data.stageIds),
+          seasonId: data.seasonId
+        }
+      });
+
+      console.log('✅ [BACKEND] Etapas encontradas:', {
+        requestedCount: data.stageIds.length,
+        foundCount: stages.length,
+        stages: stages.map(s => ({ id: s.id, name: s.name, date: s.date }))
+      });
+
+      if (stages.length !== data.stageIds.length) {
+        throw new BadRequestException('Uma ou mais etapas são inválidas ou não pertencem a esta temporada');
+      }
+    } else {
+      console.log('📋 [BACKEND] Não é inscrição por etapa ou não há etapas selecionadas:', {
+        inscriptionType: season.inscriptionType,
+        hasStageIds: !!data.stageIds,
+        stageIdsCount: data.stageIds?.length || 0
+      });
+    }
+
+    // Calcular o valor total baseado no tipo de inscrição
+    let totalAmount: number;
+    if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
+      // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
+      totalAmount = Number(season.inscriptionValue) * categories.length * stages.length;
+    } else {
+      // Por temporada: quantidade de categorias x valor da inscrição
+      totalAmount = Number(season.inscriptionValue) * categories.length;
+    }
 
     // Criar a inscrição no banco
     const registration = this.registrationRepository.create({
@@ -179,6 +235,54 @@ export class SeasonRegistrationService {
     );
     
     await this.registrationCategoryRepository.save(registrationCategories);
+
+    // Salvar as etapas selecionadas (se for inscrição por etapa)
+    console.log('💾 [BACKEND] Verificando se deve salvar etapas:', {
+      seasonInscriptionType: season.inscriptionType,
+      stagesLength: stages.length,
+      condition1: season.inscriptionType === 'por_etapa',
+      condition2: stages.length > 0,
+      shouldSave: season.inscriptionType === 'por_etapa' && stages.length > 0
+    });
+    
+    if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
+      console.log('💾 [BACKEND] Salvando etapas na tabela seasonregistrationstages:', {
+        registrationId: savedRegistration.id,
+        stagesCount: stages.length,
+        stages: stages.map(s => ({ id: s.id, name: s.name }))
+      });
+      
+      const registrationStages = stages.map(stage => 
+        this.registrationStageRepository.create({
+          registrationId: savedRegistration.id,
+          stageId: stage.id
+        })
+      );
+      
+      console.log('📝 [BACKEND] Objetos de registrationStages criados:', {
+        count: registrationStages.length,
+        registrationStages: registrationStages.map(rs => ({ 
+          registrationId: rs.registrationId, 
+          stageId: rs.stageId 
+        }))
+      });
+      
+      const savedRegistrationStages = await this.registrationStageRepository.save(registrationStages);
+      
+      console.log('✅ [BACKEND] Etapas salvas com sucesso:', {
+        savedCount: savedRegistrationStages.length,
+        savedStages: savedRegistrationStages.map(rs => ({ 
+          id: rs.id,
+          registrationId: rs.registrationId, 
+          stageId: rs.stageId 
+        }))
+      });
+    } else {
+      console.log('📋 [BACKEND] Não salvando etapas:', {
+        inscriptionType: season.inscriptionType,
+        stagesLength: stages.length
+      });
+    }
 
     try {
       // Criar ou atualizar cliente no Asaas
@@ -203,7 +307,7 @@ export class SeasonRegistrationService {
       }
 
       const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 1);
+      dueDate.setDate(dueDate.getDate() + 7); // 7 dias de vencimento para PIX
 
       const categoriesNames = categories.map(c => c.name).join(', ');
       const description = `Inscrição de ${user.name} na temporada: ${season.name} - Categorias: ${categoriesNames}`;
@@ -515,13 +619,24 @@ export class SeasonRegistrationService {
   }
 
   /**
-   * Busca uma inscrição por ID
+   * Buscar inscrição por ID
    */
   async findById(id: string): Promise<SeasonRegistration | null> {
-    return await this.registrationRepository.findOne({
+    console.log(`[DEBUG] Buscando inscrição ${id} com relacionamentos...`);
+    
+    const registration = await this.registrationRepository.findOne({
       where: { id },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category']
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage']
     });
+
+    console.log(`[DEBUG] Inscrição encontrada:`, {
+      id: registration?.id,
+      hasStages: !!registration?.stages,
+      stagesCount: registration?.stages?.length || 0,
+      stages: registration?.stages?.map(s => ({ id: s.id, stageId: s.stageId, stageName: s.stage?.name }))
+    });
+
+    return registration;
   }
 
   /**
@@ -530,7 +645,7 @@ export class SeasonRegistrationService {
   async findByUserId(userId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { userId },
-      relations: ['season', 'season.championship', 'categories', 'categories.category'],
+      relations: ['season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage'],
       order: { createdAt: 'DESC' }
     });
   }
@@ -541,24 +656,19 @@ export class SeasonRegistrationService {
   async findBySeasonId(seasonId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { seasonId },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category'],
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
       order: { createdAt: 'DESC' }
     });
   }
 
   /**
-   * Lista todas as inscrições de um campeonato (busca por todas as temporadas do campeonato)
+   * Lista inscrições de um campeonato
    */
   async findByChampionshipId(championshipId: string): Promise<SeasonRegistration[]> {
-    const seasons = await this.seasonRepository.find({ where: { championshipId }, select: ['id'] });
-    if (!seasons.length) {
-      return [];
-    }
-
-    const seasonIds = seasons.map(s => s.id);
     return await this.registrationRepository.find({
-      where: { seasonId: In(seasonIds) },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'payments'],
+      where: { season: { championshipId } },
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
+      order: { createdAt: 'DESC' }
     });
   }
 

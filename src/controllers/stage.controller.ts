@@ -482,9 +482,17 @@ export class StageController extends BaseController {
   private async getStagesBySeasonId(req: Request, res: Response): Promise<void> {
     try {
       const { seasonId } = req.params;
+      console.log('🔍 [STAGE CONTROLLER] Buscando etapas para temporada:', seasonId);
+      
       const stages = await this.stageService.findBySeasonId(seasonId);
+      console.log('✅ [STAGE CONTROLLER] Etapas encontradas:', {
+        count: stages.length,
+        stages: stages.map(s => ({ id: s.id, name: s.name, date: s.date }))
+      });
+      
       res.json(stages);
     } catch (error: any) {
+      console.error('❌ [STAGE CONTROLLER] Erro ao buscar etapas:', error);
       res.status(500).json({ message: error.message });
     }
   }

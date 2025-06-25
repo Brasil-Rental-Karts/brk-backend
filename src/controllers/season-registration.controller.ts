@@ -467,8 +467,17 @@ export class SeasonRegistrationController extends BaseController {
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
     try {
-      const { seasonId, categoryIds, paymentMethod, userDocument, installments } = req.body;
+      const { seasonId, categoryIds, stageIds, paymentMethod, userDocument, installments } = req.body;
       const userId = req.user!.id;
+
+      console.log('🔍 [CONTROLLER] Dados recebidos no controller:', {
+        seasonId,
+        categoryIds,
+        stageIds,
+        paymentMethod,
+        userDocument,
+        installments
+      });
 
       // Validar dados de entrada
       if (!seasonId || !paymentMethod || !categoryIds || !userDocument) {
@@ -488,10 +497,13 @@ export class SeasonRegistrationController extends BaseController {
         userId,
         seasonId,
         categoryIds,
+        stageIds,
         paymentMethod,
         userDocument,
         installments
       };
+
+      console.log('📤 [CONTROLLER] Dados enviados para o serviço:', registrationData);
 
       const result = await this.registrationService.createRegistration(registrationData);
 
@@ -499,9 +511,9 @@ export class SeasonRegistrationController extends BaseController {
         message: 'Inscrição criada com sucesso',
         data: result
       });
-          } catch (error) {
-        console.error('Error creating registration:', error);
-        res.status(error instanceof BadRequestException ? 400 : 500).json({
+    } catch (error) {
+      console.error('Error creating registration:', error);
+      res.status(error instanceof BadRequestException ? 400 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
     }
