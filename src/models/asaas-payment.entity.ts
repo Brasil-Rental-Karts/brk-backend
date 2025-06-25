@@ -59,8 +59,9 @@ export class AsaasPayment extends BaseEntity {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   netValue: number;
 
-  @Column({ type: 'date', nullable: false })
-  dueDate: Date;
+  @Column({ type: 'varchar', length: 10, nullable: false })
+  // Data de vencimento no formato YYYY-MM-DD (data local, não UTC)
+  dueDate: string;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

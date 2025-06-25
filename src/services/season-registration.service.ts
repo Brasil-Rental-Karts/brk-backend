@@ -362,6 +362,26 @@ export class SeasonRegistrationService {
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 7); // 7 dias de vencimento para PIX
+      
+      // Garantir que o vencimento seja exatamente 7 dias, considerando timezone
+      // O Asaas pode estar interpretando a data de forma diferente, então vamos ser mais específicos
+      const now = new Date();
+      const sevenDaysFromNow = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+      // Definir o horário para 23:59:59 para garantir que seja o último momento do dia
+      sevenDaysFromNow.setHours(23, 59, 59, 999);
+      
+      console.log('=== CONFIGURAÇÃO DE VENCIMENTO PIX ===');
+      console.log('Data atual:', now.toISOString());
+      console.log('Vencimento calculado (7 dias):', sevenDaysFromNow.toISOString());
+      console.log('Vencimento formatado para Asaas:', this.asaasService.formatDateForAsaas(sevenDaysFromNow));
+      
+      // Verificar se o cálculo está correto
+      const diffInDays = Math.floor((sevenDaysFromNow.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      console.log('Diferença em dias calculada:', diffInDays);
+      
+      if (diffInDays !== 7) {
+        console.warn('⚠️ [FRONTEND] Diferença em dias não é exatamente 7:', diffInDays);
+      }
 
       const categoriesNames = categories.map(c => c.name).join(', ');
       const description = `Inscrição de ${user.name} na temporada: ${season.name} - Categorias: ${categoriesNames}`;
@@ -377,7 +397,7 @@ export class SeasonRegistrationService {
           billingType: asaasBillingType,
           totalValue: totalAmount,
           installmentCount: data.installments,
-          dueDate: this.asaasService.formatDateForAsaas(dueDate),
+          dueDate: this.asaasService.formatDateForAsaas(sevenDaysFromNow),
           description: description,
           externalReference: savedRegistration.id,
         };
@@ -480,7 +500,7 @@ export class SeasonRegistrationService {
         const paymentPayload: any = {
           customer: asaasCustomer.id!,
           billingType: asaasBillingType,
-          dueDate: this.asaasService.formatDateForAsaas(dueDate),
+          dueDate: this.asaasService.formatDateForAsaas(sevenDaysFromNow),
           description: description,
           externalReference: savedRegistration.id,
         };
@@ -543,7 +563,7 @@ export class SeasonRegistrationService {
         asaasPayment.status = asaasPaymentResponse.status as AsaasPaymentStatus;
         asaasPayment.value = asaasPaymentResponse.value;
         asaasPayment.netValue = asaasPaymentResponse.netValue;
-        asaasPayment.dueDate = new Date(asaasPaymentResponse.dueDate);
+        asaasPayment.dueDate = asaasPaymentResponse.dueDate;
         asaasPayment.description = asaasPaymentResponse.description || null;
         asaasPayment.invoiceUrl = asaasPaymentResponse.invoiceUrl || null;
         asaasPayment.bankSlipUrl = asaasPaymentResponse.bankSlipUrl || null;
@@ -570,7 +590,7 @@ export class SeasonRegistrationService {
           registrationId: savedRegistration.id,
           billingType: asaasBillingType,
           value: asaasPaymentResponse.value, // Usar o valor da resposta (150 para PIX parcelado, totalAmount para outros)
-          dueDate: this.asaasService.formatDateForAsaas(dueDate),
+          dueDate: this.asaasService.formatDateForAsaas(sevenDaysFromNow),
           status: asaasPaymentResponse.status,
           installmentNumber: asaasPaymentResponse.installmentNumber,
           installmentCount: isInstallment ? data.installments : null,
@@ -870,7 +890,7 @@ export class SeasonRegistrationService {
           registrationId: localPayment.registrationId,
           billingType: localPayment.billingType,
           value: localPayment.value,
-          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate instanceof Date ? localPayment.dueDate : new Date(localPayment.dueDate)),
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
           status: localPayment.status,
           installmentNumber: asaasPayment.installmentNumber,
           installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
@@ -892,7 +912,7 @@ export class SeasonRegistrationService {
           registrationId: localPayment.registrationId,
           billingType: localPayment.billingType,
           value: localPayment.value,
-          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate instanceof Date ? localPayment.dueDate : new Date(localPayment.dueDate)),
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
           status: localPayment.status,
           installmentNumber: (localPayment.rawResponse as any)?.installmentNumber,
           installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
@@ -949,7 +969,7 @@ export class SeasonRegistrationService {
           localPayment.status = asaasPayment.status as AsaasPaymentStatus;
           localPayment.value = asaasPayment.value;
           localPayment.netValue = asaasPayment.netValue;
-          localPayment.dueDate = new Date(asaasPayment.dueDate);
+          localPayment.dueDate = asaasPayment.dueDate;
           localPayment.description = asaasPayment.description;
           localPayment.invoiceUrl = asaasPayment.invoiceUrl;
           localPayment.bankSlipUrl = asaasPayment.bankSlipUrl;
@@ -1025,7 +1045,7 @@ export class SeasonRegistrationService {
           registrationId: localPayment.registrationId,
           billingType: localPayment.billingType,
           value: localPayment.value,
-          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate instanceof Date ? localPayment.dueDate : new Date(localPayment.dueDate)),
+          dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
           status: localPayment.status,
           installmentNumber: asaasPayment.installmentNumber,
           installmentCount: asaasInstallmentPayments.length,
@@ -1067,15 +1087,7 @@ export class SeasonRegistrationService {
 
     const paymentData = payments.map(p => {
       // Garantir que dueDate seja um objeto Date válido
-      let formattedDueDate: string;
-      try {
-        const dueDate = p.dueDate instanceof Date ? p.dueDate : new Date(p.dueDate);
-        formattedDueDate = this.asaasService.formatDateForAsaas(dueDate);
-      } catch (error) {
-        console.error('Erro ao formatar dueDate:', error, 'Valor original:', p.dueDate);
-        // Fallback: usar a data como string se não conseguir converter
-        formattedDueDate = typeof p.dueDate === 'string' ? p.dueDate : new Date().toISOString().split('T')[0];
-      }
+      let formattedDueDate: string = typeof p.dueDate === 'string' ? p.dueDate : this.asaasService.formatDateForAsaas(p.dueDate);
 
       return {
         id: p.id,
@@ -1167,7 +1179,7 @@ export class SeasonRegistrationService {
         asaasPayment.status = payment.status as AsaasPaymentStatus;
         asaasPayment.value = payment.value;
         asaasPayment.netValue = payment.netValue;
-        asaasPayment.dueDate = new Date(payment.dueDate);
+        asaasPayment.dueDate = payment.dueDate;
         asaasPayment.description = payment.description || null;
         asaasPayment.invoiceUrl = payment.invoiceUrl || null;
         asaasPayment.bankSlipUrl = payment.bankSlipUrl || null;

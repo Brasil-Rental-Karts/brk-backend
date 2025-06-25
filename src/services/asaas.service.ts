@@ -253,10 +253,28 @@ export class AsaasService {
    */
   async createPayment(paymentData: AsaasPayment): Promise<AsaasPaymentResponse> {
     try {
+      console.log('[ASAAS] Criando pagamento com dados:', {
+        customer: paymentData.customer,
+        billingType: paymentData.billingType,
+        value: paymentData.value,
+        dueDate: paymentData.dueDate,
+        description: paymentData.description,
+        externalReference: paymentData.externalReference
+      });
+      
       const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.post(
         '/payments',
         paymentData
       );
+      
+      console.log('[ASAAS] Pagamento criado com sucesso:', {
+        id: response.data.id,
+        dueDate: response.data.dueDate,
+        originalDueDate: response.data.originalDueDate,
+        status: response.data.status,
+        billingType: response.data.billingType
+      });
+      
       return response.data;
     } catch (error: any) {
       console.error('[ASAAS] Error creating payment:', error.response?.data || error.message);
@@ -370,7 +388,15 @@ export class AsaasService {
    */
   async createInstallmentPlan(paymentData: AsaasInstallment): Promise<AsaasInstallmentResponse> {
     try {
-      console.log('[ASAAS] Criando Parcelamento (installment plan) com dados:', paymentData);
+      console.log('[ASAAS] Criando Parcelamento (installment plan) com dados:', {
+        customer: paymentData.customer,
+        billingType: paymentData.billingType,
+        totalValue: paymentData.totalValue,
+        installmentCount: paymentData.installmentCount,
+        dueDate: paymentData.dueDate,
+        description: paymentData.description,
+        externalReference: paymentData.externalReference
+      });
       
       const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.post(
         '/installments',
@@ -378,7 +404,15 @@ export class AsaasService {
       );
       
       console.log('[ASAAS] Parcelamento criado com sucesso. ID:', response.data.id);
-      console.log('[ASAAS] Plano de parcelamento:', response.data);
+      console.log('[ASAAS] Plano de parcelamento:', {
+        id: response.data.id,
+        value: response.data.value,
+        netValue: response.data.netValue,
+        paymentValue: response.data.paymentValue,
+        installmentCount: response.data.installmentCount,
+        billingType: response.data.billingType,
+        dateCreated: response.data.dateCreated
+      });
       
       return response.data;
     } catch (error: any) {
