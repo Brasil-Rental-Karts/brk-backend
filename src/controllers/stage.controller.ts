@@ -8,6 +8,7 @@ import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { ConflictException } from '../exceptions/conflict.exception';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { SeasonService } from '../services/season.service';
 
@@ -555,6 +556,10 @@ export class StageController extends BaseController {
       res.status(201).json(newStage);
     } catch (error: any) {
       console.error('Error creating stage:', error);
+      if (error instanceof ConflictException) {
+        res.status(409).json({ message: error.message });
+        return;
+      }
       next(error);
     }
   }

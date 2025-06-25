@@ -6,6 +6,7 @@ import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { RedisService } from './redis.service';
+import { ConflictException } from '../exceptions/conflict.exception';
 
 export interface StageWithParticipants extends Stage {
   participants?: StageParticipation[];
@@ -172,13 +173,12 @@ export class StageService {
     const existingStage = await this.stageRepository.findOne({
       where: {
         seasonId: createStageDto.seasonId,
-        date: dateObj,
-        time: createStageDto.time
+        date: dateObj
       }
     });
 
     if (existingStage) {
-      throw new BadRequestException('Já existe uma etapa agendada para esta data e horário');
+      throw new ConflictException('Já existe uma etapa cadastrada para esta data nesta temporada.');
     }
     
     let briefingTime = createStageDto.briefingTime;
