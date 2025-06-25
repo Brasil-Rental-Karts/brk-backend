@@ -53,6 +53,45 @@ export class GridTypeController extends BaseController {
 
     /**
      * @swagger
+     * /championships/{championshipId}/grid-types/{id}:
+     *   get:
+     *     summary: Buscar tipo de grid por ID
+     *     tags: [GridTypes]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do campeonato
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID do tipo de grid
+     *     responses:
+     *       200:
+     *         description: Tipo de grid encontrado
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/GridType'
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Tipo de grid não encontrado
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.get('/championships/:championshipId/grid-types/:id', authMiddleware, this.getById.bind(this));
+
+    /**
+     * @swagger
      * /championships/{championshipId}/grid-types/predefined:
      *   post:
      *     summary: Criar tipos de grid pré-definidos
@@ -296,6 +335,21 @@ export class GridTypeController extends BaseController {
     } catch (error: any) {
       console.error('Error getting grid types:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+  }
+
+  private async getById(req: Request, res: Response): Promise<void> {
+    try {
+      const { championshipId, id } = req.params;
+      const gridType = await this.gridTypeService.findById(id, championshipId);
+      res.json(gridType);
+    } catch (error: any) {
+      console.error('Error getting grid type:', error);
+      if (error.message === 'Tipo de grid não encontrado') {
+        res.status(404).json({ message: 'Tipo de grid não encontrado' });
+      } else {
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
     }
   }
 
