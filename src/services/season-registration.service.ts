@@ -203,7 +203,7 @@ export class SeasonRegistrationService {
       }
 
       const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 7);
+      dueDate.setDate(dueDate.getDate() + 1);
 
       const categoriesNames = categories.map(c => c.name).join(', ');
       const description = `Inscrição de ${user.name} na temporada: ${season.name} - Categorias: ${categoriesNames}`;
