@@ -16,6 +16,8 @@
     "migration:show": "npm run typeorm -- migration:show -d typeorm-migration.config.ts",
     "change-role": "ts-node src/scripts/change-user-role.ts",
     "reset-password": "ts-node src/scripts/reset-password.ts",
+    "check-tables": "ts-node src/scripts/check-tables.ts",
+    "migrate-prod-to-local": "ts-node src/scripts/migrate-prod-to-local.ts",
     "swagger:update": "curl -s http://localhost:3000/api-docs.json > swagger-spec.json && echo 'Swagger documentation updated successfully'"
   },
   "keywords": [
