@@ -311,8 +311,8 @@ export class ChampionshipController extends BaseController {
      *                 type: integer
      *                 enum: [0, 1]
      *               document:
-     *                 type: string
-     *                 maxLength: 18
+ *                 type: string
+ *                 maxLength: 18
  *               socialReason:
  *                 type: string
  *                 maxLength: 255
@@ -830,9 +830,6 @@ export class ChampionshipController extends BaseController {
       }
       if (!data.fullDescription || data.fullDescription.trim().length === 0) {
         throw new BadRequestException('Descrição completa do campeonato é obrigatória');
-      }
-      if (!data.rules || data.rules.trim().length === 0) {
-        throw new BadRequestException('Regulamento do campeonato é obrigatório');
       }
       if (!data.document || data.document.trim().length === 0) {
         throw new BadRequestException('Documento é obrigatório');

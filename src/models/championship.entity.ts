@@ -33,9 +33,6 @@ export class Championship extends BaseEntity {
   @Column({ type: 'text', nullable: false })
   fullDescription: string;
 
-  @Column({ type: 'text', nullable: false })
-  rules: string;
-
   // Dados Gerais
   @Column({ 
     type: 'enum', 

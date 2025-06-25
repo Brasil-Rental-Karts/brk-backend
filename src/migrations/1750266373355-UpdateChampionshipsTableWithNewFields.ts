@@ -92,7 +92,7 @@ export class UpdateChampionshipsTableWithNewFields1750266373355 implements Migra
         await queryRunner.query(`ALTER TABLE "GridTypes" DROP CONSTRAINT "GridTypes_type_check"`);
         await queryRunner.query(`ALTER TABLE "Categories" DROP CONSTRAINT "UQ_Categories_season_name"`);
         await queryRunner.query(`ALTER TABLE "GridTypes" DROP CONSTRAINT "UQ_GridTypes_championship_name"`);
-        await queryRunner.query(`ALTER TABLE "Championships" ADD "rules" text NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "Championships" DROP COLUMN IF EXISTS "rules"`);
         await queryRunner.query(`ALTER TABLE "Stages" DROP COLUMN "seasonId"`);
         await queryRunner.query(`ALTER TABLE "Stages" ADD "seasonId" character varying NOT NULL`);
         await queryRunner.query(`COMMENT ON COLUMN "Stages"."categoryIds" IS NULL`);
@@ -228,7 +228,7 @@ export class UpdateChampionshipsTableWithNewFields1750266373355 implements Migra
         await queryRunner.query(`COMMENT ON COLUMN "Stages"."categoryIds" IS 'Array de IDs das categorias participantes desta etapa'`);
         await queryRunner.query(`ALTER TABLE "Stages" DROP COLUMN "seasonId"`);
         await queryRunner.query(`ALTER TABLE "Stages" ADD "seasonId" uuid NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "Championships" DROP COLUMN "rules"`);
+        await queryRunner.query(`ALTER TABLE "Championships" DROP COLUMN IF EXISTS "rules"`);
         await queryRunner.query(`ALTER TABLE "GridTypes" ADD CONSTRAINT "UQ_GridTypes_championship_name" UNIQUE ("name", "championshipId")`);
         await queryRunner.query(`ALTER TABLE "Categories" ADD CONSTRAINT "UQ_Categories_season_name" UNIQUE ("name", "seasonId")`);
         await queryRunner.query(`ALTER TABLE "GridTypes" ADD CONSTRAINT "GridTypes_type_check" CHECK (((type)::text = ANY ((ARRAY['super_pole'::character varying, 'inverted'::character varying, 'inverted_partial'::character varying, 'qualifying_session'::character varying])::text[])))`);
