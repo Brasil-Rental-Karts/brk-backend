@@ -145,48 +145,147 @@ export class RegulationService {
     }));
   }
 
-  // Simplified versions of complex methods
-  async createWithSections(regulationData: any): Promise<RegulationWithSections> {
-    // For now, just create the regulation without sections
-    // This can be expanded later when the types are properly resolved
-    const regulation = await this.create({
-      seasonId: regulationData.seasonId,
-      status: RegulationStatus.DRAFT
+  async createWithSections(
+    regulationData: { 
+      seasonId: string;
+      sections?: Array<{ title: string; markdownContent: string; order: number; }>;
+    }
+  ): Promise<RegulationWithSections> {
+    return AppDataSource.transaction(async (transactionalEntityManager) => {
+      const regulationRepository = transactionalEntityManager.getRepository(Regulation);
+      const sectionRepository = transactionalEntityManager.getRepository(RegulationSection);
+
+      // Create and save the main regulation
+      const regulation = regulationRepository.create({
+        seasonId: regulationData.seasonId,
+        status: RegulationStatus.DRAFT
+      });
+      const savedRegulation = await regulationRepository.save(regulation);
+
+      // Create and save sections if they exist
+      let savedSections: RegulationSection[] = [];
+      if (regulationData.sections && regulationData.sections.length > 0) {
+        const sections = regulationData.sections.map(sectionData => 
+          sectionRepository.create({
+            ...sectionData,
+            regulation: savedRegulation
+          })
+        );
+        savedSections = await sectionRepository.save(sections);
+      }
+      
+      savedRegulation.sections = savedSections;
+
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('INSERT', 'Regulation', {
+        id: savedRegulation.id,
+        status: savedRegulation.status,
+        seasonId: savedRegulation.seasonId,
+        sectionsCount: savedSections.length
+      });
+
+      return {
+        id: savedRegulation.id,
+        status: savedRegulation.status,
+        seasonId: savedRegulation.seasonId,
+        publishedAt: savedRegulation.publishedAt,
+        sections: savedSections.map(s => ({
+          id: s.id,
+          title: s.title,
+          markdownContent: s.markdownContent,
+          order: s.order
+        }))
+      };
     });
-    
-    return {
-      id: regulation.id,
-      status: regulation.status,
-      seasonId: regulation.seasonId,
-      publishedAt: regulation.publishedAt,
-      sections: []
-    };
   }
 
-  async updateWithSections(id: string, regulationData: any): Promise<RegulationWithSections | null> {
-    // For now, just update the regulation without sections
-    const updatedRegulation = await this.update(id, regulationData);
-    
-    if (!updatedRegulation) {
-      return null;
+  async updateWithSections(
+    id: string, 
+    regulationData: { 
+      status?: RegulationStatus;
+      sections?: Array<{ id?: string; title: string; markdownContent: string; order: number; }>;
     }
-    
-    return {
-      id: updatedRegulation.id,
-      status: updatedRegulation.status,
-      seasonId: updatedRegulation.seasonId,
-      publishedAt: updatedRegulation.publishedAt,
-      sections: updatedRegulation.sections
-        ? updatedRegulation.sections
-            .sort((a, b) => a.order - b.order)
-            .map(section => ({
-              id: section.id,
-              title: section.title,
-              markdownContent: section.markdownContent,
-              order: section.order
-            }))
-        : []
-    };
+  ): Promise<RegulationWithSections | null> {
+    return AppDataSource.transaction(async (transactionalEntityManager) => {
+      const regulationRepository = transactionalEntityManager.getRepository(Regulation);
+      const sectionRepository = transactionalEntityManager.getRepository(RegulationSection);
+
+      const regulation = await regulationRepository.findOne({
+        where: { id },
+        relations: ['sections'],
+      });
+
+      if (!regulation) {
+        return null;
+      }
+
+      // Update regulation properties (e.g., status)
+      if (regulationData.status) {
+        regulation.status = regulationData.status;
+      }
+
+      // Sync sections
+      if (regulationData.sections) {
+        const existingSections = regulation.sections || [];
+        const incomingSectionsData = regulationData.sections;
+
+        // Determine which sections to delete
+        const sectionsToDelete = existingSections.filter(
+          (existing) => !incomingSectionsData.some((incoming) => incoming.id === existing.id)
+        );
+        
+        if (sectionsToDelete.length > 0) {
+          await sectionRepository.remove(sectionsToDelete);
+        }
+
+        // Upsert (update or insert) sections
+        const sectionsToUpsert = await Promise.all(
+          incomingSectionsData.map(async (sectionData) => {
+            if (sectionData.id) {
+              // If it has an ID, it's an update
+              await sectionRepository.update(sectionData.id, sectionData);
+              // After update, find it to get the full entity
+              return sectionRepository.findOneByOrFail({ id: sectionData.id });
+            } else {
+              // If it has no ID, it's a new section
+              const newSection = sectionRepository.create({
+                ...sectionData,
+                regulation: regulation,
+              });
+              return sectionRepository.save(newSection);
+            }
+          })
+        );
+        
+        regulation.sections = sectionsToUpsert;
+      }
+
+      const updatedRegulation = await regulationRepository.save(regulation);
+      
+      // Publish database change event
+      await this.databaseEventsService.onEntityChange('UPDATE', 'Regulation', {
+        id: updatedRegulation.id,
+        status: updatedRegulation.status,
+        sectionsUpdated: true,
+        sectionsCount: updatedRegulation.sections.length
+      });
+
+      // Sort sections for a consistent response
+      const sortedSections = (updatedRegulation.sections || []).sort((a, b) => a.order - b.order);
+
+      return {
+        id: updatedRegulation.id,
+        status: updatedRegulation.status,
+        seasonId: updatedRegulation.seasonId,
+        publishedAt: updatedRegulation.publishedAt,
+        sections: sortedSections.map(s => ({
+          id: s.id,
+          title: s.title,
+          markdownContent: s.markdownContent,
+          order: s.order
+        }))
+      };
+    });
   }
 
   async publish(id: string): Promise<RegulationWithSections | null> {
