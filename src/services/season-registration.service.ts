@@ -150,11 +150,33 @@ export class SeasonRegistrationService {
 
     // Verificar se já existe uma inscrição para este usuário nesta temporada
     const existingRegistration = await this.registrationRepository.findOne({
-      where: { userId: data.userId, seasonId: data.seasonId }
+      where: { userId: data.userId, seasonId: data.seasonId },
+      relations: ['stages', 'stages.stage']
     });
 
-    if (existingRegistration) {
+    // Para temporadas por temporada, não permitir inscrição duplicada
+    if (season.inscriptionType === 'por_temporada' && existingRegistration) {
       throw new BadRequestException('Usuário já está inscrito nesta temporada');
+    }
+
+    // Para temporadas por etapa, verificar se as etapas já estão inscritas
+    if (season.inscriptionType === 'por_etapa' && existingRegistration && data.stageIds && data.stageIds.length > 0) {
+      const existingStageIds = existingRegistration.stages.map(stage => stage.stageId);
+      const duplicateStageIds = data.stageIds.filter(stageId => existingStageIds.includes(stageId));
+      
+      if (duplicateStageIds.length > 0) {
+        const duplicateStages = await this.stageRepository.find({
+          where: { id: In(duplicateStageIds) }
+        });
+        const stageNames = duplicateStages.map(stage => stage.name).join(', ');
+        throw new BadRequestException(`Você já está inscrito nas seguintes etapas: ${stageNames}`);
+      }
+      
+      console.log('✅ [BACKEND] Usuário já inscrito na temporada, mas etapas são diferentes:', {
+        existingStageIds,
+        newStageIds: data.stageIds,
+        duplicateStageIds
+      });
     }
 
     // Verificar se a temporada aceita o método de pagamento solicitado
@@ -214,27 +236,59 @@ export class SeasonRegistrationService {
       totalAmount = Number(season.inscriptionValue) * categories.length;
     }
 
-    // Criar a inscrição no banco
-    const registration = this.registrationRepository.create({
-      userId: data.userId,
-      seasonId: data.seasonId,
-      amount: totalAmount,
-      paymentMethod: data.paymentMethod,
-      status: RegistrationStatus.PAYMENT_PENDING,
-      paymentStatus: PaymentStatus.PENDING
-    });
+    let savedRegistration: SeasonRegistration;
 
-    const savedRegistration = await this.registrationRepository.save(registration);
+    // Para temporadas por etapa, se já existe inscrição, atualizar ela
+    if (season.inscriptionType === 'por_etapa' && existingRegistration) {
+      console.log('🔄 [BACKEND] Atualizando inscrição existente para temporada por etapa:', {
+        registrationId: existingRegistration.id,
+        newStagesCount: stages.length,
+        newAmount: totalAmount
+      });
 
-    // Salvar as categorias selecionadas
-    const registrationCategories = categories.map(category => 
-      this.registrationCategoryRepository.create({
+      // Atualizar o valor total (adicionar ao valor existente)
+      const newTotalAmount = existingRegistration.amount + totalAmount;
+      
+      // Atualizar a inscrição existente
+      existingRegistration.amount = newTotalAmount;
+      existingRegistration.paymentMethod = data.paymentMethod;
+      existingRegistration.status = RegistrationStatus.PAYMENT_PENDING;
+      existingRegistration.paymentStatus = PaymentStatus.PENDING;
+      
+      savedRegistration = await this.registrationRepository.save(existingRegistration);
+      
+      console.log('✅ [BACKEND] Inscrição atualizada:', {
         registrationId: savedRegistration.id,
-        categoryId: category.id
-      })
-    );
-    
-    await this.registrationCategoryRepository.save(registrationCategories);
+        newTotalAmount,
+        previousAmount: existingRegistration.amount - totalAmount
+      });
+    } else {
+      // Criar nova inscrição
+      console.log('🆕 [BACKEND] Criando nova inscrição');
+      
+      const registration = this.registrationRepository.create({
+        userId: data.userId,
+        seasonId: data.seasonId,
+        amount: totalAmount,
+        paymentMethod: data.paymentMethod,
+        status: RegistrationStatus.PAYMENT_PENDING,
+        paymentStatus: PaymentStatus.PENDING
+      });
+
+      savedRegistration = await this.registrationRepository.save(registration);
+    }
+
+    // Para inscrições novas, salvar as categorias selecionadas
+    if (!existingRegistration || season.inscriptionType === 'por_temporada') {
+      const registrationCategories = categories.map(category => 
+        this.registrationCategoryRepository.create({
+          registrationId: savedRegistration.id,
+          categoryId: category.id
+        })
+      );
+      
+      await this.registrationCategoryRepository.save(registrationCategories);
+    }
 
     // Salvar as etapas selecionadas (se for inscrição por etapa)
     console.log('💾 [BACKEND] Verificando se deve salvar etapas:', {
@@ -397,10 +451,10 @@ export class SeasonRegistrationService {
                 id: payment.id,
                 installmentNumber: payment.installmentNumber,
                 value: payment.value,
-                dueDate: payment.dueDate,
-                status: payment.status
+                dueDate: payment.dueDate
               });
             });
+            
             asaasPaymentResponse = {
               id: firstPayment.id,
               status: firstPayment.status,
@@ -409,39 +463,20 @@ export class SeasonRegistrationService {
               dueDate: firstPayment.dueDate,
               description: firstPayment.description,
               billingType: firstPayment.billingType,
-              installmentNumber: firstPayment.installmentNumber || 1,
+              installmentNumber: firstPayment.installmentNumber,
+              installmentCount: installmentPlan.installmentCount,
               invoiceUrl: firstPayment.invoiceUrl,
               bankSlipUrl: firstPayment.bankSlipUrl,
               paymentLink: firstPayment.paymentLink,
-              externalReference: firstPayment.externalReference || savedRegistration.id,
-              installmentPlanId: installmentPlan.id // ID do plano de parcelamento
+              externalReference: firstPayment.externalReference || savedRegistration.id
             };
-            
-            console.log('=== TODAS AS PARCELAS ENCONTRADAS (ordenadas) ===');
-            sortedPayments.forEach((payment, index) => {
-              console.log(`Parcela ${index + 1}:`, {
-                id: payment.id,
-                status: payment.status,
-                value: payment.value,
-                dueDate: payment.dueDate,
-                installmentNumber: payment.installmentNumber
-              });
-            });
           }
-          
-          console.log('=== PLANO DE PARCELAMENTO CRIADO ===');
-          console.log('installmentPlan.id:', installmentPlan.id);
-          console.log('installmentPlan.installmentCount:', installmentPlan.installmentCount);
-          console.log('installmentPlan.paymentValue:', installmentPlan.paymentValue);
-          console.log('asaasPaymentResponse criado:', asaasPaymentResponse);
-        } catch (installmentError) {
-          console.error('=== ERRO NO PIX PARCELADO ===');
-          console.error('Erro:', installmentError);
-          throw installmentError;
+        } catch (error) {
+          console.error('Erro ao criar plano de parcelamento:', error);
+          throw new Error('Erro ao processar pagamento parcelado');
         }
-        
       } else {
-        // --- Pagamentos únicos OU Cartão parcelado: usar endpoint /payments ---
+        // --- Pagamento único ou cartão parcelado: usar endpoint /payments ---
         const paymentPayload: any = {
           customer: asaasCustomer.id!,
           billingType: asaasBillingType,
@@ -455,42 +490,25 @@ export class SeasonRegistrationService {
         if (isInstallment && asaasBillingType === 'CREDIT_CARD') {
           paymentPayload.installmentCount = data.installments;
           paymentPayload.totalValue = totalAmount;
-          console.log('=== CARTÃO PARCELADO ===');
-          console.log('Usando /payments - Parcelas:', data.installments, 'Total:', totalAmount);
         } else {
           paymentPayload.value = totalAmount;
-          console.log('=== PAGAMENTO ÚNICO ===');
-          console.log('Usando /payments - Valor:', totalAmount);
         }
 
         if (asaasBillingType === 'CREDIT_CARD') {
           // Usar ngrok URL se disponível, senão usar frontend URL
           let callbackUrl: string;
-
-          if (process.env.ASAAS_WEBHOOK_URL ) {
-            // Usar ngrok URL apontando para o backend callback endpoint
-            const baseURL = process.env.ASAAS_WEBHOOK_URL.split('/webhooks')[0];
-            callbackUrl = `${baseURL}/season-registrations/${savedRegistration.id}/payment-callback`;
-          }else{
-            callbackUrl = `http://localhost:3000/season-registrations/${savedRegistration.id}/payment-callback`;
+          if (process.env.NGROK_URL) {
+            callbackUrl = `${process.env.NGROK_URL}/api/asaas/webhook`;
+          } else {
+            callbackUrl = `${process.env.FRONTEND_URL}/api/asaas/webhook`;
           }
-          
-          console.log('callbackUrl final:', callbackUrl);
-          
           paymentPayload.callback = {
-            successUrl: callbackUrl,
-            autoRedirect: true
+            url: callbackUrl
           };
         }
 
-        if (championship.splitEnabled && championship.asaasWalletId) {
-          const platformCommission = Number(championship.platformCommissionPercentage) || 10;
-          const championshipPercentage = 100 - platformCommission;
-          paymentPayload.split = [{
-            walletId: championship.asaasWalletId,
-            percentualValue: championshipPercentage,
-          }];
-        }
+        console.log('=== PAGAMENTO ÚNICO/CARTÃO ===');
+        console.log('paymentPayload:', JSON.stringify(paymentPayload, null, 2));
 
         asaasPaymentResponse = await this.asaasService.createPayment(paymentPayload);
       }
@@ -1423,7 +1441,7 @@ export class SeasonRegistrationService {
     // Buscar a inscrição com todas as relações
     const registration = await this.registrationRepository.findOne({
       where: { id: registrationId },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'payments']
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments']
     });
 
     if (!registration) {
