@@ -6,6 +6,7 @@ import { SeasonRegistrationCategory } from '../models/season-registration-catego
 import { Stage } from '../models/stage.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { In } from 'typeorm';
 
 export interface CreateParticipationData {
   userId: string;
@@ -47,13 +48,35 @@ export class StageParticipationService {
       where: { 
         userId, 
         seasonId: stage.seasonId,
-        status: RegistrationStatus.CONFIRMED
+        status: In([RegistrationStatus.CONFIRMED, RegistrationStatus.PAYMENT_PENDING])
       },
-      relations: ['categories', 'categories.category']
+      relations: ['categories', 'categories.category', 'payments']
     });
 
     if (!registration) {
-      throw new BadRequestException('Usuário não está inscrito nesta temporada ou inscrição não confirmada');
+      throw new BadRequestException('Usuário não está inscrito nesta temporada');
+    }
+
+    // Verificar se o usuário pode confirmar participação baseado no status de pagamento
+    let canConfirmParticipation = false;
+
+    if (registration.status === RegistrationStatus.CONFIRMED) {
+      // Inscrição totalmente confirmada - pode confirmar participação
+      canConfirmParticipation = true;
+    } else if (registration.status === RegistrationStatus.PAYMENT_PENDING && registration.payments) {
+      // Verificar se há parcelas pagas e as próximas não estão vencidas
+      const paidPayments = registration.payments.filter(p => 
+        ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(p.status)
+      );
+      
+      const overduePayments = registration.payments.filter(p => p.status === 'OVERDUE');
+      
+      // Pode confirmar se há pelo menos uma parcela paga e não há parcelas vencidas
+      canConfirmParticipation = paidPayments.length > 0 && overduePayments.length === 0;
+    }
+
+    if (!canConfirmParticipation) {
+      throw new BadRequestException('Inscrição não confirmada ou há parcelas vencidas. É necessário ter pelo menos uma parcela paga e não ter parcelas vencidas para confirmar participação.');
     }
 
     // Verificar se o usuário está inscrito na categoria específica
@@ -185,17 +208,46 @@ export class StageParticipationService {
       throw new NotFoundException('Etapa não encontrada');
     }
 
-    // Buscar inscrição do usuário na temporada
+    // Buscar inscrição do usuário na temporada (incluindo inscrições com pagamento pendente)
     const registration = await this.registrationRepository.findOne({
       where: { 
         userId, 
         seasonId: stage.seasonId,
-        status: RegistrationStatus.CONFIRMED
+        status: In([RegistrationStatus.CONFIRMED, RegistrationStatus.PAYMENT_PENDING])
       },
-      relations: ['categories', 'categories.category']
+      relations: ['categories', 'categories.category', 'payments']
     });
 
     if (!registration) {
+      return [];
+    }
+
+    // Verificar se o usuário pode confirmar participação baseado no status de pagamento
+    let canConfirmParticipation = false;
+
+    if (registration.status === RegistrationStatus.CONFIRMED) {
+      // Inscrição totalmente confirmada - pode confirmar participação
+      canConfirmParticipation = true;
+    } else if (registration.status === RegistrationStatus.PAYMENT_PENDING && registration.payments) {
+      // Verificar se há parcelas pagas e as próximas não estão vencidas
+      const paidPayments = registration.payments.filter(p => 
+        ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(p.status)
+      );
+      
+      const overduePayments = registration.payments.filter(p => p.status === 'OVERDUE');
+      
+      // Pode confirmar se há pelo menos uma parcela paga e não há parcelas vencidas
+      canConfirmParticipation = paidPayments.length > 0 && overduePayments.length === 0;
+      
+      console.log(`[STAGE PARTICIPATION] Verificação de pagamento para usuário ${userId}:`, {
+        totalPayments: registration.payments.length,
+        paidPayments: paidPayments.length,
+        overduePayments: overduePayments.length,
+        canConfirmParticipation
+      });
+    }
+
+    if (!canConfirmParticipation) {
       return [];
     }
 
