@@ -259,7 +259,8 @@ export class AsaasService {
         value: paymentData.value,
         dueDate: paymentData.dueDate,
         description: paymentData.description,
-        externalReference: paymentData.externalReference
+        externalReference: paymentData.externalReference,
+        split: paymentData.split
       });
       
       const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.post(
@@ -395,7 +396,8 @@ export class AsaasService {
         installmentCount: paymentData.installmentCount,
         dueDate: paymentData.dueDate,
         description: paymentData.description,
-        externalReference: paymentData.externalReference
+        externalReference: paymentData.externalReference,
+        split: paymentData.split
       });
       
       const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.post(

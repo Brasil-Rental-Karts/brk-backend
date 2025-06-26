@@ -107,6 +107,9 @@ export class Championship extends BaseEntity {
   @Column({ default: true })
   splitEnabled: boolean;
 
+  @Column({ default: true })
+  commissionAbsorbedByChampionship: boolean;
+
   // Relacionamento com o usuário criador
   @Column({ nullable: false })
   ownerId: string;

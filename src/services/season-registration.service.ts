@@ -66,6 +66,17 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Calcula o percentual correto para o split no Asaas
+   * Quando queremos que X% fiquem com a plataforma, o percentual para o split é: X / (1 + X/100)
+   * Exemplo: Para 10% ficarem com a plataforma: 10 / (1 + 10/100) = 10 / 1.1 = 9.09%
+   */
+  private calculateSplitPercentage(platformCommissionPercentage: number): number {
+    const commission = platformCommissionPercentage / 100;
+    const splitPercentage = (commission / (1 + commission)) * 100;
+    return Math.round(splitPercentage * 100) / 100; // Arredondar para 2 casas decimais
+  }
+
+  /**
    * Cria uma nova inscrição na temporada com cobrança no Asaas
    */
   async createRegistration(data: CreateRegistrationData): Promise<{
@@ -144,7 +155,7 @@ export class SeasonRegistrationService {
     }
 
     // Verificar se o split payment está configurado corretamente
-    if (championship.splitEnabled && !championship.asaasWalletId) {
+    if (championship.splitEnabled && championship.commissionAbsorbedByChampionship && !championship.asaasWalletId) {
       throw new BadRequestException('Campeonato com split habilitado deve ter um Wallet ID configurado. Entre em contato com o organizador do campeonato.');
     }
 
@@ -236,6 +247,21 @@ export class SeasonRegistrationService {
       totalAmount = Number(season.inscriptionValue) * categories.length;
     }
 
+    // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
+    if (!championship.commissionAbsorbedByChampionship) {
+      const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+      const commissionAmount = totalAmount * (platformCommission / 100);
+      totalAmount += commissionAmount;
+      
+      console.log('=== COMISSÃO COBRADA DO PILOTO ===');
+      console.log('Valor original:', totalAmount - commissionAmount);
+      console.log(`Comissão (${platformCommission}%):`, commissionAmount);
+      console.log('Valor final:', totalAmount);
+    } else {
+      console.log('=== COMISSÃO ABSORVIDA PELO CAMPEONATO ===');
+      console.log('Valor da inscrição:', totalAmount);
+    }
+
     let savedRegistration: SeasonRegistration;
 
     // Para temporadas por etapa, se já existe inscrição, atualizar ela
@@ -247,7 +273,7 @@ export class SeasonRegistrationService {
       });
 
       // Atualizar o valor total (adicionar ao valor existente)
-      const newTotalAmount = existingRegistration.amount + totalAmount;
+      const newTotalAmount = Number(existingRegistration.amount) + totalAmount;
       
       // Atualizar a inscrição existente
       existingRegistration.amount = newTotalAmount;
@@ -260,7 +286,7 @@ export class SeasonRegistrationService {
       console.log('✅ [BACKEND] Inscrição atualizada:', {
         registrationId: savedRegistration.id,
         newTotalAmount,
-        previousAmount: existingRegistration.amount - totalAmount
+        previousAmount: Number(existingRegistration.amount)
       });
     } else {
       // Criar nova inscrição
@@ -404,11 +430,21 @@ export class SeasonRegistrationService {
 
         if (championship.splitEnabled && championship.asaasWalletId) {
           const platformCommission = Number(championship.platformCommissionPercentage) || 10;
-          const championshipPercentage = 100 - platformCommission;
+          const splitPercentage = this.calculateSplitPercentage(platformCommission);
           installmentPayload.split = [{
             walletId: championship.asaasWalletId,
-            percentualValue: championshipPercentage,
+            percentualValue: 100 - splitPercentage,
           }];
+          
+          console.log('=== SPLIT PAYMENT CONFIGURADO ===');
+          console.log(`Comissão desejada da plataforma: ${platformCommission}%`);
+          console.log(`Percentual para split no Asaas: ${100 - splitPercentage}% (para o campeonato)`);
+          console.log(`Percentual que fica com a plataforma: ${splitPercentage}%`);
+          console.log(`Comissão absorvida pelo campeonato: ${championship.commissionAbsorbedByChampionship}`);
+        } else {
+          console.log('=== SPLIT PAYMENT NÃO CONFIGURADO ===');
+          console.log('championship.splitEnabled:', championship.splitEnabled);
+          console.log('championship.asaasWalletId:', championship.asaasWalletId);
         }
 
         console.log('=== PIX PARCELADO ===');
@@ -525,6 +561,25 @@ export class SeasonRegistrationService {
           paymentPayload.callback = {
             url: callbackUrl
           };
+        }
+
+        // Aplicar split para pagamentos únicos e cartão de crédito
+        if (championship.splitEnabled && championship.asaasWalletId) {
+          const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+          const splitPercentage = this.calculateSplitPercentage(platformCommission);
+          paymentPayload.split = [{
+            walletId: championship.asaasWalletId,
+            percentualValue: 100 - splitPercentage,
+          }];
+          
+          console.log('=== SPLIT PAYMENT CONFIGURADO (PAGAMENTO ÚNICO/CARTÃO) ===');
+          console.log(`Comissão desejada da plataforma: ${platformCommission}%`);
+          console.log(`Percentual para split no Asaas: ${100 - splitPercentage}% (para o campeonato)`);
+          console.log(`Percentual que fica com a plataforma: ${splitPercentage}%`);
+        } else {
+          console.log('=== SPLIT PAYMENT NÃO CONFIGURADO (PAGAMENTO ÚNICO/CARTÃO) ===');
+          console.log('championship.splitEnabled:', championship.splitEnabled);
+          console.log('championship.asaasWalletId:', championship.asaasWalletId);
         }
 
         console.log('=== PAGAMENTO ÚNICO/CARTÃO ===');
