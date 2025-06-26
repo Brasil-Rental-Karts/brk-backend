@@ -156,30 +156,8 @@ export class AsaasService {
 
     // Verificar se a URL está correta
     if (baseURL === 'https://asaas.com/api/v3') {
-      console.warn('[ASAAS] URL de produção detectada, mas pode estar incorreta. Verificando...');
-      // A URL correta para produção deve ser https://www.asaas.com/api/v3
       baseURL = 'https://www.asaas.com/api/v3';
     }
-    
-    // Verificar se estamos usando a URL correta para produção
-    if (process.env.NODE_ENV === 'production') {
-      if (baseURL.includes('sandbox')) {
-        console.warn('[ASAAS] ATENÇÃO: Usando URL de sandbox em produção!');
-      } else if (!baseURL.includes('www.asaas.com')) {
-        console.warn('[ASAAS] ATENÇÃO: URL de produção pode estar incorreta:', baseURL);
-      }
-    }
-
-    console.log('[ASAAS] Inicializando serviço com configuração:', {
-      baseURL,
-      originalUrl: process.env.ASAAS_API_URL,
-      hasApiKey: !!apiKey,
-      apiKeyLength: apiKey?.length || 0,
-      nodeEnv: process.env.NODE_ENV,
-      asaasApiUrl: process.env.ASAAS_API_URL,
-      apiKeyPrefix: apiKey?.substring(0, 10) + '...',
-      apiKeySuffix: apiKey?.substring(apiKey.length - 4)
-    });
 
     if (!apiKey) {
       throw new Error('ASAAS_API_KEY is required');
@@ -192,53 +170,8 @@ export class AsaasService {
         'Content-Type': 'application/json',
         'User-Agent': 'BRK-Backend/1.0.0',
       },
-      timeout: process.env.NODE_ENV === 'production' ? 60000 : 30000, // 60s para produção, 30s para desenvolvimento
+      timeout: process.env.NODE_ENV === 'production' ? 60000 : 30000,
     });
-
-    console.log('[ASAAS] Headers configurados:', {
-      access_token: apiKey ? '***' : 'undefined',
-      contentType: 'application/json',
-      userAgent: 'BRK-Backend/1.0.0'
-    });
-
-    // Interceptor para logs de requisições
-    this.apiClient.interceptors.request.use(
-      (config) => {
-        console.log('[ASAAS] Requisição:', {
-          method: config.method?.toUpperCase(),
-          url: config.url,
-          baseURL: config.baseURL,
-          headers: config.headers,
-          data: config.data ? (typeof config.data === 'string' ? JSON.parse(config.data) : config.data) : undefined
-        });
-        return config;
-      },
-      (error) => {
-        console.error('[ASAAS] Erro na requisição:', error.message);
-        return Promise.reject(error);
-      }
-    );
-
-    // Interceptor para logs de respostas
-    this.apiClient.interceptors.response.use(
-      (response) => {
-        console.log('[ASAAS] Resposta:', {
-          status: response.status,
-          url: response.config.url,
-          dataKeys: Object.keys(response.data || {})
-        });
-        return response;
-      },
-      (error) => {
-        console.error('[ASAAS] Erro na resposta:', {
-          status: error.response?.status,
-          url: error.config?.url,
-          message: error.message,
-          data: error.response?.data
-        });
-        return Promise.reject(error);
-      }
-    );
   }
 
   /**
@@ -246,19 +179,9 @@ export class AsaasService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      console.log('[ASAAS] Testando conectividade com a API...');
       const response = await this.apiClient.get('/customers?limit=1');
-      console.log('[ASAAS] Conectividade OK:', {
-        status: response.status,
-        dataKeys: Object.keys(response.data || {})
-      });
       return true;
     } catch (error: any) {
-      console.error('[ASAAS] Erro na conectividade:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       return false;
     }
   }
@@ -272,15 +195,11 @@ export class AsaasService {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[ASAAS] Tentativa ${attempt}/${maxRetries} de createOrUpdateCustomer`);
-        
         return await this._createOrUpdateCustomer(customerData);
       } catch (error: any) {
         lastError = error;
-        console.error(`[ASAAS] Erro na tentativa ${attempt}/${maxRetries}:`, error.message);
         
         if (attempt < maxRetries) {
-          console.log(`[ASAAS] Aguardando 2 segundos antes da próxima tentativa...`);
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
@@ -294,12 +213,6 @@ export class AsaasService {
    */
   private async _createOrUpdateCustomer(customerData: AsaasCustomer): Promise<AsaasCustomer> {
     try {
-      console.log('[ASAAS] Iniciando createOrUpdateCustomer com dados:', {
-        name: customerData.name,
-        email: customerData.email,
-        cpfCnpj: customerData.cpfCnpj ? '***' : 'undefined'
-      });
-
       // Testar conectividade primeiro
       const isConnected = await this.testConnection();
       if (!isConnected) {
@@ -312,15 +225,8 @@ export class AsaasService {
         cpfCnpj: removeDocumentMask(customerData.cpfCnpj)
       };
       
-      console.log('[ASAAS] CPF/CNPJ limpo:', cleanCustomerData.cpfCnpj ? '***' : 'undefined');
-      
       // Validar se o CPF/CNPJ tem tamanho correto
       if (!cleanCustomerData.cpfCnpj || !isValidDocumentLength(cleanCustomerData.cpfCnpj)) {
-        console.error('[ASAAS] CPF/CNPJ inválido:', {
-          original: customerData.cpfCnpj,
-          cleaned: cleanCustomerData.cpfCnpj,
-          length: cleanCustomerData.cpfCnpj?.length
-        });
         throw new BadRequestException('CPF/CNPJ inválido. Deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ).');
       }
       
@@ -328,121 +234,54 @@ export class AsaasService {
       const existingCustomer = await this.findCustomerByCpfCnpj(cleanCustomerData.cpfCnpj);
       
       if (existingCustomer) {
-        console.log('[ASAAS] Cliente existente encontrado, ID:', existingCustomer.id);
         // Se encontrou, atualiza o cliente
         const response: AxiosResponse<any> = await this.apiClient.put(
           `/customers/${existingCustomer.id}`,
           cleanCustomerData
         );
-        console.log('[ASAAS] Cliente atualizado, resposta:', {
-          id: response.data.id,
-          name: response.data.name,
-          email: response.data.email
-        });
         
         // Verificar se a resposta veio como lista em vez de objeto
         let customerData = response.data;
         if (Array.isArray(response.data)) {
-          console.warn('[ASAAS] Resposta veio como array, usando primeiro item');
           customerData = response.data[0];
         } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          console.warn('[ASAAS] Resposta veio com estrutura de lista, usando primeiro item');
           customerData = response.data.data[0];
         }
         
         // Verificar se a resposta tem a estrutura esperada
         if (response.data && response.data.object === 'list' && response.data.totalCount === 0) {
-          console.error('[ASAAS] Resposta indica lista vazia, mas deveria ser criação de cliente');
-          console.error('[ASAAS] Isso pode indicar problema com a URL da API ou autenticação');
           throw new BadRequestException('API retornou lista vazia em vez de criar cliente. Verifique URL e autenticação.');
-        }
-        
-        console.log('[ASAAS] Cliente atualizado, dados finais:', {
-          id: customerData?.id,
-          name: customerData?.name,
-          email: customerData?.email
-        });
-        
-        // Verificar se o ID foi retornado corretamente
-        if (!customerData?.id) {
-          console.error('[ASAAS] Cliente atualizado mas sem ID:', customerData);
-          throw new BadRequestException('Cliente atualizado no Asaas mas ID não foi retornado');
         }
         
         return customerData;
       } else {
-        console.log('[ASAAS] Cliente não encontrado, criando novo cliente');
         // Se não encontrou, cria um novo cliente
-        console.log('[ASAAS] Dados para criação:', {
-          name: cleanCustomerData.name,
-          email: cleanCustomerData.email,
-          cpfCnpj: cleanCustomerData.cpfCnpj ? '***' : 'undefined',
-          notificationDisabled: cleanCustomerData.notificationDisabled
-        });
-        
-        console.log('[ASAAS] Payload completo para criação:', JSON.stringify(cleanCustomerData, null, 2));
-        console.log('[ASAAS] Endpoint para criação:', '/customers');
-        console.log('[ASAAS] Método HTTP:', 'POST');
-        
         const response: AxiosResponse<any> = await this.apiClient.post(
           '/customers',
           cleanCustomerData
         );
         
-        console.log('[ASAAS] Resposta completa da criação:', {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-          data: response.data,
-          dataType: typeof response.data,
-          isArray: Array.isArray(response.data),
-          keys: Object.keys(response.data || {})
-        });
-        
         // Verificar se o status indica sucesso
         if (response.status !== 200 && response.status !== 201) {
-          console.error('[ASAAS] Status de resposta inesperado:', response.status);
           throw new BadRequestException(`Status de resposta inesperado: ${response.status}`);
         }
         
         // Verificar se a resposta veio como lista em vez de objeto
         let customerData = response.data;
         if (Array.isArray(response.data)) {
-          console.warn('[ASAAS] Resposta veio como array, usando primeiro item');
           customerData = response.data[0];
         } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          console.warn('[ASAAS] Resposta veio com estrutura de lista, usando primeiro item');
           customerData = response.data.data[0];
         }
         
         // Verificar se a resposta tem a estrutura esperada
         if (response.data && response.data.object === 'list' && response.data.totalCount === 0) {
-          console.error('[ASAAS] Resposta indica lista vazia, mas deveria ser criação de cliente');
-          console.error('[ASAAS] Isso pode indicar problema com a URL da API ou autenticação');
           throw new BadRequestException('API retornou lista vazia em vez de criar cliente. Verifique URL e autenticação.');
-        }
-        
-        console.log('[ASAAS] Cliente criado, resposta:', {
-          id: customerData?.id,
-          name: customerData?.name,
-          email: customerData?.email,
-          fullResponse: customerData
-        });
-        
-        // Verificar se o ID foi retornado corretamente
-        if (!customerData?.id) {
-          console.error('[ASAAS] Cliente criado mas sem ID:', customerData);
-          throw new BadRequestException('Cliente criado no Asaas mas ID não foi retornado');
         }
         
         return customerData;
       }
     } catch (error: any) {
-      console.error('[ASAAS] Erro em createOrUpdateCustomer:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || error.message
       );
@@ -454,32 +293,15 @@ export class AsaasService {
    */
   async findCustomerByCpfCnpj(cpfCnpj: string): Promise<AsaasCustomer | null> {
     try {
-      console.log('[ASAAS] Buscando cliente por CPF/CNPJ:', cpfCnpj ? '***' : 'undefined');
-      
       // Remove máscara do CPF/CNPJ antes de buscar
       const cleanCpfCnpj = removeDocumentMask(cpfCnpj);
-      console.log('[ASAAS] CPF/CNPJ limpo para busca:', cleanCpfCnpj ? '***' : 'undefined');
       
       const response: AxiosResponse<{ data: AsaasCustomer[] }> = await this.apiClient.get(
         `/customers?cpfCnpj=${cleanCpfCnpj}`
       );
       
-      console.log('[ASAAS] Resposta da busca:', {
-        totalResults: response.data.data?.length || 0,
-        foundCustomer: response.data.data?.length > 0 ? {
-          id: response.data.data[0].id,
-          name: response.data.data[0].name,
-          email: response.data.data[0].email
-        } : null
-      });
-      
       return response.data.data.length > 0 ? response.data.data[0] : null;
     } catch (error: any) {
-      console.error('[ASAAS] Erro ao buscar cliente por CPF/CNPJ:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
       return null;
     }
   }
@@ -539,10 +361,27 @@ export class AsaasService {
    */
   async getPixQrCode(paymentId: string): Promise<{ encodedImage: string; payload: string; expirationDate: string }> {
     try {
+      console.log('[ASAAS] Buscando QR Code PIX para paymentId:', paymentId);
+      
       const response: AxiosResponse<{ encodedImage: string; payload: string; expirationDate: string }> = 
         await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
+      
+      console.log('[ASAAS] Resposta do QR Code PIX:', {
+        hasEncodedImage: !!response.data.encodedImage,
+        encodedImageLength: response.data.encodedImage?.length || 0,
+        hasPayload: !!response.data.payload,
+        payloadLength: response.data.payload?.length || 0,
+        payloadPreview: response.data.payload?.substring(0, 50) + '...',
+        hasExpirationDate: !!response.data.expirationDate
+      });
+      
       return response.data;
     } catch (error: any) {
+      console.error('[ASAAS] Erro ao buscar QR Code PIX:', {
+        paymentId,
+        error: error.message,
+        response: error.response?.data
+      });
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || error.message
       );
