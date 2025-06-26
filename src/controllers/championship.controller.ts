@@ -109,10 +109,6 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
  *           type: string
  *           enum: [MEI, LIMITED, INDIVIDUAL, ASSOCIATION]
  *           description: Tipo de empresa (apenas para pessoa jurídica)
- *         incomeValue:
- *           type: number
- *           format: decimal
- *           description: Faturamento/Renda mensal em reais
  *         sponsors:
  *           type: array
  *           items:
@@ -798,9 +794,6 @@ export class ChampionshipController extends BaseController {
       }
       if (!data.number || data.number.trim().length === 0) {
         throw new BadRequestException('Número do endereço é obrigatório');
-      }
-      if (data.incomeValue === undefined || data.incomeValue === null) {
-        throw new BadRequestException('Renda mensal é obrigatória');
       }
     }
 

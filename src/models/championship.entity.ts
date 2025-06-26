@@ -90,9 +90,6 @@ export class Championship extends BaseEntity {
   })
   companyType: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
-  incomeValue: number;
-
   // Patrocinadores
   @Column({ type: 'jsonb', nullable: true, default: [] })
   sponsors: Sponsor[];
