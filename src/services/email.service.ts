@@ -12,9 +12,6 @@ export class EmailService {
 
   constructor() {
     try {
-      console.log('Initializing Brevo email service with API key:', config.brevo.apiKey ? 'API key provided' : 'No API key provided');
-      console.log('Email template path:', this.emailTemplates.passwordReset);
-      
       // Configure API key authorization
       const defaultClient = SibApiV3Sdk.ApiClient.instance;
       const apiKey = defaultClient.authentications['api-key'];
@@ -22,10 +19,7 @@ export class EmailService {
       
       // Create an instance of the API
       this.apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-      
-      console.log('Brevo email service initialized successfully');
     } catch (error) {
-      console.error('Error initializing Brevo email service:', error);
       throw new Error('Failed to initialize email service');
     }
   }
@@ -39,17 +33,10 @@ export class EmailService {
    */
   public async sendPasswordResetEmail(email: string, name: string, resetToken: string): Promise<void> {
     try {
-      console.log(`Preparing to send password reset email to ${email}`);
       const resetUrl = `${config.frontendUrl}${config.passwordResetPath}?token=${resetToken}`;
-      console.log('Reset URL generated:', resetUrl);
 
-      // If no valid API key in development, just log and return
+      // If no valid API key in development, just return
       if (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here') {
-        console.log('DEVELOPMENT MODE: Email would be sent with the following details:');
-        console.log('To:', email);
-        console.log('Subject: Redefinição de Senha');
-        console.log('Reset URL:', resetUrl);
-        console.log('WARNING: No valid Brevo API key provided. Email not actually sent.');
         return;
       }
 
@@ -69,17 +56,9 @@ export class EmailService {
       sendSmtpEmail.to = [{ name, email }];
 
       await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      console.log('Password reset email sent successfully to', email);
     } catch (error) {
-      console.error('Error sending password reset email:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-      
       // In development mode with invalid API key, don't throw error
       if (config.nodeEnv === 'development' && (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here')) {
-        console.warn('Development mode: Email service error ignored');
         return;
       }
       
@@ -96,13 +75,11 @@ export class EmailService {
   private getEmailTemplate(templatePath: string): string {
     try {
       if (!fs.existsSync(templatePath)) {
-        console.error(`Template file not found: ${templatePath}`);
         throw new Error('Email template not found');
       }
       
       return fs.readFileSync(templatePath, 'utf8');
     } catch (error) {
-      console.error('Error reading email template:', error);
       throw new Error('Failed to read email template');
     }
   }
@@ -116,17 +93,10 @@ export class EmailService {
    */
   public async sendEmailConfirmationEmail(email: string, name: string, confirmationToken: string): Promise<void> {
     try {
-      console.log(`Preparing to send email confirmation to ${email}`);
       const confirmUrl = `${config.frontendUrl}${config.emailConfirmationPath}?token=${confirmationToken}`;
-      console.log('Confirmation URL generated:', confirmUrl);
 
-      // If no valid API key in development, just log and return
+      // If no valid API key in development, just return
       if (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here') {
-        console.log('DEVELOPMENT MODE: Email would be sent with the following details:');
-        console.log('To:', email);
-        console.log('Subject: Confirmação de E-mail');
-        console.log('Confirmation URL:', confirmUrl);
-        console.log('WARNING: No valid Brevo API key provided. Email not actually sent.');
         return;
       }
 
@@ -146,17 +116,9 @@ export class EmailService {
       sendSmtpEmail.to = [{ name, email }];
 
       await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      console.log('Email confirmation sent successfully to', email);
     } catch (error) {
-      console.error('Error sending email confirmation:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-      
       // In development mode with invalid API key, don't throw error
       if (config.nodeEnv === 'development' && (!config.brevo.apiKey || config.brevo.apiKey === 'your-brevo-api-key-here')) {
-        console.warn('Development mode: Email service error ignored');
         return;
       }
       

@@ -496,8 +496,6 @@ export class MemberProfileController extends BaseController {
       // Handle both nested and direct payload formats
       const profileData = req.body.profile || req.body;
       
-      console.log('Profile data received:', JSON.stringify(profileData));
-      
       // Check if profile exists to determine response status
       const existingProfile = await this.memberProfileService.findByUserId(userId);
       const isNewProfile = !existingProfile;
@@ -508,7 +506,6 @@ export class MemberProfileController extends BaseController {
       // Return appropriate status code based on whether profile was created or updated
       res.status(isNewProfile ? 201 : 200).json(result);
     } catch (error) {
-      console.error(`Error upserting member profile: ${error}`);
       res.status(500).json({ message: 'Failed to create or update profile' });
     }
   }
@@ -535,7 +532,6 @@ export class MemberProfileController extends BaseController {
       
       res.status(200).json(profile);
     } catch (error) {
-      console.error(`Error retrieving member profile: ${error}`);
       res.status(500).json({ message: 'Failed to retrieve profile' });
     }
   }

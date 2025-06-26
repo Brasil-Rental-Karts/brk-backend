@@ -471,15 +471,6 @@ export class SeasonRegistrationController extends BaseController {
       const { seasonId, categoryIds, stageIds, paymentMethod, userDocument, installments } = req.body;
       const userId = req.user!.id;
 
-      console.log('🔍 [CONTROLLER] Dados recebidos no controller:', {
-        seasonId,
-        categoryIds,
-        stageIds,
-        paymentMethod,
-        userDocument,
-        installments
-      });
-
       // Validar dados de entrada
       if (!seasonId || !paymentMethod || !categoryIds || !userDocument) {
         throw new BadRequestException('seasonId, categoryIds, paymentMethod e userDocument são obrigatórios');
@@ -510,8 +501,6 @@ export class SeasonRegistrationController extends BaseController {
         installments
       };
 
-      console.log('📤 [CONTROLLER] Dados enviados para o serviço:', registrationData);
-
       const result = await this.registrationService.createRegistration(registrationData);
 
       res.status(201).json({
@@ -519,7 +508,6 @@ export class SeasonRegistrationController extends BaseController {
         data: result
       });
     } catch (error) {
-      console.error('Error creating registration:', error);
       res.status(error instanceof BadRequestException ? 400 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
@@ -536,7 +524,6 @@ export class SeasonRegistrationController extends BaseController {
         data: registrations
       });
     } catch (error) {
-      console.error('Error getting user registrations:', error);
       res.status(500).json({
         message: 'Erro interno do servidor'
       });
@@ -566,7 +553,6 @@ export class SeasonRegistrationController extends BaseController {
         data: registration
       });
     } catch (error) {
-      console.error('Error getting registration:', error);
       res.status(error instanceof NotFoundException ? 404 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
@@ -597,17 +583,11 @@ export class SeasonRegistrationController extends BaseController {
         throw new NotFoundException('Dados de pagamento não encontrados');
       }
 
-      console.log(`[CONTROLLER] Retornando ${paymentData.length} parcelas para frontend:`);
-      paymentData.forEach((p, index) => {
-        console.log(`  ${index + 1}. ID: ${p.id} | Status: ${p.status} | InstallmentNumber: ${p.installmentNumber} | DueDate: ${p.dueDate} | Value: ${p.value}`);
-      });
-
       res.json({
         message: 'Dados de pagamento encontrados',
         data: paymentData
       });
     } catch (error) {
-      console.error('Error getting payment data:', error);
       res.status(error instanceof NotFoundException ? 404 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
@@ -644,7 +624,6 @@ export class SeasonRegistrationController extends BaseController {
         data: cancelledRegistration
       });
     } catch (error) {
-      console.error('Error cancelling registration:', error);
       res.status(error instanceof BadRequestException ? 400 : 
                  error instanceof NotFoundException ? 404 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
@@ -682,7 +661,6 @@ export class SeasonRegistrationController extends BaseController {
         data: registrations
       });
     } catch (error) {
-      console.error('Error getting season registrations:', error);
       res.status(500).json({
         message: 'Erro interno do servidor'
       });
@@ -710,7 +688,6 @@ export class SeasonRegistrationController extends BaseController {
         data: registrations
       });
     } catch (error) {
-      console.error('Error getting championship registrations:', error);
       res.status(500).json({
         message: 'Erro interno do servidor'
       });
@@ -728,7 +705,6 @@ export class SeasonRegistrationController extends BaseController {
         data: splitStatus
       });
     } catch (error) {
-      console.error('Error checking championship split status:', error);
       res.status(500).json({
         message: 'Erro interno do servidor ao verificar status de split'
       });
@@ -746,14 +722,9 @@ export class SeasonRegistrationController extends BaseController {
       const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
       const redirectUrl = `${frontendUrl}/registration/${registrationId}/payment?success=true`;
       
-      console.log('=== CALLBACK DE PAGAMENTO ===');
-      console.log('registrationId:', registrationId);
-      console.log('Redirecionando para:', redirectUrl);
-      
       // Redirecionar para o frontend com parâmetro de sucesso
       res.redirect(302, redirectUrl);
     } catch (error: any) {
-      console.error('Erro no callback de pagamento:', error);
       // Em caso de erro, redirecionar para página de erro
       const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
       res.redirect(302, `${frontendUrl}/error?message=callback_error`);
@@ -789,7 +760,6 @@ export class SeasonRegistrationController extends BaseController {
         data: syncStatus
       });
     } catch (error) {
-      console.error('Error syncing payment status:', error);
       res.status(error instanceof NotFoundException ? 404 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
@@ -807,7 +777,6 @@ export class SeasonRegistrationController extends BaseController {
         data: { count }
       });
     } catch (error) {
-      console.error('Error getting category registration count:', error);
       res.status(500).json({
         message: 'Erro interno do servidor ao contar inscrições'
       });
@@ -858,7 +827,6 @@ export class SeasonRegistrationController extends BaseController {
         data: updatedRegistration
       });
     } catch (error) {
-      console.error('Error updating registration categories:', error);
       res.status(error instanceof BadRequestException ? 400 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
@@ -894,7 +862,6 @@ export class SeasonRegistrationController extends BaseController {
         data: pilotDetails
       });
     } catch (error) {
-      console.error('Error getting pilot details:', error);
       res.status(error instanceof NotFoundException ? 404 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });

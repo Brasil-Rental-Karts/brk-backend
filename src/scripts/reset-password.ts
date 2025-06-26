@@ -40,7 +40,6 @@ async function resetPassword() {
   try {
     // Inicializar conexão com o banco de dados
     await AppDataSource.initialize();
-    console.log('Conexão com o banco de dados estabelecida');
 
     // Inicializar repositório
     const userRepository = new UserRepository(AppDataSource.getRepository(User));
@@ -52,20 +51,11 @@ async function resetPassword() {
       process.exit(1);
     }
 
-    // Exibir informações do usuário
-    console.log('Usuário encontrado:');
-    console.log(`ID: ${user.id}`);
-    console.log(`Nome: ${user.name}`);
-    console.log(`Email: ${user.email}`);
-    console.log(`Role: ${user.role}`);
-
     // Hash da nova senha
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Atualizar apenas o campo senha
     await userRepository.update(user.id, { password: hashedPassword });
-    
-    console.log('Senha redefinida com sucesso!');
 
   } catch (error) {
     console.error('Erro ao redefinir a senha:', error);
@@ -73,7 +63,6 @@ async function resetPassword() {
     // Fechar conexão com o banco de dados
     if (AppDataSource.isInitialized) {
       await AppDataSource.destroy();
-      console.log('Conexão com o banco de dados fechada');
     }
   }
 }

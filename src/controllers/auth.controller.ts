@@ -354,7 +354,6 @@ export class AuthController extends BaseController {
       if (error instanceof Error && error.message === 'User with this email already exists') {
         res.status(409).json({ message: error.message });
       } else {
-        console.error('Registration error:', error);
         res.status(500).json({ message: 'Internal server error' });
       }
     }
@@ -395,7 +394,6 @@ export class AuthController extends BaseController {
            error.message === 'Sua conta ainda não foi ativada. Por favor, confirme seu e-mail para acessar a plataforma.')) {
         res.status(401).json({ message: error.message });
       } else {
-        console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
       }
     }
@@ -404,8 +402,6 @@ export class AuthController extends BaseController {
   
   private async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
-      console.log('Received forgot password request:', { email: req.body.email });
-      
       const forgotPasswordDto: ForgotPasswordDto = req.body;
       
       // Process the request (will not reveal if email exists)
@@ -415,15 +411,10 @@ export class AuthController extends BaseController {
       res.status(200).json({
         message: 'If your email is registered, you will receive a reset link'
       });
-      
-      console.log('Forgot password request processed successfully');
     } catch (error) {
-      console.error('Forgot password error:', error);
       if (error instanceof Error) {
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
+        res.status(500).json({ message: 'Internal server error' });
       }
-      res.status(500).json({ message: 'Internal server error' });
     }
   }
   
@@ -442,7 +433,6 @@ export class AuthController extends BaseController {
            error.message === 'Reset token has expired')) {
         res.status(400).json({ message: error.message });
       } else {
-        console.error('Reset password error:', error);
         res.status(500).json({ message: 'Internal server error' });
       }
     }
@@ -472,7 +462,6 @@ export class AuthController extends BaseController {
 
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
-      console.error('Logout error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }
@@ -482,7 +471,6 @@ export class AuthController extends BaseController {
       const url = this.googleAuthService.getAuthUrl();
       res.status(200).json({ url });
     } catch (error) {
-      console.error('Google auth URL error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }
@@ -490,13 +478,11 @@ export class AuthController extends BaseController {
   private async handleGoogleCallback(req: Request, res: Response): Promise<void> {
     try {
       if (req.query.error) {
-        console.error('Google auth error:', req.query.error);
         res.redirect(`${config.frontendUrl}/login-error`);
         return;
       }
       const { code } = req.query;
       if (!code || typeof code !== 'string') {
-        console.error('Missing authorization code');
         res.redirect(`${config.frontendUrl}/login-error`);
         return;
       }
@@ -525,7 +511,6 @@ export class AuthController extends BaseController {
       const redirectUrl = `${config.frontendUrl}/login-success`;
       res.redirect(redirectUrl);
     } catch (error) {
-      console.error('Google callback error:', error);
       res.redirect(`${config.frontendUrl}/login-error`);
     }
   }
@@ -557,7 +542,6 @@ export class AuthController extends BaseController {
       // Return only firstLogin indicator
       res.status(200).json({});
     } catch (error) {
-      console.error('Google authentication error:', error);
       res.status(401).json({ message: 'Invalid Google token' });
     }
   }
@@ -589,7 +573,6 @@ export class AuthController extends BaseController {
       if (error instanceof Error && (error.message === 'Invalid or expired confirmation token' || error.message === 'Confirmation token has expired')) {
         res.status(400).json({ message: error.message });
       } else {
-        console.error('Email confirmation error:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }
@@ -643,7 +626,6 @@ export class AuthController extends BaseController {
       // Return success response (no need to return tokens in body since they're in cookies)
       res.status(200).json({ message: 'Tokens renovados com sucesso.' });
     } catch (error) {
-      console.error('Refresh token error:', error);
       res.status(401).json({ message: 'Não foi possível renovar o token.' });
     }
   }

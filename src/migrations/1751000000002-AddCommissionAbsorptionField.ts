@@ -14,9 +14,7 @@ export class AddCommissionAbsorptionField1751000000002 implements MigrationInter
         comment: 'Indica se a comissão da plataforma é absorvida pelo campeonato (true) ou cobrada do piloto (false)'
       })
     );
-
-    console.log('✅ Campo commissionAbsorbedByChampionship adicionado à tabela Championships');
-  }
+ }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Remover campo
@@ -24,7 +22,6 @@ export class AddCommissionAbsorptionField1751000000002 implements MigrationInter
     
     if (hasColumn) {
       await queryRunner.dropColumn('Championships', 'commissionAbsorbedByChampionship');
-      console.log('✅ Campo commissionAbsorbedByChampionship removido da tabela Championships');
     }
   }
 } 

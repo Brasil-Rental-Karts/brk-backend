@@ -40,24 +40,15 @@ export class RedisService {
 
         // Handle connection events
         this.client.on('error', (err) => {
-          console.error('Redis Client Error:', err);
-        });
-
-        this.client.on('connect', () => {
-          console.log('Connected to Redis');
-        });
-
-        this.client.on('ready', () => {
-          console.log('Redis client ready');
+          // console.error('Redis Client Error:', err);
         });
 
         // Connect to Redis
         await this.client.connect();
         
-        console.log('Successfully connected to Redis');
         resolve();
       } catch (error) {
-        console.error('Failed to connect to Redis:', error);
+        // console.error('Failed to connect to Redis:', error);
         this.connectionPromise = null;
         reject(error);
       }
@@ -82,7 +73,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error publishing message to Redis:', error);
+      // console.error('Error publishing message to Redis:', error);
       return false;
     }
   }
@@ -107,7 +98,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error setting data in Redis:', error);
+      // console.error('Error setting data in Redis:', error);
       return false;
     }
   }
@@ -134,7 +125,7 @@ export class RedisService {
         return value;
       }
     } catch (error) {
-      console.error('Error getting data from Redis:', error);
+      // console.error('Error getting data from Redis:', error);
       return null;
     }
   }
@@ -152,7 +143,7 @@ export class RedisService {
       await this.client.del(key);
       return true;
     } catch (error) {
-      console.error('Error deleting data from Redis:', error);
+      // console.error('Error deleting data from Redis:', error);
       return false;
     }
   }
@@ -166,7 +157,7 @@ export class RedisService {
       
       this.connectionPromise = null;
     } catch (error) {
-      console.error('Error closing Redis connection:', error);
+      // console.error('Error closing Redis connection:', error);
     }
   }
 
@@ -189,14 +180,13 @@ export class RedisService {
           const parsedMessage = JSON.parse(message);
           callback(parsedMessage);
         } catch (error) {
-          console.error('Error parsing Redis message:', error);
+          // console.error('Error parsing Redis message:', error);
         }
       });
 
-      console.log(`Subscribed to Redis channel: ${channelName}`);
       return true;
     } catch (error) {
-      console.error('Error subscribing to Redis channel:', error);
+      // console.error('Error subscribing to Redis channel:', error);
       return false;
     }
   }
@@ -232,7 +222,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error caching championship basic info:', error);
+      // console.error('Error caching championship basic info:', error);
       return false;
     }
   }
@@ -259,7 +249,7 @@ export class RedisService {
         sponsors: JSON.parse(data.sponsors || '[]')
       };
     } catch (error) {
-      console.error('Error getting cached championship basic info:', error);
+      // console.error('Error getting cached championship basic info:', error);
       return null;
     }
   }
@@ -306,13 +296,13 @@ export class RedisService {
             try {
               return data.sponsors ? JSON.parse(data.sponsors) : [];
             } catch (e) {
-              console.error('Error parsing sponsors JSON:', e);
+              // console.error('Error parsing sponsors JSON:', e);
               return [];
             }
           })()
         }));
     } catch (error) {
-      console.error('Error getting multiple championships from cache:', error);
+      // console.error('Error getting multiple championships from cache:', error);
       return [];
     }
   }
@@ -335,7 +325,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error invalidating championship cache:', error);
+      // console.error('Error invalidating championship cache:', error);
       return false;
     }
   }
@@ -377,7 +367,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error caching season basic info:', error);
+      // console.error('Error caching season basic info:', error);
       return false;
     }
   }
@@ -409,7 +399,7 @@ export class RedisService {
         registrationOpen: data.registrationOpen === 'true'
       };
     } catch (error) {
-      console.error('Error getting cached season basic info:', error);
+      // console.error('Error getting cached season basic info:', error);
       return null;
     }
   }
@@ -456,7 +446,7 @@ export class RedisService {
           registrationOpen: data.registrationOpen === 'true'
         }));
     } catch (error) {
-      console.error('Error getting multiple seasons from cache:', error);
+      // console.error('Error getting multiple seasons from cache:', error);
       return [];
     }
   }
@@ -485,7 +475,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error invalidating season cache:', error);
+      // console.error('Error invalidating season cache:', error);
       return false;
     }
   }
@@ -505,7 +495,7 @@ export class RedisService {
       const seasonIds = await this.client.sMembers(key);
       return seasonIds || [];
     } catch (error) {
-      console.error('Error getting championship season IDs:', error);
+      // console.error('Error getting championship season IDs:', error);
       return [];
     }
   }
@@ -525,7 +515,7 @@ export class RedisService {
       await this.client.del(key);
       return true;
     } catch (error) {
-      console.error('Error invalidating championship seasons index:', error);
+      // console.error('Error invalidating championship seasons index:', error);
       return false;
     }
   }
@@ -566,7 +556,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error caching category basic info:', error);
+      // console.error('Error caching category basic info:', error);
       return false;
     }
   }
@@ -598,7 +588,7 @@ export class RedisService {
         seasonId: data.seasonId
       };
     } catch (error) {
-      console.error('Error getting cached category basic info:', error);
+      // console.error('Error getting cached category basic info:', error);
       return null;
     }
   }
@@ -644,7 +634,7 @@ export class RedisService {
           seasonId: data.seasonId
         }));
     } catch (error) {
-      console.error('Error getting multiple categories from cache:', error);
+      // console.error('Error getting multiple categories from cache:', error);
       return [];
     }
   }
@@ -674,7 +664,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error invalidating category cache:', error);
+      // console.error('Error invalidating category cache:', error);
       return false;
     }
   }
@@ -694,7 +684,7 @@ export class RedisService {
       const categoryIds = await this.client.sMembers(key);
       return categoryIds || [];
     } catch (error) {
-      console.error('Error getting season category IDs:', error);
+      // console.error('Error getting season category IDs:', error);
       return [];
     }
   }
@@ -737,7 +727,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error caching stage basic info:', error);
+      // console.error('Error caching stage basic info:', error);
       return false;
     }
   }
@@ -771,7 +761,7 @@ export class RedisService {
         seasonId: data.seasonId
       };
     } catch (error) {
-      console.error('Error getting cached stage basic info:', error);
+      // console.error('Error getting cached stage basic info:', error);
       return null;
     }
   }
@@ -819,7 +809,7 @@ export class RedisService {
           seasonId: data.seasonId
         }));
     } catch (error) {
-      console.error('Error getting multiple stages from cache:', error);
+      // console.error('Error getting multiple stages from cache:', error);
       return [];
     }
   }
@@ -849,7 +839,7 @@ export class RedisService {
 
       return true;
     } catch (error) {
-      console.error('Error invalidating stage cache:', error);
+      // console.error('Error invalidating stage cache:', error);
       return false;
     }
   }
@@ -869,7 +859,7 @@ export class RedisService {
       const stageIds = await this.client.sMembers(key);
       return stageIds || [];
     } catch (error) {
-      console.error('Error getting season stage IDs:', error);
+      // console.error('Error getting season stage IDs:', error);
       return [];
     }
   }
@@ -895,7 +885,7 @@ export class RedisService {
       
       return true;
     } catch (error) {
-      console.error('Error invalidating season indexes:', error);
+      // console.error('Error invalidating season indexes:', error);
       return false;
     }
   }

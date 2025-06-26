@@ -238,13 +238,6 @@ export class StageParticipationService {
       
       // Pode confirmar se há pelo menos uma parcela paga e não há parcelas vencidas
       canConfirmParticipation = paidPayments.length > 0 && overduePayments.length === 0;
-      
-      console.log(`[STAGE PARTICIPATION] Verificação de pagamento para usuário ${userId}:`, {
-        totalPayments: registration.payments.length,
-        paidPayments: paidPayments.length,
-        overduePayments: overduePayments.length,
-        canConfirmParticipation
-      });
     }
 
     if (!canConfirmParticipation) {

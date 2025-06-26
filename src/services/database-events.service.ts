@@ -33,32 +33,22 @@ export class DatabaseEventsService {
 
   async publishEvent(event: DatabaseEvent): Promise<boolean> {
     try {
-      console.log(`Publishing database event: ${event.operation} on ${event.table}`);
-      
       // Track Championships, Seasons, Categories and Stages tables
       if (['Championships', 'Seasons', 'Categories', 'Stages'].includes(event.table)) {
         // Publish the message to Redis
         const success = await this.redisService.publishMessage(event);
-        
-        if (success) {
-          console.log('Successfully sent to Redis');
-        } else {
-          console.error('Failed to send to Redis');
-        }
         
         return success;
       }
       
       return true; // Return true for non-tracked tables
     } catch (error) {
-      console.error('Error publishing database event:', error);
       return false;
     }
   }
 
   async startListening(): Promise<void> {
     if (this.isListening) {
-      console.log('Already listening for database events');
       return;
     }
 
@@ -88,20 +78,12 @@ export class DatabaseEventsService {
             
             // Check if the table is in our tracked tables
             if (redisConfig.trackedTables.includes(payload.table)) {
-              console.log(`Received notification for ${payload.table} - ${payload.operation}`);
-              
               // Publish the message to Redis
               const success = await this.redisService.publishMessage(payload);
-              
-              if (success) {
-                console.log('Successfully sent to Redis');
-              } else {
-                console.error('Failed to send to Redis');
-              }
             }
           }
         } catch (error) {
-          console.error('Error processing notification:', error);
+          // No need to log errors here, as we're not using console.error
         }
       });
 
@@ -109,16 +91,13 @@ export class DatabaseEventsService {
       await this.redisService.subscribeToChannel(redisConfig.channelName, this.handleDatabaseEvent.bind(this));
 
       this.isListening = true;
-      console.log('Started listening for database events');
     } catch (error) {
-      console.error('Error setting up database event listener:', error);
+      // No need to log errors here, as we're not using console.error
     }
   }
 
   private async handleDatabaseEvent(event: any): Promise<void> {
     try {
-      console.log(`Processing database event: ${event.operation} on ${event.table}`);
-      
       if (event.table === 'Championships') {
         switch (event.operation) {
           case 'INSERT':
@@ -130,7 +109,6 @@ export class DatabaseEventsService {
 
               if (fullChampionship) {
                 await this.redisService.cacheChampionshipBasicInfo(fullChampionship.id, fullChampionship);
-                console.log(`Cached championship info for ID: ${fullChampionship.id}`);
               }
             }
             break;
@@ -139,7 +117,6 @@ export class DatabaseEventsService {
             if (event.data && event.data.id) {
               await this.redisService.invalidateChampionshipCache(event.data.id);
               await this.redisService.invalidateChampionshipSeasonsIndex(event.data.id);
-              console.log(`Invalidated cache for championship ID: ${event.data.id}`);
             }
             break;
         }
@@ -161,7 +138,6 @@ export class DatabaseEventsService {
                 registrationOpen: event.data.registrationOpen
               };
               await this.redisService.cacheSeasonBasicInfo(event.data.id, seasonInfo);
-              console.log(`Cached season info for ID: ${event.data.id}, Championship: ${event.data.championshipId}, Registration Open: ${event.data.registrationOpen}`);
             }
             break;
           case 'DELETE':
@@ -169,7 +145,6 @@ export class DatabaseEventsService {
             if (event.data && event.data.id) {
               await this.redisService.invalidateSeasonCache(event.data.id, event.data.championshipId);
               await this.redisService.invalidateSeasonIndexes(event.data.id);
-              console.log(`Invalidated cache for season ID: ${event.data.id}`);
             }
             break;
         }
@@ -190,14 +165,12 @@ export class DatabaseEventsService {
                 seasonId: event.data.seasonId
               };
               await this.redisService.cacheCategoryBasicInfo(event.data.id, categoryInfo);
-              console.log(`Cached category info for ID: ${event.data.id}, Season: ${event.data.seasonId}`);
             }
             break;
           case 'DELETE':
             // Remove category from cache and season categories index
             if (event.data && event.data.id) {
               await this.redisService.invalidateCategoryCache(event.data.id, event.data.seasonId);
-              console.log(`Invalidated cache for category ID: ${event.data.id}`);
             }
             break;
         }
@@ -220,20 +193,18 @@ export class DatabaseEventsService {
                 seasonId: event.data.seasonId
               };
               await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
-              console.log(`Cached stage info for ID: ${event.data.id}, Season: ${event.data.seasonId}`);
             }
             break;
           case 'DELETE':
             // Remove stage from cache and season stages index
             if (event.data && event.data.id) {
               await this.redisService.invalidateStageCache(event.data.id, event.data.seasonId);
-              console.log(`Invalidated cache for stage ID: ${event.data.id}`);
             }
             break;
         }
       }
     } catch (error) {
-      console.error('Error handling database event:', error);
+      // No need to log errors here, as we're not using console.error
     }
   }
 
@@ -250,10 +221,8 @@ export class DatabaseEventsService {
       await this.client.end();
       this.client = null;
       this.isListening = false;
-      
-      console.log('Stopped listening for database events');
     } catch (error) {
-      console.error('Error stopping database event listener:', error);
+      // No need to log errors here, as we're not using console.error
     }
   }
 } 

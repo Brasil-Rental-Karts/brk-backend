@@ -28,7 +28,6 @@ export class SeasonService extends BaseService<Season> {
     // Adicionar nova temporada ao cache
     if (season) {
       await this.redisService.cacheSeasonBasicInfo(season.id, season);
-      console.log(`Nova temporada ${season.id} adicionada ao cache: registrationOpen = ${season.registrationOpen}`);
     }
     
     return season;
@@ -40,7 +39,6 @@ export class SeasonService extends BaseService<Season> {
     // Atualizar cache manualmente se a temporada foi encontrada e atualizada
     if (season) {
       await this.redisService.cacheSeasonBasicInfo(season.id, season);
-      console.log(`Cache atualizado para temporada ${season.id}: registrationOpen = ${season.registrationOpen}`);
     }
     
     return season;
@@ -55,7 +53,6 @@ export class SeasonService extends BaseService<Season> {
     if (result && season) {
       await this.redisService.invalidateSeasonCache(id, season.championshipId);
       await this.redisService.invalidateSeasonIndexes(id);
-      console.log(`Cache removido para temporada ${id}`);
     }
     
     return result;
@@ -117,7 +114,6 @@ export class SeasonService extends BaseService<Season> {
       // Filtra apenas as seasons que foram encontradas no cache
       return seasons.filter(season => season !== null) as SeasonCacheData[];
     } catch (error) {
-      console.error('Error getting championship seasons from cache:', error);
       return [];
     }
   }
@@ -128,7 +124,6 @@ export class SeasonService extends BaseService<Season> {
       // Usa o novo método otimizado com Redis pipeline
       return await this.redisService.getMultipleSeasonsBasicInfo(ids);
     } catch (error) {
-      console.error('Error getting multiple seasons from cache:', error);
       return [];
     }
   }
@@ -138,15 +133,12 @@ export class SeasonService extends BaseService<Season> {
     try {
       const season = await this.findById(id);
       if (!season) {
-        console.log(`Temporada ${id} não encontrada para atualização de cache`);
         return false;
       }
 
       await this.redisService.cacheSeasonBasicInfo(season.id, season);
-      console.log(`Cache forçadamente atualizado para temporada ${season.id}: registrationOpen = ${season.registrationOpen}`);
       return true;
     } catch (error) {
-      console.error('Error refreshing season cache:', error);
       return false;
     }
   }
@@ -157,7 +149,6 @@ export class SeasonService extends BaseService<Season> {
       const key = `season:${id}`;
       return await this.redisService.getData(key);
     } catch (error) {
-      console.error('Error getting cached season data:', error);
       return null;
     }
   }

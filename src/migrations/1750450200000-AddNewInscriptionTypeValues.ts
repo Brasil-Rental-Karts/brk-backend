@@ -10,8 +10,5 @@ export class AddNewInscriptionTypeValues1750450200000 implements MigrationInterf
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-        // PostgreSQL não permite remover valores de enum diretamente
-        // Esta migração não pode ser revertida facilmente
-        console.log('Rollback não suportado: PostgreSQL não permite remover valores de enum');
     }
 } 

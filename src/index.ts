@@ -64,8 +64,6 @@ import { CategoryRepository } from './repositories/category.repository';
 // Initialize database connection
 AppDataSource.initialize()
   .then(async () => {
-    console.log('Database connection established');
-    
     // Initialize repositories
     const userRepository = new UserRepository(AppDataSource.getRepository(User));
     const championshipRepository = new ChampionshipRepository(AppDataSource.getRepository(Championship));
@@ -127,20 +125,16 @@ AppDataSource.initialize()
       
       // Start listening for database events
       await DatabaseEventsService.getInstance().startListening();
-      
-      console.log('Redis and database event listeners initialized');
     } catch (error) {
       console.error('Failed to initialize Redis or database event listeners:', error);
     }
 
-    console.log(`Server started on port ${PORT} in ${config.nodeEnv} mode`);
-    
     // Handle graceful shutdown
     process.on('SIGINT', async () => {
-      console.log('Shutting down...');
-      await DatabaseEventsService.getInstance().stopListening();
-      await RedisService.getInstance().close();
-      await AppDataSource.destroy();
+      // Graceful shutdown
+      if (AppDataSource.isInitialized) {
+        await AppDataSource.destroy();
+      }
       process.exit(0);
     });
   })

@@ -310,23 +310,23 @@ export class ChampionshipController extends BaseController {
      *               document:
      *                 type: string
      *                 maxLength: 18
-     *               socialReason:
-     *                 type: string
-     *                 maxLength: 255
-     *               cep:
-     *                 type: string
-     *                 maxLength: 9
-     *               state:
-     *                 type: string
-     *                 maxLength: 2
-     *               city:
-     *                 type: string
-     *                 maxLength: 100
-     *               fullAddress:
-     *                 type: string
-     *               number:
-     *                 type: string
-     *                 maxLength: 10
+ *               socialReason:
+ *                 type: string
+ *                 maxLength: 255
+ *               cep:
+ *                 type: string
+ *                 maxLength: 9
+ *               state:
+ *                 type: string
+ *                 maxLength: 2
+ *               city:
+ *                 type: string
+ *                 maxLength: 100
+ *               fullAddress:
+ *                 type: string
+ *               number:
+ *                 type: string
+ *                 maxLength: 10
  *               isResponsible:
  *                 type: boolean
  *               responsibleName:
@@ -550,7 +550,6 @@ export class ChampionshipController extends BaseController {
       const championships = await this.championshipService.findAll();
       res.json(championships);
     } catch (error) {
-      console.error('Error getting all championships:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
@@ -579,7 +578,6 @@ export class ChampionshipController extends BaseController {
       } else if (error instanceof ForbiddenException) {
         res.status(403).json({ message: error.message });
       } else {
-        console.error('Error getting championship by id:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }
@@ -599,7 +597,6 @@ export class ChampionshipController extends BaseController {
       if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
       } else {
-        console.error('Error getting championship basic info:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }
@@ -675,7 +672,6 @@ export class ChampionshipController extends BaseController {
       
       res.json(allChampionships);
     } catch (error) {
-      console.error('Error getting user championships:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
@@ -914,10 +910,7 @@ export class ChampionshipController extends BaseController {
       championshipData.responsiblePhone = user.phone;
       championshipData.responsibleEmail = user.email || '';
       championshipData.responsibleBirthDate = memberProfile.birthDate;
-
-      console.log(`Auto-filled responsible data for user ${userId}: name=${user.name}, phone=${user.phone}, email=${user.email}, birthDate=${memberProfile?.birthDate}`);
     } catch (error) {
-      console.error('Error filling responsible data from user:', error);
       // Não falha a criação do campeonato se não conseguir buscar os dados do usuário
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
@@ -962,7 +955,6 @@ export class ChampionshipController extends BaseController {
 
       res.json(status);
     } catch (error: any) {
-      console.error('Error checking Asaas status:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
@@ -1004,7 +996,6 @@ export class ChampionshipController extends BaseController {
 
       res.json(updatedChampionship);
     } catch (error: any) {
-      console.error('Error updating Asaas wallet:', error);
       res.status(500).json({ message: 'Erro interno do servidor ao atualizar Wallet ID' });
     }
   }

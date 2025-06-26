@@ -3,8 +3,6 @@ import { BaseEntity } from './base.entity';
 import { SeasonRegistration } from './season-registration.entity';
 import { Stage } from './stage.entity';
 
-console.log('[DEBUG] Carregando entidade SeasonRegistrationStage...');
-
 @Entity('SeasonRegistrationStages')
 @Index(['registrationId', 'stageId'], { unique: true })
 export class SeasonRegistrationStage extends BaseEntity {
@@ -22,6 +20,4 @@ export class SeasonRegistrationStage extends BaseEntity {
   @ManyToOne(() => Stage)
   @JoinColumn({ name: 'stageId' })
   stage: Stage;
-}
-
-console.log('[DEBUG] Entidade SeasonRegistrationStage carregada com sucesso'); 
+} 

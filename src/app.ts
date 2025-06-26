@@ -101,7 +101,6 @@ export class App {
           }
         }
         
-        console.log(`CORS blocked origin: ${origin}`);
         return callback(new Error('Not allowed by CORS'), false);
       },
       credentials: true,
@@ -113,13 +112,6 @@ export class App {
   }
 
   private initializeSwagger(): void {
-    // Log detected files for debugging
-    console.log('Looking for Swagger API docs in:');
-    const apiPatterns = swaggerOptions.apis || [];
-    apiPatterns.forEach(pattern => {
-      console.log(` - ${pattern}`);
-    });
-    
     // Só expõe Swagger se não for produção
     if (process.env.NODE_ENV !== 'production') {
       // Serve Swagger UI com opções customizadas
@@ -145,13 +137,6 @@ export class App {
         res.setHeader('Content-Type', 'application/json');
         res.send(swaggerSpec);
       });
-
-      // Log Swagger initialization
-      console.log('Swagger documentation initialized');
-      // Cast swaggerSpec to any to avoid TypeScript errors with dynamic properties
-      const spec = swaggerSpec as any;
-      console.log(`Found ${Object.keys(spec.paths || {}).length} API paths`);
-      console.log(`Found ${Object.keys(spec.components?.schemas || {}).length} schemas`);
     }
   }
 
@@ -167,8 +152,7 @@ export class App {
 
   public listen(port: number): void {
     this.app.listen(port, () => {
-      console.log(`App listening on port ${port}`);
-      console.log(`Swagger documentation available at http://localhost:${port}/api-docs`);
+      // Server started successfully
     });
   }
 }

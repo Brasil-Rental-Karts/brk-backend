@@ -171,11 +171,9 @@ export class AsaasService {
     // Interceptor para logs de requisições
     this.apiClient.interceptors.request.use(
       (config) => {
-        console.log(`[ASAAS] ${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
-        console.error('[ASAAS] Request error:', error);
         return Promise.reject(error);
       }
     );
@@ -183,11 +181,9 @@ export class AsaasService {
     // Interceptor para logs de respostas
     this.apiClient.interceptors.response.use(
       (response) => {
-        console.log(`[ASAAS] Response ${response.status} from ${response.config.url}`);
         return response;
       },
       (error) => {
-        console.error('[ASAAS] Response error:', error.response?.data || error.message);
         return Promise.reject(error);
       }
     );
@@ -223,7 +219,6 @@ export class AsaasService {
         return response.data;
       }
     } catch (error: any) {
-      console.error('[ASAAS] Error creating/updating customer:', error.response?.data || error.message);
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || error.message
       );
@@ -243,7 +238,6 @@ export class AsaasService {
       
       return response.data.data.length > 0 ? response.data.data[0] : null;
     } catch (error: any) {
-      console.error('[ASAAS] Error finding customer:', error.response?.data || error.message);
       return null;
     }
   }
@@ -253,32 +247,13 @@ export class AsaasService {
    */
   async createPayment(paymentData: AsaasPayment): Promise<AsaasPaymentResponse> {
     try {
-      console.log('[ASAAS] Criando pagamento com dados:', {
-        customer: paymentData.customer,
-        billingType: paymentData.billingType,
-        value: paymentData.value,
-        dueDate: paymentData.dueDate,
-        description: paymentData.description,
-        externalReference: paymentData.externalReference,
-        split: paymentData.split
-      });
-      
       const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.post(
         '/payments',
         paymentData
       );
       
-      console.log('[ASAAS] Pagamento criado com sucesso:', {
-        id: response.data.id,
-        dueDate: response.data.dueDate,
-        originalDueDate: response.data.originalDueDate,
-        status: response.data.status,
-        billingType: response.data.billingType
-      });
-      
       return response.data;
     } catch (error: any) {
-      console.error('[ASAAS] Error creating payment:', error.response?.data || error.message);
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || 'Erro ao criar cobrança no Asaas.'
       );
@@ -295,7 +270,6 @@ export class AsaasService {
       );
       return response.data;
     } catch (error: any) {
-      console.error('[ASAAS] Error getting payment:', error.response?.data || error.message);
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || error.message
       );
@@ -312,7 +286,6 @@ export class AsaasService {
       );
       return response.data;
     } catch (error: any) {
-      console.error('[ASAAS] Error canceling payment:', error.response?.data || error.message);
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || error.message
       );
@@ -328,7 +301,6 @@ export class AsaasService {
         await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
       return response.data;
     } catch (error: any) {
-      console.error('[ASAAS] Error getting PIX QR Code:', error.response?.data || error.message);
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || error.message
       );
@@ -367,7 +339,6 @@ export class AsaasService {
       
       return dateObj.toISOString().split('T')[0];
     } catch (error) {
-      console.error('Erro ao formatar data para Asaas:', error, 'Data original:', date);
       // Fallback: retorna data atual
       return new Date().toISOString().split('T')[0];
     }
@@ -389,36 +360,13 @@ export class AsaasService {
    */
   async createInstallmentPlan(paymentData: AsaasInstallment): Promise<AsaasInstallmentResponse> {
     try {
-      console.log('[ASAAS] Criando Parcelamento (installment plan) com dados:', {
-        customer: paymentData.customer,
-        billingType: paymentData.billingType,
-        totalValue: paymentData.totalValue,
-        installmentCount: paymentData.installmentCount,
-        dueDate: paymentData.dueDate,
-        description: paymentData.description,
-        externalReference: paymentData.externalReference,
-        split: paymentData.split
-      });
-      
       const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.post(
         '/installments',
         paymentData
       );
       
-      console.log('[ASAAS] Parcelamento criado com sucesso. ID:', response.data.id);
-      console.log('[ASAAS] Plano de parcelamento:', {
-        id: response.data.id,
-        value: response.data.value,
-        netValue: response.data.netValue,
-        paymentValue: response.data.paymentValue,
-        installmentCount: response.data.installmentCount,
-        billingType: response.data.billingType,
-        dateCreated: response.data.dateCreated
-      });
-      
       return response.data;
     } catch (error: any) {
-      console.error('[ASAAS] Error creating installment plan:', error.response?.data || error.message);
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || 'Erro ao criar parcelamento no Asaas.'
       );
@@ -432,8 +380,6 @@ export class AsaasService {
    */
   async getInstallmentPayments(installmentId: string): Promise<AsaasPaymentResponse[]> {
     try {
-      console.log(`[ASAAS] Buscando TODAS as parcelas do installment plan: ${installmentId}`);
-      
       const response: AxiosResponse<{
         object: string;
         hasMore: boolean;
@@ -443,26 +389,8 @@ export class AsaasService {
         data: AsaasPaymentResponse[];
       }> = await this.apiClient.get(`/installments/${installmentId}/payments`);
       
-      console.log(`[ASAAS] Encontradas ${response.data.data?.length || 0} parcelas no installment plan`);
-      
-      if (response.data.data && response.data.data.length > 0) {
-        console.log('[ASAAS] Detalhes das parcelas encontradas:');
-        response.data.data.forEach((payment, index) => {
-          console.log(`[ASAAS] Parcela ${index + 1}:`, {
-            id: payment.id,
-            status: payment.status,
-            value: payment.value,
-            dueDate: payment.dueDate,
-            installmentNumber: payment.installmentNumber,
-            paymentDate: payment.paymentDate,
-            clientPaymentDate: payment.clientPaymentDate
-          });
-        });
-      }
-      
       return response.data.data || [];
     } catch (error: any) {
-      console.error(`[ASAAS] Erro ao buscar parcelas do installment plan ${installmentId}:`, error.response?.data || error.message);
       throw new Error(`Erro ao buscar parcelas do plano de parcelamento: ${error.response?.data?.errors?.[0]?.description || error.message}`);
     }
   }
@@ -472,17 +400,12 @@ export class AsaasService {
    */
   async getInstallmentPlan(installmentId: string): Promise<AsaasInstallmentResponse> {
     try {
-      console.log(`[ASAAS] Buscando plano de parcelamento: ${installmentId}`);
-      
       const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.get(
         `/installments/${installmentId}`
       );
       
-      console.log(`[ASAAS] Plano de parcelamento encontrado: ${response.data.id}`);
-      
       return response.data;
     } catch (error: any) {
-      console.error('[ASAAS] Error getting installment plan:', error.response?.data || error.message);
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || 'Erro ao buscar plano de parcelamento.'
       );

@@ -98,9 +98,6 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
       
       if (!hasColumn) {
         await queryRunner.addColumn('Championships', field.column);
-        console.log(`✅ Campo ${field.name} adicionado à tabela Championships`);
-      } else {
-        console.log(`⚠️ Campo ${field.name} já existe na tabela Championships`);
       }
     }
 
@@ -113,9 +110,6 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
       await queryRunner.query(`
         CREATE TYPE "championships_companytype_enum" AS ENUM('MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION')
       `);
-      console.log('✅ Enum championships_companytype_enum criado');
-    } else {
-      console.log('⚠️ Enum championships_companytype_enum já existe');
     }
 
     // Adicionar campo companyType
@@ -129,17 +123,12 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
         isNullable: true,
         comment: 'Tipo de empresa para pessoa jurídica'
       }));
-      console.log('✅ Campo companyType adicionado à tabela Championships');
-    } else {
-      console.log('⚠️ Campo companyType já existe na tabela Championships');
     }
 
     // Adicionar comentário ao campo fullAddress
     await queryRunner.query(`
       COMMENT ON COLUMN "Championships"."fullAddress" IS 'Endereço completo - rua, avenida ou logradouro'
     `);
-
-    console.log('✅ Configuração completa dos campos do Asaas concluída');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -161,7 +150,6 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
       
       if (hasColumn) {
         await queryRunner.dropColumn('Championships', fieldName);
-        console.log(`✅ Campo ${fieldName} removido da tabela Championships`);
       }
     }
 
@@ -172,9 +160,6 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
     
     if (hasEnum && hasEnum.length > 0) {
       await queryRunner.query(`DROP TYPE "championships_companytype_enum"`);
-      console.log('✅ Enum championships_companytype_enum removido');
     }
-
-    console.log('✅ Remoção completa de campos do Asaas concluída');
   }
 } 

@@ -33,22 +33,18 @@ export class ChampionshipService extends BaseService<Championship> {
     try {
       const championship = await super.create(championshipData);
       
-      console.log(`[CHAMPIONSHIP] Criado campeonato ${championship.id} - splitEnabled: ${championship.splitEnabled}, document: ${championship.document}`);
-      
       // Criar tipos de grid pré-configurados
       try {
         await this.gridTypeService.createPredefined(championship.id);
-        console.log(`[CHAMPIONSHIP] Tipos de grid pré-configurados criados para o campeonato ${championship.id}`);
       } catch (error) {
-        console.error(`[CHAMPIONSHIP] Erro ao criar tipos de grid pré-configurados para o campeonato ${championship.id}:`, error);
+        // console.error(`[CHAMPIONSHIP] Erro ao criar tipos de grid pré-configurados para o campeonato ${championship.id}:`, error);
       }
 
       // Criar sistema de pontuação pré-configurado
       try {
         await this.scoringSystemService.createPredefined(championship.id);
-        console.log(`[CHAMPIONSHIP] Sistema de pontuação pré-configurado criado para o campeonato ${championship.id}`);
       } catch (error) {
-        console.error(`[CHAMPIONSHIP] Erro ao criar sistema de pontuação pré-configurado para o campeonato ${championship.id}:`, error);
+        // console.error(`[CHAMPIONSHIP] Erro ao criar sistema de pontuação pré-configurado para o campeonato ${championship.id}:`, error);
       }
       
       // O cache será atualizado via database events, não aqui
@@ -134,7 +130,7 @@ export class ChampionshipService extends BaseService<Championship> {
       // Usa o novo método otimizado com Redis pipeline
       return await this.redisService.getMultipleChampionshipsBasicInfo(ids);
     } catch (error) {
-      console.error('Error getting multiple championships from cache:', error);
+      // console.error('Error getting multiple championships from cache:', error);
       return [];
     }
   }
@@ -152,7 +148,7 @@ export class ChampionshipService extends BaseService<Championship> {
       // Busca os dados de todas as temporadas em paralelo usando pipeline
       return await this.redisService.getMultipleSeasonsBasicInfo(seasonIds);
     } catch (error) {
-      console.error('Error getting championship seasons from cache:', error);
+      // console.error('Error getting championship seasons from cache:', error);
       return [];
     }
   }
@@ -163,7 +159,7 @@ export class ChampionshipService extends BaseService<Championship> {
       const key = `championship:${id}`;
       return await this.redisService.getData(key);
     } catch (error) {
-      console.error('Error getting cached championship data:', error);
+      // console.error('Error getting cached championship data:', error);
       return null;
     }
   }
@@ -190,11 +186,9 @@ export class ChampionshipService extends BaseService<Championship> {
         asaasWalletId: walletId.trim()
       });
 
-      console.log(`[CHAMPIONSHIP] Wallet ID atualizado para campeonato ${championshipId}: ${walletId}`);
-      
       return updatedChampionship;
     } catch (error) {
-      console.error('[CHAMPIONSHIP] Erro ao atualizar Wallet ID:', error);
+      // console.error('[CHAMPIONSHIP] Erro ao atualizar Wallet ID:', error);
       throw error;
     }
   }
@@ -227,7 +221,7 @@ export class ChampionshipService extends BaseService<Championship> {
         personType: championship.personType
       };
     } catch (error) {
-      console.error('[CHAMPIONSHIP] Erro ao verificar status Asaas:', error);
+      // console.error('[CHAMPIONSHIP] Erro ao verificar status Asaas:', error);
       throw error;
     }
   }

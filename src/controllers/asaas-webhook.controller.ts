@@ -156,8 +156,6 @@ export class AsaasWebhookController extends BaseController {
 
   private async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
-      console.log('[WEBHOOK] Recebido webhook do Asaas:', JSON.stringify(req.body, null, 2));
-
       const webhookData = req.body;
 
       // Validar se o webhook tem a estrutura esperada
@@ -168,7 +166,6 @@ export class AsaasWebhookController extends BaseController {
       // Validar autenticidade do webhook (implementação básica)
       const isValid = this.asaasService.validateWebhook(webhookData, req.headers['x-asaas-signature'] as string);
       if (!isValid) {
-        console.warn('[WEBHOOK] Webhook com assinatura inválida');
         res.status(400).json({
           success: false,
           message: 'Assinatura do webhook inválida'
@@ -179,16 +176,12 @@ export class AsaasWebhookController extends BaseController {
       // Processar o webhook
       await this.registrationService.processAsaasWebhook(webhookData);
 
-      console.log(`[WEBHOOK] Processado com sucesso: ${webhookData.event} para pagamento ${webhookData.payment.id}`);
-
       res.json({
         success: true,
         message: 'Webhook processado com sucesso'
       });
 
     } catch (error) {
-      console.error('[WEBHOOK] Erro ao processar webhook:', error);
-
       // Responder com erro mas não falhar completamente para evitar reenvios desnecessários
       const statusCode = error instanceof BadRequestException ? 400 : 500;
       res.status(statusCode).json({
@@ -200,8 +193,6 @@ export class AsaasWebhookController extends BaseController {
 
   private async testWebhook(req: Request, res: Response): Promise<void> {
     try {
-      console.log('[WEBHOOK TEST] Recebido teste:', JSON.stringify(req.body, null, 2));
-
       res.json({
         success: true,
         message: 'Teste de webhook realizado com sucesso',
@@ -210,7 +201,6 @@ export class AsaasWebhookController extends BaseController {
       });
 
     } catch (error) {
-      console.error('[WEBHOOK TEST] Erro no teste:', error);
       res.status(500).json({
         success: false,
         message: 'Erro no teste de webhook'
