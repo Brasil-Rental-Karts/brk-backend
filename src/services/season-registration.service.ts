@@ -13,6 +13,7 @@ import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from '.
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { removeDocumentMask } from '../utils/document.util';
+import { isValidDocumentLength } from '../utils/document.util';
 
 export interface CreateRegistrationData {
   userId: string;
@@ -275,9 +276,14 @@ export class SeasonRegistrationService {
       const asaasCustomerData: AsaasCustomer = {
         name: user.name,
         email: user.email,
-        cpfCnpj: data.userDocument ? removeDocumentMask(data.userDocument) : user.email.replace('@', '_'),
+        cpfCnpj: data.userDocument ? removeDocumentMask(data.userDocument) : '',
         notificationDisabled: false
       };
+
+      // Validar se temos um CPF/CNPJ válido
+      if (!asaasCustomerData.cpfCnpj || !isValidDocumentLength(asaasCustomerData.cpfCnpj)) {
+        throw new BadRequestException('CPF/CNPJ é obrigatório e deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ).');
+      }
 
       const asaasCustomer = await this.asaasService.createOrUpdateCustomer(asaasCustomerData);
       

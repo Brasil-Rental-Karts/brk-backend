@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { BadRequestException } from '../exceptions/bad-request.exception';
-import { removeDocumentMask } from '../utils/document.util';
+import { removeDocumentMask, isValidDocumentLength } from '../utils/document.util';
 
 export interface AsaasCustomer {
   id?: string;
@@ -154,6 +154,12 @@ export class AsaasService {
     const baseURL = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
     const apiKey = process.env.ASAAS_API_KEY;
 
+    console.log('[ASAAS] Inicializando serviço com configuração:', {
+      baseURL,
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length || 0
+    });
+
     if (!apiKey) {
       throw new Error('ASAAS_API_KEY is required');
     }
@@ -171,9 +177,15 @@ export class AsaasService {
     // Interceptor para logs de requisições
     this.apiClient.interceptors.request.use(
       (config) => {
+        console.log('[ASAAS] Requisição:', {
+          method: config.method?.toUpperCase(),
+          url: config.url,
+          baseURL: config.baseURL
+        });
         return config;
       },
       (error) => {
+        console.error('[ASAAS] Erro na requisição:', error.message);
         return Promise.reject(error);
       }
     );
@@ -181,9 +193,20 @@ export class AsaasService {
     // Interceptor para logs de respostas
     this.apiClient.interceptors.response.use(
       (response) => {
+        console.log('[ASAAS] Resposta:', {
+          status: response.status,
+          url: response.config.url,
+          dataKeys: Object.keys(response.data || {})
+        });
         return response;
       },
       (error) => {
+        console.error('[ASAAS] Erro na resposta:', {
+          status: error.response?.status,
+          url: error.config?.url,
+          message: error.message,
+          data: error.response?.data
+        });
         return Promise.reject(error);
       }
     );
@@ -194,31 +217,81 @@ export class AsaasService {
    */
   async createOrUpdateCustomer(customerData: AsaasCustomer): Promise<AsaasCustomer> {
     try {
+      console.log('[ASAAS] Iniciando createOrUpdateCustomer com dados:', {
+        name: customerData.name,
+        email: customerData.email,
+        cpfCnpj: customerData.cpfCnpj ? '***' : 'undefined'
+      });
+
       // Remove máscara do CPF/CNPJ antes de enviar
       const cleanCustomerData = {
         ...customerData,
         cpfCnpj: removeDocumentMask(customerData.cpfCnpj)
       };
       
+      console.log('[ASAAS] CPF/CNPJ limpo:', cleanCustomerData.cpfCnpj ? '***' : 'undefined');
+      
+      // Validar se o CPF/CNPJ tem tamanho correto
+      if (!cleanCustomerData.cpfCnpj || !isValidDocumentLength(cleanCustomerData.cpfCnpj)) {
+        console.error('[ASAAS] CPF/CNPJ inválido:', {
+          original: customerData.cpfCnpj,
+          cleaned: cleanCustomerData.cpfCnpj,
+          length: cleanCustomerData.cpfCnpj?.length
+        });
+        throw new BadRequestException('CPF/CNPJ inválido. Deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ).');
+      }
+      
       // Primeiro, tenta buscar o cliente por CPF/CNPJ
       const existingCustomer = await this.findCustomerByCpfCnpj(cleanCustomerData.cpfCnpj);
       
       if (existingCustomer) {
+        console.log('[ASAAS] Cliente existente encontrado, ID:', existingCustomer.id);
         // Se encontrou, atualiza o cliente
         const response: AxiosResponse<AsaasCustomer> = await this.apiClient.put(
           `/customers/${existingCustomer.id}`,
           cleanCustomerData
         );
+        console.log('[ASAAS] Cliente atualizado, resposta:', {
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email
+        });
+        
+        // Verificar se o ID foi retornado corretamente
+        if (!response.data.id) {
+          console.error('[ASAAS] Cliente atualizado mas sem ID:', response.data);
+          throw new BadRequestException('Cliente atualizado no Asaas mas ID não foi retornado');
+        }
+        
         return response.data;
       } else {
+        console.log('[ASAAS] Cliente não encontrado, criando novo cliente');
         // Se não encontrou, cria um novo cliente
         const response: AxiosResponse<AsaasCustomer> = await this.apiClient.post(
           '/customers',
           cleanCustomerData
         );
+        console.log('[ASAAS] Cliente criado, resposta:', {
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email,
+          fullResponse: response.data
+        });
+        
+        // Verificar se o ID foi retornado corretamente
+        if (!response.data.id) {
+          console.error('[ASAAS] Cliente criado mas sem ID:', response.data);
+          throw new BadRequestException('Cliente criado no Asaas mas ID não foi retornado');
+        }
+        
         return response.data;
       }
     } catch (error: any) {
+      console.error('[ASAAS] Erro em createOrUpdateCustomer:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw new BadRequestException(
         error.response?.data?.errors?.[0]?.description || error.message
       );
@@ -230,14 +303,32 @@ export class AsaasService {
    */
   async findCustomerByCpfCnpj(cpfCnpj: string): Promise<AsaasCustomer | null> {
     try {
+      console.log('[ASAAS] Buscando cliente por CPF/CNPJ:', cpfCnpj ? '***' : 'undefined');
+      
       // Remove máscara do CPF/CNPJ antes de buscar
       const cleanCpfCnpj = removeDocumentMask(cpfCnpj);
+      console.log('[ASAAS] CPF/CNPJ limpo para busca:', cleanCpfCnpj ? '***' : 'undefined');
+      
       const response: AxiosResponse<{ data: AsaasCustomer[] }> = await this.apiClient.get(
         `/customers?cpfCnpj=${cleanCpfCnpj}`
       );
       
+      console.log('[ASAAS] Resposta da busca:', {
+        totalResults: response.data.data?.length || 0,
+        foundCustomer: response.data.data?.length > 0 ? {
+          id: response.data.data[0].id,
+          name: response.data.data[0].name,
+          email: response.data.data[0].email
+        } : null
+      });
+      
       return response.data.data.length > 0 ? response.data.data[0] : null;
     } catch (error: any) {
+      console.error('[ASAAS] Erro ao buscar cliente por CPF/CNPJ:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       return null;
     }
   }
