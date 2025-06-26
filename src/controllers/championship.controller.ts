@@ -217,6 +217,33 @@ export class ChampionshipController extends BaseController {
 
     /**
      * @swagger
+     * /championships/public/{slugOrId}:
+     *   get:
+     *     summary: Buscar campeonato por slug ou ID (rota pública para inscrições)
+     *     tags: [Championships]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: slugOrId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           description: Slug ou ID do campeonato
+     *     responses:
+     *       200:
+     *         description: Campeonato encontrado
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Championship'
+     *       404:
+     *         description: Campeonato não encontrado
+     */
+    this.router.get('/public/:slugOrId', authMiddleware, this.getChampionshipPublic.bind(this));
+
+    /**
+     * @swagger
      * /championships/{id}:
      *   get:
      *     summary: Buscar campeonato por ID
@@ -573,6 +600,26 @@ export class ChampionshipController extends BaseController {
         res.status(404).json({ message: error.message });
       } else if (error instanceof ForbiddenException) {
         res.status(403).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
+    }
+  }
+
+  private async getChampionshipPublic(req: Request, res: Response): Promise<void> {
+    try {
+      const { slugOrId } = req.params;
+      
+      const championship = await this.findChampionshipBySlugOrId(slugOrId);
+
+      if (!championship) {
+        throw new NotFoundException('Campeonato não encontrado');
+      }
+
+      res.json(championship);
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
