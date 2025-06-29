@@ -20,6 +20,7 @@ import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
 import { StageController } from './controllers/stage.controller';
 import { StageParticipationController } from './controllers/stage-participation.controller';
 import { UserStatsController } from './controllers/user-stats.controller';
+import { RegulationController } from './controllers/regulation.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -30,6 +31,7 @@ import { Season } from './models/season.entity';
 import { VipPreregister } from './models/vip-preregister.entity';
 import { Category } from './models/category.entity';
 import { GridType } from './models/grid-type.entity';
+import { Regulation } from './models/regulation.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
@@ -51,6 +53,7 @@ import { AsaasService } from './services/asaas.service';
 import { StageService } from './services/stage.service';
 import { StageParticipationService } from './services/stage-participation.service';
 import { UserStatsService } from './services/user-stats.service';
+import { RegulationService } from './services/regulation.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -60,6 +63,7 @@ import { MemberProfileRepository } from './repositories/member-profile.repositor
 import { SeasonRepository } from './repositories/season.repository';
 import { VipPreregisterRepository } from './repositories/vip-preregister.repository';
 import { CategoryRepository } from './repositories/category.repository';
+import { RegulationRepositoryImpl } from './repositories/regulation.repository';
 
 // Initialize database connection
 AppDataSource.initialize()
@@ -72,6 +76,7 @@ AppDataSource.initialize()
     const seasonRepository = new SeasonRepository(AppDataSource.getRepository(Season));
     const vipPreregisterRepository = new VipPreregisterRepository(AppDataSource.getRepository(VipPreregister));
     const categoryRepository = new CategoryRepository(AppDataSource.getRepository(Category));
+    const regulationRepository = new RegulationRepositoryImpl(AppDataSource.getRepository(Regulation));
     
     // Initialize services
     const emailService = new EmailService();
@@ -90,6 +95,7 @@ AppDataSource.initialize()
     const stageService = new StageService();
     const stageParticipationService = new StageParticipationService();
     const userStatsService = new UserStatsService();
+    const regulationService = new RegulationService(regulationRepository);
     
     // Initialize controllers
     const controllers = [
@@ -108,7 +114,8 @@ AppDataSource.initialize()
       new AsaasWebhookController(seasonRegistrationService, asaasService),
       new StageController(stageService, championshipStaffService, seasonService),
       new StageParticipationController(),
-      new UserStatsController()
+      new UserStatsController(),
+      new RegulationController(regulationService, championshipStaffService, seasonService)
     ];
 
     // Initialize the app

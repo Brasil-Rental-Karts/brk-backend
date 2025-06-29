@@ -864,7 +864,175 @@ export class RedisService {
     }
   }
 
-  // Clean up season categories and stages indexes when season is deleted
+  // Regulation-specific cache methods with Redis Sets for better performance
+  async cacheRegulationBasicInfo(regulationId: string, data: any): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      // Use Redis Hash to store regulation data (more efficient than JSON strings)
+      const regulationKey = `regulation:${regulationId}`;
+      const regulationData = {
+        id: data.id,
+        title: data.title,
+        content: data.content,
+        order: data.order.toString(),
+        isActive: data.isActive ? 'true' : 'false',
+        seasonId: data.seasonId
+      };
+
+      // Store regulation data as Redis Hash
+      await this.client.hSet(regulationKey, regulationData);
+
+      if (data.seasonId) {
+        // Add regulation ID to season's regulations set for fast lookup
+        const seasonRegulationsKey = `season:${data.seasonId}:regulations`;
+        await this.client.sAdd(seasonRegulationsKey, regulationId);
+
+        // Also add to global regulations set for bulk operations
+        await this.client.sAdd('regulations:all', regulationId);
+      }
+
+      return true;
+    } catch (error) {
+      // console.error('Error caching regulation basic info:', error);
+      return false;
+    }
+  }
+
+  async getCachedRegulationBasicInfo(regulationId: string): Promise<any | null> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const key = `regulation:${regulationId}`;
+      const data = await this.client.hGetAll(key);
+      
+      if (!data || Object.keys(data).length === 0) {
+        return null;
+      }
+
+      return {
+        id: data.id,
+        title: data.title,
+        content: data.content,
+        order: parseInt(data.order),
+        isActive: data.isActive === 'true',
+        seasonId: data.seasonId
+      };
+    } catch (error) {
+      // console.error('Error getting cached regulation basic info:', error);
+      return null;
+    }
+  }
+
+  // Get multiple regulations at once using Redis pipeline (ultra-fast)
+  async getMultipleRegulationsBasicInfo(regulationIds: string[]): Promise<any[]> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      if (regulationIds.length === 0) {
+        return [];
+      }
+
+      // Use Redis pipeline for batch operations
+      const pipeline = this.client.multi();
+      
+      regulationIds.forEach(id => {
+        pipeline.hGetAll(`regulation:${id}`);
+      });
+
+      const results = await pipeline.exec();
+      
+      if (!results) {
+        return [];
+      }
+
+      // Process results and convert back to proper format
+      return results
+        .map((result: any) => result[1]) // Get the actual data from pipeline result
+        .filter((data: any) => data && Object.keys(data).length > 0)
+        .map((data: any) => ({
+          id: data.id,
+          title: data.title,
+          content: data.content,
+          order: parseInt(data.order),
+          isActive: data.isActive === 'true',
+          seasonId: data.seasonId
+        }));
+    } catch (error) {
+      // console.error('Error getting multiple regulations from cache:', error);
+      return [];
+    }
+  }
+
+  async invalidateRegulationCache(regulationId: string, seasonId?: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      // Remove regulation data
+      const regulationKey = `regulation:${regulationId}`;
+      await this.client.del(regulationKey);
+
+      // Remove from global regulations set
+      await this.client.sRem('regulations:all', regulationId);
+
+      // Remove regulation ID from season's regulations set if seasonId is provided
+      if (seasonId) {
+        const seasonRegulationsKey = `season:${seasonId}:regulations`;
+        await this.client.sRem(seasonRegulationsKey, regulationId);
+      }
+
+      return true;
+    } catch (error) {
+      // console.error('Error invalidating regulation cache:', error);
+      return false;
+    }
+  }
+
+  // Get all regulation IDs for a season (for fast bulk retrieval)
+  async getSeasonRegulationIds(seasonId: string): Promise<string[]> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const key = `season:${seasonId}:regulations`;
+      const regulationIds = await this.client.sMembers(key);
+      return regulationIds || [];
+    } catch (error) {
+      // console.error('Error getting season regulation IDs:', error);
+      return [];
+    }
+  }
+
+  // Clean up season categories, stages and regulations indexes when season is deleted
   async invalidateSeasonIndexes(seasonId: string): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
@@ -877,10 +1045,12 @@ export class RedisService {
 
       const categoriesKey = `season:${seasonId}:categories`;
       const stagesKey = `season:${seasonId}:stages`;
+      const regulationsKey = `season:${seasonId}:regulations`;
       
       await Promise.all([
         this.client.del(categoriesKey),
-        this.client.del(stagesKey)
+        this.client.del(stagesKey),
+        this.client.del(regulationsKey)
       ]);
       
       return true;

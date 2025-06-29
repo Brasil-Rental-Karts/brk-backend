@@ -203,6 +203,32 @@ export class DatabaseEventsService {
             break;
         }
       }
+
+      if (event.table === 'Regulations') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+            // Cache the regulation info with season relationship
+            if (event.data && event.data.id) {
+              const regulationInfo = {
+                id: event.data.id,
+                title: event.data.title,
+                content: event.data.content,
+                order: event.data.order,
+                isActive: event.data.isActive,
+                seasonId: event.data.seasonId
+              };
+              await this.redisService.cacheRegulationBasicInfo(event.data.id, regulationInfo);
+            }
+            break;
+          case 'DELETE':
+            // Remove regulation from cache and season regulations index
+            if (event.data && event.data.id) {
+              await this.redisService.invalidateRegulationCache(event.data.id, event.data.seasonId);
+            }
+            break;
+        }
+      }
     } catch (error) {
       // No need to log errors here, as we're not using console.error
     }

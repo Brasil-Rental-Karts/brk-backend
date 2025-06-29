@@ -19,6 +19,7 @@
     "check-tables": "ts-node src/scripts/check-tables.ts",
     "migrate-prod-to-local": "ts-node src/scripts/migrate-prod-to-local.ts",
     "migrate-redis-prod-to-local": "ts-node src/scripts/flush-local-redis.ts",
+    "populate-regulation-cache": "ts-node src/scripts/populate-regulation-cache.ts",
     "swagger:update": "curl -s http://localhost:3000/api-docs.json > swagger-spec.json && echo 'Swagger documentation updated successfully'"
   },
   "keywords": [

@@ -8,7 +8,7 @@ export const redisConfig = {
   password: process.env.REDIS_PASSWORD && process.env.REDIS_PASSWORD.trim() !== '' ? process.env.REDIS_PASSWORD : undefined,
   db: parseInt(process.env.REDIS_DB || '0'),
   // List of tables to track changes
-  trackedTables: ['Championships', 'Seasons', 'Categories', 'Stages'], // Track Championships, Seasons, Categories and Stages tables for cache
+  trackedTables: ['Championships', 'Seasons', 'Categories', 'Stages', 'Regulations'], // Track Championships, Seasons, Categories, Stages and Regulations tables for cache
   // Channel name for database events
   channelName: 'database_events'
 }; 

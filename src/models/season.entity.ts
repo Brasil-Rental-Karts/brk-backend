@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, OneToMany, BeforeInsert, BeforeU
 import { BaseEntity } from './base.entity';
 import { Championship } from './championship.entity';
 import { Category } from './category.entity';
+import { Regulation } from './regulation.entity';
 import { slugify } from '../utils/slugify';
 
 export enum SeasonStatus {
@@ -84,6 +85,9 @@ export class Season extends BaseEntity {
 
   @OneToMany(() => Category, (category) => category.season)
   categories: Category[];
+
+  @OneToMany(() => Regulation, (regulation) => regulation.season)
+  regulations: Regulation[];
 
   @BeforeInsert()
   @BeforeUpdate()
