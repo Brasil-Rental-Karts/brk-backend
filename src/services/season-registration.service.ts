@@ -572,7 +572,7 @@ export class SeasonRegistrationService {
   async findByUserId(userId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { userId },
-      relations: ['season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage'],
+      relations: ['season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
       order: { createdAt: 'DESC' }
     });
   }
