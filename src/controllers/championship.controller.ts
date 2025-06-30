@@ -331,8 +331,8 @@ export class ChampionshipController extends BaseController {
      *                 type: integer
      *                 enum: [0, 1]
      *               document:
-     *                 type: string
-     *                 maxLength: 18
+ *                 type: string
+ *                 maxLength: 18
  *               socialReason:
  *                 type: string
  *                 maxLength: 255
@@ -738,7 +738,8 @@ export class ChampionshipController extends BaseController {
     if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
       championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
         ...sponsor,
-        id: this.generateSponsorId(sponsor.name)
+        id: this.generateSponsorId(sponsor.name),
+        type: sponsor.type || 'sponsor' // Default para 'sponsor' se não especificado
       }));
     }
 
@@ -775,7 +776,8 @@ export class ChampionshipController extends BaseController {
     if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
       championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
         ...sponsor,
-        id: sponsor.id || this.generateSponsorId(sponsor.name)
+        id: sponsor.id || this.generateSponsorId(sponsor.name),
+        type: sponsor.type || 'sponsor' // Default para 'sponsor' se não especificado
       }));
     }
 
@@ -918,6 +920,9 @@ export class ChampionshipController extends BaseController {
         }
         if (sponsor.website && typeof sponsor.website !== 'string') {
           throw new BadRequestException('Website do patrocinador deve ser uma string válida');
+        }
+        if (sponsor.type && !['sponsor', 'supporter'].includes(sponsor.type)) {
+          throw new BadRequestException('Tipo do patrocinador deve ser "sponsor" ou "supporter"');
         }
       }
     }
