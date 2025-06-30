@@ -13,9 +13,6 @@ export class Regulation extends BaseEntity {
   @Column({ type: 'int', nullable: false })
   order: number;
 
-  @Column({ type: 'boolean', default: true })
-  isActive: boolean;
-
   // Relacionamento com a temporada
   @Column({ nullable: false })
   seasonId: string;

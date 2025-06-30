@@ -10,7 +10,6 @@ export interface RegulationCacheData {
   title: string;
   content: string;
   order: number;
-  isActive: boolean;
   seasonId: string;
 }
 
@@ -34,8 +33,7 @@ export class RegulationService extends BaseService<Regulation> {
       title: dto.title,
       content: dto.content,
       seasonId: dto.seasonId,
-      order: dto.order,
-      isActive: dto.isActive ?? true
+      order: dto.order
     });
 
     // Cache the new regulation
@@ -87,34 +85,18 @@ export class RegulationService extends BaseService<Regulation> {
   }
 
   async reorderRegulations(dto: ReorderRegulationsDto): Promise<void> {
-    await this.regulationRepository.reorderRegulations(dto.seasonId, dto.regulationOrders);
+    // Convert string array to the expected format
+    const regulationOrders = dto.regulationIds.map((id, index) => ({
+      id,
+      order: index + 1
+    }));
+    
+    await this.regulationRepository.reorderRegulations(dto.seasonId, regulationOrders);
     
     // Invalidate cache for all regulations in the season
-    const regulationIds = dto.regulationOrders.map(order => order.id);
     await Promise.all(
-      regulationIds.map(id => this.redisService.invalidateRegulationCache(id, dto.seasonId))
+      dto.regulationIds.map(id => this.redisService.invalidateRegulationCache(id, dto.seasonId))
     );
-  }
-
-  async toggleActive(id: string): Promise<RegulationResponseDto> {
-    const regulation = await this.regulationRepository.findById(id);
-    if (!regulation) {
-      throw new NotFoundException('Regulation not found');
-    }
-
-    const updatedRegulation = await this.regulationRepository.update(id, {
-      isActive: !regulation.isActive
-    });
-    
-    if (!updatedRegulation) {
-      throw new NotFoundException('Regulation not found');
-    }
-
-    // Invalidate cache and recache the updated regulation
-    await this.redisService.invalidateRegulationCache(id, updatedRegulation.seasonId);
-    await this.redisService.cacheRegulationBasicInfo(updatedRegulation.id, updatedRegulation);
-
-    return this.mapToResponseDto(updatedRegulation);
   }
 
   // Métodos privados para cache (usados apenas pelos database events)
@@ -132,10 +114,9 @@ export class RegulationService extends BaseService<Regulation> {
       title: regulation.title,
       content: regulation.content,
       order: regulation.order,
-      isActive: regulation.isActive,
       seasonId: regulation.seasonId,
-      createdAt: regulation.createdAt,
-      updatedAt: regulation.updatedAt
+      createdAt: regulation.createdAt.toISOString(),
+      updatedAt: regulation.updatedAt.toISOString()
     };
   }
 } 

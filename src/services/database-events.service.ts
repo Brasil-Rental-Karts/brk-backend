@@ -215,7 +215,6 @@ export class DatabaseEventsService {
                 title: event.data.title,
                 content: event.data.content,
                 order: event.data.order,
-                isActive: event.data.isActive,
                 seasonId: event.data.seasonId
               };
               await this.redisService.cacheRegulationBasicInfo(event.data.id, regulationInfo);

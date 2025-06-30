@@ -55,9 +55,6 @@ export class RegulationController extends BaseController {
       seasonAccessMiddleware(this.championshipStaffService, this.seasonService, 'seasonId'),
       this.reorder.bind(this)
     );
-
-    // Toggle regulation active status
-    this.router.patch('/:id/toggle', authMiddleware, this.toggleActive.bind(this));
   }
 
   private async create(req: Request, res: Response): Promise<void> {
@@ -152,20 +149,6 @@ export class RegulationController extends BaseController {
       res.status(200).json({
         success: true,
         message: 'Regulations reordered successfully'
-      });
-    } catch (error) {
-      this.handleError(res, error);
-    }
-  }
-
-  private async toggleActive(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-      const regulation = await this.regulationService.toggleActive(id);
-      res.status(200).json({
-        success: true,
-        data: regulation,
-        message: 'Regulation status updated successfully'
       });
     } catch (error) {
       this.handleError(res, error);

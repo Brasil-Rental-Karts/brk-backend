@@ -27,10 +27,6 @@ export class CreateRegulationDto {
   @IsNumber()
   @IsOptional()
   order?: number;
-
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean;
 }
 
 export class UpdateRegulationDto {
@@ -45,21 +41,16 @@ export class UpdateRegulationDto {
   @IsNumber()
   @IsOptional()
   order?: number;
-
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean;
 }
 
 export class ReorderRegulationsDto {
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   seasonId: string;
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => RegulationOrderDto)
-  regulationOrders: RegulationOrderDto[];
+  @IsString({ each: true })
+  @IsNotEmpty()
+  regulationIds: string[];
 }
 
 export class RegulationResponseDto {
@@ -67,8 +58,7 @@ export class RegulationResponseDto {
   title: string;
   content: string;
   order: number;
-  isActive: boolean;
   seasonId: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 } 

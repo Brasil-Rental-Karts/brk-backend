@@ -17,7 +17,7 @@ export class RegulationRepositoryImpl extends BaseRepositoryImpl<Regulation> imp
 
   async findBySeasonId(seasonId: string): Promise<Regulation[]> {
     return this.regulationRepository.find({
-      where: { seasonId, isActive: true },
+      where: { seasonId },
       order: { order: 'ASC' }
     });
   }

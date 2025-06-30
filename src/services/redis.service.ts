@@ -882,7 +882,6 @@ export class RedisService {
         title: data.title,
         content: data.content,
         order: data.order.toString(),
-        isActive: data.isActive ? 'true' : 'false',
         seasonId: data.seasonId
       };
 
@@ -927,7 +926,6 @@ export class RedisService {
         title: data.title,
         content: data.content,
         order: parseInt(data.order),
-        isActive: data.isActive === 'true',
         seasonId: data.seasonId
       };
     } catch (error) {
@@ -973,7 +971,6 @@ export class RedisService {
           title: data.title,
           content: data.content,
           order: parseInt(data.order),
-          isActive: data.isActive === 'true',
           seasonId: data.seasonId
         }));
     } catch (error) {
