@@ -424,6 +424,7 @@ export class SeasonController extends BaseController {
       if (req.body.endDate) seasonData.endDate = new Date(req.body.endDate);
       if (req.body.status) seasonData.status = req.body.status;
       if (req.body.registrationOpen !== undefined) seasonData.registrationOpen = req.body.registrationOpen;
+      if (req.body.regulationsEnabled !== undefined) seasonData.regulationsEnabled = req.body.regulationsEnabled;
       if (req.body.inscriptionValue) seasonData.inscriptionValue = parseFloat(req.body.inscriptionValue);
       if (req.body.inscriptionType) seasonData.inscriptionType = req.body.inscriptionType;
       if (req.body.paymentMethods) seasonData.paymentMethods = req.body.paymentMethods;

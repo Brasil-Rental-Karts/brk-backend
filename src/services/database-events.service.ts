@@ -135,7 +135,8 @@ export class DatabaseEventsService {
                 startDate: event.data.startDate,
                 endDate: event.data.endDate,
                 championshipId: event.data.championshipId,
-                registrationOpen: event.data.registrationOpen
+                registrationOpen: event.data.registrationOpen,
+                regulationsEnabled: event.data.regulationsEnabled
               };
               await this.redisService.cacheSeasonBasicInfo(event.data.id, seasonInfo);
             }

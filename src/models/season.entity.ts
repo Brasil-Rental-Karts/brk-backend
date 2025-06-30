@@ -52,6 +52,10 @@ export class Season extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   registrationOpen: boolean;
 
+  // Controle de Regulamento
+  @Column({ type: 'boolean', default: false })
+  regulationsEnabled: boolean;
+
   // Dados Financeiros
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   inscriptionValue: number;

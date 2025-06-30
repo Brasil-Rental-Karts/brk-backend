@@ -350,7 +350,8 @@ export class RedisService {
         startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
         endDate: data.endDate instanceof Date ? data.endDate.toISOString() : data.endDate,
         championshipId: data.championshipId,
-        registrationOpen: data.registrationOpen ? 'true' : 'false'
+        registrationOpen: data.registrationOpen ? 'true' : 'false',
+        regulationsEnabled: data.regulationsEnabled ? 'true' : 'false'
       };
 
       // Store season data as Redis Hash
@@ -396,7 +397,8 @@ export class RedisService {
         startDate: new Date(data.startDate),
         endDate: new Date(data.endDate),
         championshipId: data.championshipId,
-        registrationOpen: data.registrationOpen === 'true'
+        registrationOpen: data.registrationOpen === 'true',
+        regulationsEnabled: data.regulationsEnabled === 'true'
       };
     } catch (error) {
       // console.error('Error getting cached season basic info:', error);
@@ -443,7 +445,8 @@ export class RedisService {
           startDate: new Date(data.startDate),
           endDate: new Date(data.endDate),
           championshipId: data.championshipId,
-          registrationOpen: data.registrationOpen === 'true'
+          registrationOpen: data.registrationOpen === 'true',
+          regulationsEnabled: data.regulationsEnabled === 'true'
         }));
     } catch (error) {
       // console.error('Error getting multiple seasons from cache:', error);
