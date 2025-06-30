@@ -41,6 +41,7 @@ const TABLES_ORDER = [
   'Seasons', // FK: championshipId
   'Categories', // FK: seasonId
   'Stages', // FK: seasonId
+  'Regulations', // FK: seasonId
   'SeasonRegistrations', // FK: seasonId, userId
   'SeasonRegistrationCategories', // FK: seasonRegistrationId, categoryId
   'StageParticipations', // FK: stageId, userId
@@ -86,8 +87,15 @@ async function copyTableData(prodClient: Client, localClient: Client, tableName:
     
     // Insere os dados no banco local
     for (const row of result.rows) {
-      const columns = Object.keys(row);
-      const values = Object.values(row).map(value => {
+      let processedRow = { ...row };
+      
+      // Tratamento específico para a tabela Regulations - remove o campo isActive
+      if (tableName === 'Regulations' && processedRow.hasOwnProperty('isActive')) {
+        delete processedRow.isActive;
+      }
+      
+      const columns = Object.keys(processedRow);
+      const values = Object.values(processedRow).map(value => {
         // Trata campos JSON - converte objetos para string JSON válida
         if (value && typeof value === 'object' && !Array.isArray(value)) {
           // Verifica se é um objeto que precisa ser convertido para JSON
@@ -120,7 +128,7 @@ async function copyTableData(prodClient: Client, localClient: Client, tableName:
         await localClient.query(query, values);
       } catch (error) {
         console.error(`❌ Erro ao inserir registro em ${tableName}:`, error);
-        console.error('Dados:', row);
+        console.error('Dados:', processedRow);
       }
     }
     
