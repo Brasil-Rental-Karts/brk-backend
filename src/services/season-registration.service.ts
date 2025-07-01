@@ -25,6 +25,16 @@ export interface CreateRegistrationData {
   installments?: number;
 }
 
+export interface CreateAdminRegistrationData {
+  userId: string;
+  seasonId: string;
+  categoryIds: string[];
+  stageIds?: string[];
+  paymentStatus: 'exempt' | 'direct_payment';
+  amount: number;
+  notes?: string;
+}
+
 export interface RegistrationPaymentData {
   id: string; // AsaasPayment ID
   registrationId: string;
@@ -642,6 +652,106 @@ export class SeasonRegistrationService {
 
     // Atualizar o status da inscrição usando a nova lógica
     await this.updateSeasonRegistrationStatus(asaasPayment.registrationId);
+  }
+
+  /**
+   * Cria uma inscrição administrativa (isento ou pagamento direto)
+   */
+  async createAdminRegistration(data: CreateAdminRegistrationData): Promise<SeasonRegistration> {
+    // Verificar se o usuário existe
+    const user = await this.userRepository.findOne({ where: { id: data.userId } });
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    // Verificar se a temporada existe
+    const season = await this.seasonRepository.findOne({ where: { id: data.seasonId } });
+    if (!season) {
+      throw new NotFoundException('Temporada não encontrada');
+    }
+
+    // Verificar se já existe uma inscrição para este usuário nesta temporada
+    const existingRegistration = await this.registrationRepository.findOne({
+      where: { userId: data.userId, seasonId: data.seasonId }
+    });
+
+    if (existingRegistration) {
+      throw new BadRequestException('Usuário já possui inscrição nesta temporada');
+    }
+
+    // Verificar se as categorias existem
+    if (data.categoryIds && data.categoryIds.length > 0) {
+      const categories = await this.categoryRepository.find({
+        where: { id: In(data.categoryIds) }
+      });
+      
+      if (categories.length !== data.categoryIds.length) {
+        throw new BadRequestException('Uma ou mais categorias não foram encontradas');
+      }
+    }
+
+    // Verificar se as etapas existem
+    if (data.stageIds && data.stageIds.length > 0) {
+      const stages = await this.stageRepository.find({
+        where: { id: In(data.stageIds) }
+      });
+      
+      if (stages.length !== data.stageIds.length) {
+        throw new BadRequestException('Uma ou mais etapas não foram encontradas');
+      }
+    }
+
+    // Criar a inscrição
+    const registration = new SeasonRegistration();
+    registration.userId = data.userId;
+    registration.seasonId = data.seasonId;
+    registration.amount = data.amount;
+    registration.paymentStatus = data.paymentStatus as PaymentStatus;
+    registration.status = data.paymentStatus === 'exempt' ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
+    registration.paymentMethod = data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
+    
+    // Definir datas baseadas no status
+    if (data.paymentStatus === 'exempt') {
+      registration.confirmedAt = new Date();
+    }
+
+    const savedRegistration = await this.registrationRepository.save(registration);
+
+    // Criar registros de categorias
+    if (data.categoryIds && data.categoryIds.length > 0) {
+      const categoryRegistrations = data.categoryIds.map(categoryId => {
+        const categoryRegistration = new SeasonRegistrationCategory();
+        categoryRegistration.registrationId = savedRegistration.id;
+        categoryRegistration.categoryId = categoryId;
+        return categoryRegistration;
+      });
+
+      await this.registrationCategoryRepository.save(categoryRegistrations);
+    }
+
+    // Criar registros de etapas
+    if (data.stageIds && data.stageIds.length > 0) {
+      const stageRegistrations = data.stageIds.map(stageId => {
+        const stageRegistration = new SeasonRegistrationStage();
+        stageRegistration.registrationId = savedRegistration.id;
+        stageRegistration.stageId = stageId;
+        return stageRegistration;
+      });
+
+      await this.registrationStageRepository.save(stageRegistrations);
+    }
+
+    // Buscar a inscrição completa com relacionamentos
+    const completeRegistration = await this.registrationRepository.findOne({
+      where: { id: savedRegistration.id },
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage']
+    });
+
+    if (!completeRegistration) {
+      throw new Error('Erro ao buscar inscrição criada');
+    }
+
+    return completeRegistration;
   }
 
   /**

@@ -133,6 +133,69 @@ export class SeasonRegistrationController extends BaseController {
 
     /**
      * @swagger
+     * /season-registrations/admin:
+     *   post:
+     *     summary: Criar inscrição administrativa (isento ou pagamento direto)
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - userId
+     *               - seasonId
+     *               - categoryIds
+     *               - paymentStatus
+     *               - amount
+     *             properties:
+     *               userId:
+     *                 type: string
+     *                 format: uuid
+     *                 description: ID do usuário
+     *               seasonId:
+     *                 type: string
+     *                 format: uuid
+     *                 description: ID da temporada
+     *               categoryIds:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                   format: uuid
+     *                 description: IDs das categorias
+     *               stageIds:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                   format: uuid
+     *                 description: IDs das etapas (opcional)
+     *               paymentStatus:
+     *                 type: string
+     *                 enum: [exempt, direct_payment]
+     *                 description: Status de pagamento administrativo
+     *               amount:
+     *                 type: number
+     *                 description: Valor da inscrição
+     *               notes:
+     *                 type: string
+     *                 description: Observações (opcional)
+     *     responses:
+     *       201:
+     *         description: Inscrição administrativa criada com sucesso
+     *       400:
+     *         description: Dados inválidos
+     *       403:
+     *         description: Acesso negado (apenas Administrators)
+     *       404:
+     *         description: Usuário ou temporada não encontrados
+     */
+    this.router.post('/admin', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.createAdminRegistration.bind(this));
+
+    /**
+     * @swagger
      * /season-registrations/my:
      *   get:
      *     summary: Listar minhas inscrições
@@ -505,6 +568,51 @@ export class SeasonRegistrationController extends BaseController {
 
       res.status(201).json({
         message: 'Inscrição criada com sucesso',
+        data: result
+      });
+    } catch (error) {
+      res.status(error instanceof BadRequestException ? 400 : 500).json({
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async createAdminRegistration(req: Request, res: Response): Promise<void> {
+    try {
+      const { userId, seasonId, categoryIds, stageIds, paymentStatus, amount, notes } = req.body;
+
+      // Validar dados de entrada
+      if (!userId || !seasonId || !categoryIds || !paymentStatus || amount === undefined) {
+        throw new BadRequestException('userId, seasonId, categoryIds, paymentStatus e amount são obrigatórios');
+      }
+
+      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        throw new BadRequestException('Pelo menos uma categoria deve ser selecionada');
+      }
+
+      const validPaymentStatuses = ['exempt', 'direct_payment'];
+      if (!validPaymentStatuses.includes(paymentStatus)) {
+        throw new BadRequestException('Status de pagamento inválido');
+      }
+
+      if (amount < 0) {
+        throw new BadRequestException('O valor deve ser maior ou igual a zero');
+      }
+
+      const adminRegistrationData = {
+        userId,
+        seasonId,
+        categoryIds,
+        stageIds,
+        paymentStatus,
+        amount,
+        notes
+      };
+
+      const result = await this.registrationService.createAdminRegistration(adminRegistrationData);
+
+      res.status(201).json({
+        message: 'Inscrição administrativa criada com sucesso',
         data: result
       });
     } catch (error) {

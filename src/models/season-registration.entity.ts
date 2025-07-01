@@ -20,7 +20,9 @@ export enum PaymentStatus {
   PAID = 'paid',
   FAILED = 'failed',
   CANCELLED = 'cancelled',
-  REFUNDED = 'refunded'
+  REFUNDED = 'refunded',
+  EXEMPT = 'exempt',
+  DIRECT_PAYMENT = 'direct_payment'
 }
 
 @Entity('SeasonRegistrations')
