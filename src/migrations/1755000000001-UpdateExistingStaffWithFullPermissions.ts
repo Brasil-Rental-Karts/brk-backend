@@ -18,6 +18,7 @@ export class UpdateExistingStaffWithFullPermissions1755000000001 implements Migr
             stages: true,
             pilots: true,
             regulations: true,
+            raceDay: true,
             editChampionship: true,
             gridTypes: true,
             scoringSystems: true,
@@ -34,7 +35,7 @@ export class UpdateExistingStaffWithFullPermissions1755000000001 implements Migr
         await queryRunner.query(`
             UPDATE "ChampionshipStaff" 
             SET "permissions" = '{}'::jsonb
-            WHERE "permissions" = '{"seasons":true,"categories":true,"stages":true,"pilots":true,"regulations":true,"editChampionship":true,"gridTypes":true,"scoringSystems":true,"sponsors":true,"staff":true,"asaasAccount":true}'::jsonb
+            WHERE "permissions" = '{"seasons":true,"categories":true,"stages":true,"pilots":true,"regulations":true,"raceDay":true,"editChampionship":true,"gridTypes":true,"scoringSystems":true,"sponsors":true,"staff":true,"asaasAccount":true}'::jsonb
         `);
     }
 } 
