@@ -72,8 +72,8 @@ export class ChampionshipStaffRepository extends BaseRepositoryImpl<Championship
     // Use raw SQL to insert the staff member to bypass TypeORM mapping issues
     const result = await this.repository.query(`
       INSERT INTO "ChampionshipStaff" 
-      ("championshipId", "userId", "role", "isActive", "addedById", "addedAt")
-      VALUES ($1, $2, $3, $4, $5, $6)
+      ("championshipId", "userId", "role", "isActive", "addedById", "addedAt", "permissions")
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING "id"
     `, [
       staffData.championshipId,
@@ -81,7 +81,8 @@ export class ChampionshipStaffRepository extends BaseRepositoryImpl<Championship
       staffData.role || 'staff',
       staffData.isActive !== false,
       staffData.addedById,
-      staffData.addedAt || new Date()
+      staffData.addedAt || new Date(),
+      JSON.stringify(staffData.permissions || {})
     ]);
     
     const insertedId = result[0].id;

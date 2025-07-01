@@ -3,14 +3,7 @@ import { BaseController } from './base.controller';
 import { ChampionshipStaffService, AddStaffMemberRequest } from '../services/championship-staff.service';
 import { authMiddleware, requireMember } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
-import { IsEmail, IsNotEmpty } from 'class-validator';
-import { BaseDto } from '../dtos/base.dto';
-
-class AddStaffMemberDto extends BaseDto {
-  @IsEmail()
-  @IsNotEmpty()
-  email!: string;
-}
+import { AddStaffMemberDto, UpdateStaffMemberDto } from '../dtos/championship-staff.dto';
 
 /**
  * @swagger
@@ -192,6 +185,56 @@ export class ChampionshipStaffController extends BaseController {
      *         description: Championship or staff member not found
      */
     this.router.delete('/:championshipId/staff/:staffMemberId', authMiddleware, requireMember, this.removeStaffMember.bind(this));
+
+    /**
+     * @swagger
+     * /championships/{championshipId}/staff/{staffMemberId}/permissions:
+     *   put:
+     *     summary: Update staff member permissions
+     *     tags: [Championship Staff]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: championshipId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: Championship ID
+     *       - in: path
+     *         name: staffMemberId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: Staff member ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateStaffMemberDto'
+     *     responses:
+     *       200:
+     *         description: Staff member permissions updated successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   $ref: '#/components/schemas/StaffMemberResponse'
+     *       400:
+     *         description: Bad request - Invalid data
+     *       403:
+     *         description: Forbidden - No permission to update staff
+     *       404:
+     *         description: Championship or staff member not found
+     */
+    this.router.put('/:championshipId/staff/:staffMemberId/permissions', authMiddleware, requireMember, validationMiddleware(UpdateStaffMemberDto), this.updateStaffMemberPermissions.bind(this));
   }
 
   private async getStaffMembers(req: Request, res: Response): Promise<void> {
@@ -257,6 +300,39 @@ export class ChampionshipStaffController extends BaseController {
       
       if (error.status === 404) {
         res.status(404).json({ message: error.message });
+      } else if (error.status === 403) {
+        res.status(403).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
+    }
+  }
+
+  private async updateStaffMemberPermissions(req: Request, res: Response): Promise<void> {
+    try {
+      const championshipId = req.params.championshipId;
+      const staffMemberId = req.params.staffMemberId;
+      const userId = (req as any).user.id;
+      const { permissions } = req.body;
+
+      const updatedStaffMember = await this.championshipStaffService.updateStaffMemberPermissions(
+        championshipId, 
+        staffMemberId, 
+        permissions, 
+        userId
+      );
+      
+      res.json({
+        message: 'Permissões do membro atualizadas com sucesso',
+        data: updatedStaffMember
+      });
+    } catch (error: any) {
+      console.error('Error updating staff member permissions:', error);
+      
+      if (error.status === 404) {
+        res.status(404).json({ message: error.message });
+      } else if (error.status === 400) {
+        res.status(400).json({ message: error.message });
       } else if (error.status === 403) {
         res.status(403).json({ message: error.message });
       } else {

@@ -7,6 +7,20 @@ export enum StaffRole {
   STAFF = 'staff'
 }
 
+export interface StaffPermissions {
+  seasons?: boolean;
+  categories?: boolean;
+  stages?: boolean;
+  pilots?: boolean;
+  regulations?: boolean;
+  editChampionship?: boolean;
+  gridTypes?: boolean;
+  scoringSystems?: boolean;
+  sponsors?: boolean;
+  staff?: boolean;
+  asaasAccount?: boolean;
+}
+
 /**
  * @swagger
  * components:
@@ -83,6 +97,13 @@ export class ChampionshipStaff extends BaseEntity {
 
   @Column({ name: 'removedAt', type: 'timestamptz', nullable: true })
   removedAt: Date;
+
+  @Column({ 
+    type: 'jsonb', 
+    default: () => "'{}'::jsonb",
+    nullable: true 
+  })
+  permissions: StaffPermissions;
 
   // Relacionamentos
   @ManyToOne(() => Championship, championship => championship.id, { onDelete: 'CASCADE' })

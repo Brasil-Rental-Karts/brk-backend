@@ -1,5 +1,5 @@
 import { BaseService } from './base.service';
-import { ChampionshipStaff, StaffRole } from '../models/championship-staff.entity';
+import { ChampionshipStaff, StaffRole, StaffPermissions } from '../models/championship-staff.entity';
 import { ChampionshipStaffRepository } from '../repositories/championship-staff.repository';
 import { UserService } from './user.service';
 import { ChampionshipService } from './championship.service';
@@ -9,6 +9,7 @@ import { ForbiddenException } from '../exceptions/forbidden.exception';
 
 export interface AddStaffMemberRequest {
   email: string;
+  permissions?: StaffPermissions;
 }
 
 export interface StaffMemberResponse {
@@ -26,6 +27,7 @@ export interface StaffMemberResponse {
     email: string;
   };
   isOwner?: boolean;
+  permissions?: StaffPermissions;
 }
 
 export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
@@ -68,7 +70,20 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
         name: owner.name,
         email: owner.email
       },
-      isOwner: true
+      isOwner: true,
+      permissions: {
+        seasons: true,
+        categories: true,
+        stages: true,
+        pilots: true,
+        regulations: true,
+        editChampionship: true,
+        gridTypes: true,
+        scoringSystems: true,
+        sponsors: true,
+        staff: true,
+        asaasAccount: true
+      }
     });
 
     // Adicionar membros do staff
@@ -87,7 +102,8 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
           name: staff.addedBy.name,
           email: staff.addedBy.email
         },
-        isOwner: false
+        isOwner: false,
+        permissions: staff.permissions || {}
       });
     });
 
@@ -169,7 +185,8 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
             id: fullStaffMember.addedBy.id,
             name: fullStaffMember.addedBy.name,
             email: fullStaffMember.addedBy.email
-          }
+          },
+          permissions: fullStaffMember.permissions || {}
         };
       } else {
         throw new BadRequestException('Este usuário já é membro do staff deste campeonato');
@@ -183,7 +200,8 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
       role: StaffRole.STAFF,
       addedById,
       addedAt: new Date(),
-      isActive: true
+      isActive: true,
+      permissions: request.permissions || {}
     });
 
     // Carregar dados completos para retorno
@@ -205,7 +223,8 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
         id: fullStaffMember.addedBy.id,
         name: fullStaffMember.addedBy.name,
         email: fullStaffMember.addedBy.email
-      }
+      },
+      permissions: fullStaffMember.permissions || {}
     };
   }
 
@@ -256,5 +275,82 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
 
     // Verificar se é membro do staff
     return this.isUserStaffMember(userId, championshipId);
+  }
+
+  async hasSpecificPermission(userId: string, championshipId: string, permission: keyof StaffPermissions): Promise<boolean> {
+    // Verificar se é owner (tem todas as permissões)
+    const championship = await this.championshipService.findById(championshipId);
+    if (championship?.ownerId === userId) {
+      return true;
+    }
+
+    // Verificar se é admin/manager global (tem todas as permissões)
+    const user = await this.userService.findById(userId);
+    if (user && ['Administrator', 'Manager'].includes(user.role)) {
+      return true;
+    }
+
+    // Verificar permissão específica do staff
+    const staffMember = await this.repository.findByUserAndChampionship(userId, championshipId);
+    if (!staffMember || !staffMember.isActive) {
+      return false;
+    }
+
+    return staffMember.permissions?.[permission] === true;
+  }
+
+  async updateStaffMemberPermissions(
+    championshipId: string, 
+    staffMemberId: string, 
+    permissions: StaffPermissions,
+    updatedById: string
+  ): Promise<StaffMemberResponse> {
+    // Verificar se o campeonato existe
+    const championship = await this.championshipService.findById(championshipId);
+    if (!championship) {
+      throw new NotFoundException('Campeonato não encontrado');
+    }
+
+    // Verificar se o usuário tem permissão para gerenciar este campeonato
+    const hasPermission = await this.hasChampionshipPermission(updatedById, championshipId);
+    if (!hasPermission) {
+      throw new ForbiddenException('Você não tem permissão para gerenciar membros do staff deste campeonato');
+    }
+
+    // Buscar membro do staff
+    const staffMember = await this.repository.findById(staffMemberId);
+    if (!staffMember || staffMember.championshipId !== championshipId) {
+      throw new NotFoundException('Membro do staff não encontrado');
+    }
+
+    // Atualizar permissões
+    const updatedStaffMember = await this.repository.update(staffMemberId, { permissions });
+    if (!updatedStaffMember) {
+      throw new Error('Erro ao atualizar permissões do membro do staff');
+    }
+
+    // Carregar dados completos para retorno
+    const fullStaffMember = await this.repository.findByIdWithRelations(staffMemberId);
+    if (!fullStaffMember) {
+      throw new Error('Erro ao carregar dados do membro do staff');
+    }
+
+    return {
+      id: fullStaffMember.id,
+      user: {
+        id: fullStaffMember.user.id,
+        name: fullStaffMember.user.name,
+        email: fullStaffMember.user.email
+      },
+      role: fullStaffMember.role,
+      addedAt: fullStaffMember.addedAt,
+      addedBy: {
+        id: fullStaffMember.addedBy.id,
+        name: fullStaffMember.addedBy.name,
+        email: fullStaffMember.addedBy.email
+      },
+      isOwner: false,
+      permissions: fullStaffMember.permissions || {}
+    };
   }
 } 

@@ -539,9 +539,19 @@ export class SeasonRegistrationController extends BaseController {
         throw new NotFoundException('Inscrição não encontrada');
       }
 
-      // Verificar se o usuário tem permissão para ver esta inscrição
-      if (registration.userId !== req.user!.id && 
-          ![UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role)) {
+      // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
+      const userId = req.user!.id;
+      const isRegistrationOwner = registration.userId === userId;
+      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
+      
+      let isChampionshipStaff = false;
+      if (!isRegistrationOwner && !isAdminOrManager) {
+        // Verificar se é staff do campeonato
+        const championshipId = registration.season.championshipId;
+        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+      }
+
+      if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
           message: 'Sem permissão para acessar esta inscrição'
         });
@@ -569,8 +579,19 @@ export class SeasonRegistrationController extends BaseController {
         throw new NotFoundException('Inscrição não encontrada');
       }
 
-      if (registration.userId !== req.user!.id && 
-          ![UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role)) {
+      // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
+      const userId = req.user!.id;
+      const isRegistrationOwner = registration.userId === userId;
+      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
+      
+      let isChampionshipStaff = false;
+      if (!isRegistrationOwner && !isAdminOrManager) {
+        // Verificar se é staff do campeonato
+        const championshipId = registration.season.championshipId;
+        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+      }
+
+      if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
           message: 'Sem permissão para acessar dados de pagamento desta inscrição'
         });
@@ -609,8 +630,19 @@ export class SeasonRegistrationController extends BaseController {
         throw new NotFoundException('Inscrição não encontrada');
       }
 
-      if (registration.userId !== req.user!.id && 
-          ![UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role)) {
+      // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
+      const userId = req.user!.id;
+      const isRegistrationOwner = registration.userId === userId;
+      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
+      
+      let isChampionshipStaff = false;
+      if (!isRegistrationOwner && !isAdminOrManager) {
+        // Verificar se é staff do campeonato
+        const championshipId = registration.season.championshipId;
+        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+      }
+
+      if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
           message: 'Sem permissão para cancelar esta inscrição'
         });
@@ -741,8 +773,19 @@ export class SeasonRegistrationController extends BaseController {
         throw new NotFoundException('Inscrição não encontrada');
       }
 
-      if (registration.userId !== req.user!.id && 
-          ![UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role)) {
+      // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
+      const userId = req.user!.id;
+      const isRegistrationOwner = registration.userId === userId;
+      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
+      
+      let isChampionshipStaff = false;
+      if (!isRegistrationOwner && !isAdminOrManager) {
+        // Verificar se é staff do campeonato
+        const championshipId = registration.season.championshipId;
+        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+      }
+
+      if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
           message: 'Sem permissão para sincronizar status de pagamento desta inscrição'
         });
@@ -843,8 +886,19 @@ export class SeasonRegistrationController extends BaseController {
         throw new NotFoundException('Inscrição não encontrada');
       }
 
-      if (registration.userId !== req.user!.id && 
-          ![UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role)) {
+      // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
+      const userId = req.user!.id;
+      const isRegistrationOwner = registration.userId === userId;
+      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
+      
+      let isChampionshipStaff = false;
+      if (!isRegistrationOwner && !isAdminOrManager) {
+        // Verificar se é staff do campeonato
+        const championshipId = registration.season.championshipId;
+        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+      }
+
+      if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
           message: 'Sem permissão para acessar detalhes do piloto inscrito'
         });
