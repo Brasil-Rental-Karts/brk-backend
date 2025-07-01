@@ -21,6 +21,7 @@ import { StageController } from './controllers/stage.controller';
 import { StageParticipationController } from './controllers/stage-participation.controller';
 import { UserStatsController } from './controllers/user-stats.controller';
 import { RegulationController } from './controllers/regulation.controller';
+import { AdminStatsController } from './controllers/admin-stats.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -115,7 +116,8 @@ AppDataSource.initialize()
       new StageController(stageService, championshipStaffService, seasonService),
       new StageParticipationController(),
       new UserStatsController(),
-      new RegulationController(regulationService, championshipStaffService, seasonService)
+      new RegulationController(regulationService, championshipStaffService, seasonService),
+      new AdminStatsController()
     ];
 
     // Initialize the app
