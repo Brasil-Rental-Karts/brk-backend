@@ -109,6 +109,10 @@ import {
  *           format: date-time
  *           description: Timestamp when the profile was last updated
  *           example: "2023-07-25T14:45:00Z"
+ *         profileCompleted:
+ *           type: boolean
+ *           description: Whether the profile is completed
+ *           example: true
  *       example:
  *         id: "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
  *         createdAt: "2023-01-15T10:30:00Z"
@@ -131,6 +135,7 @@ import {
  *         attendsEvents: 0
  *         interestCategories: [0, 1]
  *         preferredTrack: "Interlagos"
+ *         profileCompleted: true
  */
 @Entity('MemberProfiles')
 export class MemberProfile extends BaseEntity {
@@ -191,4 +196,7 @@ export class MemberProfile extends BaseEntity {
 
   @Column({ length: 100, nullable: true })
   preferredTrack?: string;
+
+  @Column({ nullable: false, default: false })
+  profileCompleted!: boolean;
 } 

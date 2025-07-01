@@ -55,7 +55,8 @@ export class MemberProfileService extends BaseService<MemberProfile> {
               telemetryType: null,
               attendsEvents: null,
               interestCategories: [],
-              preferredTrack: null
+              preferredTrack: null,
+              profileCompleted: false
             } as any;
           }
         }
@@ -108,14 +109,20 @@ export class MemberProfileService extends BaseService<MemberProfile> {
         // Set ID to match user ID for new profile
         const newProfileData: DeepPartial<MemberProfile> = {
           ...data,
-          id: userId
+          id: userId,
+          profileCompleted: true // Mark as completed when creating new profile
         };
         
         return this.repository.create(newProfileData);
       }
       
-      // Update existing profile
-      const updatedProfile = await this.repository.update(userId, data);
+      // Update existing profile and mark as completed
+      const updateData = {
+        ...data,
+        profileCompleted: true // Always mark as completed when updating
+      };
+      
+      const updatedProfile = await this.repository.update(userId, updateData);
       
       if (!updatedProfile) {
         throw new Error('Failed to update member profile');

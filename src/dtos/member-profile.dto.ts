@@ -129,6 +129,10 @@ import {
  *           maxLength: 100
  *           description: User's preferred track
  *           example: "Interlagos"
+ *         profileCompleted:
+ *           type: boolean
+ *           description: Whether the profile is completed
+ *           example: true
  */
 export class UpsertMemberProfileDto extends BaseDto {
   @IsUUID()
@@ -239,4 +243,8 @@ export class UpsertMemberProfileDto extends BaseDto {
   @Transform(({ value }) => value === null ? undefined : value)
   @Length(0, 100)
   preferredTrack?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  profileCompleted?: boolean;
 } 
