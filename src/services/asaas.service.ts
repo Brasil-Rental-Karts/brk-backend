@@ -361,19 +361,8 @@ export class AsaasService {
    */
   async getPixQrCode(paymentId: string): Promise<{ encodedImage: string; payload: string; expirationDate: string }> {
     try {
-      console.log('[ASAAS] Buscando QR Code PIX para paymentId:', paymentId);
-      
       const response: AxiosResponse<{ encodedImage: string; payload: string; expirationDate: string }> = 
         await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
-      
-      console.log('[ASAAS] Resposta do QR Code PIX:', {
-        hasEncodedImage: !!response.data.encodedImage,
-        encodedImageLength: response.data.encodedImage?.length || 0,
-        hasPayload: !!response.data.payload,
-        payloadLength: response.data.payload?.length || 0,
-        payloadPreview: response.data.payload?.substring(0, 50) + '...',
-        hasExpirationDate: !!response.data.expirationDate
-      });
       
       return response.data;
     } catch (error: any) {

@@ -467,15 +467,7 @@ export class SeasonRegistrationService {
 
         if (asaasBillingType === 'PIX') {
           try {
-            console.log('[REGISTRATION] Buscando QR Code PIX para paymentId:', asaasPaymentResponse.id);
             const pixQrCode = await this.asaasService.getPixQrCode(asaasPaymentResponse.id);
-            console.log('[REGISTRATION] QR Code PIX obtido:', {
-              hasEncodedImage: !!pixQrCode.encodedImage,
-              encodedImageLength: pixQrCode.encodedImage?.length || 0,
-              hasPayload: !!pixQrCode.payload,
-              payloadLength: pixQrCode.payload?.length || 0,
-              payloadPreview: pixQrCode.payload?.substring(0, 50) + '...'
-            });
             asaasPayment.pixQrCode = pixQrCode.encodedImage;
             asaasPayment.pixCopyPaste = pixQrCode.payload;
           } catch (error) {
@@ -973,20 +965,6 @@ export class SeasonRegistrationService {
         pixQrCode: p.pixQrCode,
         pixCopyPaste: p.pixCopyPaste,
       };
-    });
-
-    // Log para debug
-    console.log('[REGISTRATION] getPaymentData retornando:', {
-      totalPayments: paymentData.length,
-      payments: paymentData.map(p => ({
-        id: p.id,
-        billingType: p.billingType,
-        hasPixQrCode: !!p.pixQrCode,
-        pixQrCodeLength: p.pixQrCode?.length || 0,
-        hasPixCopyPaste: !!p.pixCopyPaste,
-        pixCopyPasteLength: p.pixCopyPaste?.length || 0,
-        pixCopyPastePreview: p.pixCopyPaste?.substring(0, 50) + '...'
-      }))
     });
 
     // Ordenar corretamente: primeiro por installmentNumber, depois por dueDate
