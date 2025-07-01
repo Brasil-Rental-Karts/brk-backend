@@ -255,6 +255,23 @@ export class StageService {
   }
 
   /**
+   * Atualizar cronograma da etapa
+   */
+  async updateSchedule(id: string, schedule: any): Promise<Stage> {
+    const stage = await this.findById(id);
+    
+    stage.schedule = schedule;
+    
+    const updatedStage = await this.stageRepository.save(stage);
+    
+    // Limpar cache relacionado
+    await this.redisService.deleteData(`stage:${id}`);
+    await this.redisService.deleteData(`stages:season:${stage.seasonId}`);
+    
+    return this.formatTimeFields(updatedStage);
+  }
+
+  /**
    * Deletar etapa
    */
   async delete(id: string): Promise<void> {

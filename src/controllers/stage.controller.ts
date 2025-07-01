@@ -437,8 +437,61 @@ export class StageController extends BaseController {
     this.router.delete(
       '/:id', 
       authMiddleware, 
+      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), 
       this.deleteStage.bind(this)
     );
+
+    /**
+     * @swagger
+     * /stages/{id}/schedule:
+     *   put:
+     *     summary: Atualizar cronograma da etapa
+     *     tags: [Stages]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da etapa
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               schedule:
+     *                 type: array
+     *                 items:
+     *                   type: object
+     *                   properties:
+     *                     label:
+     *                       type: string
+     *                       description: Descrição do item do cronograma
+     *                     time:
+     *                       type: string
+     *                       description: Horário do item (HH:MM)
+     *     responses:
+     *       200:
+     *         description: Cronograma atualizado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Stage'
+     *       401:
+     *         description: Token de acesso inválido
+     *       403:
+     *         description: Acesso negado
+     *       404:
+     *         description: Etapa não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.put('/:id/schedule', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateStageSchedule.bind(this));
   }
 
   // Route handlers
@@ -640,6 +693,53 @@ export class StageController extends BaseController {
 
       await this.stageService.delete(id);
       res.status(204).send();
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else if (error instanceof BadRequestException) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  private async updateStageSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const schedule = req.body.schedule;
+
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new BadRequestException('Usuário não autenticado.');
+      }
+
+      // Buscar a etapa existente para obter o seasonId
+      const existingStage = await this.stageService.findById(id);
+      if (!existingStage) {
+        res.status(404).json({ message: 'Etapa não encontrada' });
+        return;
+      }
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(existingStage.seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para editar o cronograma da etapa
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para editar o cronograma desta etapa'
+        });
+        return;
+      }
+
+      const updatedStage = await this.stageService.updateSchedule(id, schedule);
+      res.status(200).json(updatedStage);
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
