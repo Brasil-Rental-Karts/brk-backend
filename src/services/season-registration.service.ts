@@ -1047,52 +1047,138 @@ export class SeasonRegistrationService {
    * Busca dados de pagamento de uma inscrição
    */
   async getPaymentData(registrationId: string): Promise<RegistrationPaymentData[] | null> {
-    const payments = await this.paymentRepository.find({ 
+    // Buscar a inscrição para verificar o status de pagamento
+    const registration = await this.registrationRepository.findOne({
+      where: { id: registrationId }
+    });
+
+    if (!registration) {
+      return null;
+    }
+
+    // Buscar pagamentos Asaas
+    const asaasPayments = await this.paymentRepository.find({ 
       where: { registrationId },
       order: { dueDate: 'ASC' } 
     });
 
-    if (!payments || payments.length === 0) {
-      return null;
+    // Se é uma inscrição administrativa (exempt ou direct_payment) e não há pagamentos Asaas
+    if ((registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') && 
+        (!asaasPayments || asaasPayments.length === 0)) {
+      
+      // Criar um registro virtual para pagamento administrativo
+      const virtualPayment: RegistrationPaymentData = {
+        id: `admin_${registrationId}`,
+        registrationId: registrationId,
+        billingType: registration.paymentMethod === 'admin_exempt' ? 'ADMIN_EXEMPT' : 'ADMIN_DIRECT',
+        value: registration.amount,
+        dueDate: new Date(registration.createdAt).toISOString().split('T')[0], // Usar data de criação
+        status: registration.paymentStatus === 'exempt' ? 'EXEMPT' : 'DIRECT_PAYMENT',
+        installmentNumber: 1,
+        installmentCount: 1,
+        invoiceUrl: null,
+        bankSlipUrl: null,
+        paymentLink: null,
+        pixQrCode: null,
+        pixCopyPaste: null,
+      };
+
+      return [virtualPayment];
     }
 
-    const paymentData = payments.map(p => {
-      // Garantir que dueDate seja um objeto Date válido
-      let formattedDueDate: string = typeof p.dueDate === 'string' ? p.dueDate : this.asaasService.formatDateForAsaas(p.dueDate);
+    // Se há pagamentos Asaas, processar normalmente
+    if (asaasPayments && asaasPayments.length > 0) {
+      const paymentData: RegistrationPaymentData[] = asaasPayments.map(p => {
+        // Garantir que dueDate seja um objeto Date válido
+        let formattedDueDate: string = typeof p.dueDate === 'string' ? p.dueDate : this.asaasService.formatDateForAsaas(p.dueDate);
 
-      return {
-        id: p.id,
-        registrationId: p.registrationId,
-        billingType: p.billingType,
-        value: p.value,
-        dueDate: formattedDueDate,
-        status: p.status,
-        installmentNumber: (p.rawResponse as any)?.installmentNumber,
-        installmentCount: (p.rawResponse as any)?.installmentCount || null,
-        invoiceUrl: p.invoiceUrl,
-        bankSlipUrl: p.bankSlipUrl,
-        paymentLink: (p.rawResponse as any)?.paymentLink || p.invoiceUrl,
-        pixQrCode: p.pixQrCode,
-        pixCopyPaste: p.pixCopyPaste,
-      };
-    });
+        return {
+          id: p.id,
+          registrationId: p.registrationId,
+          billingType: p.billingType,
+          value: p.value,
+          dueDate: formattedDueDate,
+          status: p.status,
+          installmentNumber: (p.rawResponse as any)?.installmentNumber,
+          installmentCount: (p.rawResponse as any)?.installmentCount || null,
+          invoiceUrl: p.invoiceUrl,
+          bankSlipUrl: p.bankSlipUrl,
+          paymentLink: (p.rawResponse as any)?.paymentLink || p.invoiceUrl,
+          pixQrCode: p.pixQrCode,
+          pixCopyPaste: p.pixCopyPaste,
+        };
+      });
 
-    // Ordenar corretamente: primeiro por installmentNumber, depois por dueDate
-    const sortedPayments = paymentData.sort((a, b) => {
-      // Se ambos têm installmentNumber, ordenar por ele
-      if (a.installmentNumber && b.installmentNumber) {
-        return a.installmentNumber - b.installmentNumber;
+      // Calcular o valor total dos pagamentos Asaas
+      const totalAsaasValue = asaasPayments.reduce((sum, p) => sum + Number(p.value), 0);
+      const registrationAmount = Number(registration.amount);
+
+      // Se o valor total dos pagamentos Asaas é menor que o valor da inscrição,
+      // significa que parte foi paga administrativamente
+      if (totalAsaasValue < registrationAmount) {
+        const adminValue = registrationAmount - totalAsaasValue;
+        
+        // Criar pagamento administrativo virtual para a diferença
+        const virtualPayment: RegistrationPaymentData = {
+          id: `admin_${registrationId}`,
+          registrationId: registrationId,
+          billingType: 'ADMIN_DIRECT',
+          value: adminValue,
+          dueDate: new Date(registration.createdAt).toISOString().split('T')[0],
+          status: 'DIRECT_PAYMENT',
+          installmentNumber: 0, // Colocar antes das parcelas Asaas
+          installmentCount: 1,
+          invoiceUrl: null,
+          bankSlipUrl: null,
+          paymentLink: null,
+          pixQrCode: null,
+          pixCopyPaste: null,
+        };
+        
+        paymentData.push(virtualPayment);
       }
-      
-      // Se apenas um tem installmentNumber, ele vem primeiro
-      if (a.installmentNumber && !b.installmentNumber) return -1;
-      if (!a.installmentNumber && b.installmentNumber) return 1;
-      
-      // Se nenhum tem installmentNumber, ordenar por data de vencimento
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
 
-    return sortedPayments;
+      // Se é uma inscrição administrativa (exempt ou direct_payment), adicionar o pagamento administrativo virtual
+      if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
+        const virtualPayment: RegistrationPaymentData = {
+          id: `admin_${registrationId}`,
+          registrationId: registrationId,
+          billingType: registration.paymentMethod === 'admin_exempt' ? 'ADMIN_EXEMPT' : 'ADMIN_DIRECT',
+          value: registration.amount,
+          dueDate: new Date(registration.createdAt).toISOString().split('T')[0],
+          status: registration.paymentStatus === 'exempt' ? 'EXEMPT' : 'DIRECT_PAYMENT',
+          installmentNumber: 0, // Colocar antes das parcelas Asaas
+          installmentCount: 1,
+          invoiceUrl: null,
+          bankSlipUrl: null,
+          paymentLink: null,
+          pixQrCode: null,
+          pixCopyPaste: null,
+        };
+        
+        paymentData.push(virtualPayment);
+      }
+
+      // Ordenar corretamente: primeiro por installmentNumber, depois por dueDate
+      const sortedPayments = paymentData.sort((a, b) => {
+        // Se ambos têm installmentNumber, ordenar por ele
+        if (a.installmentNumber && b.installmentNumber) {
+          return a.installmentNumber - b.installmentNumber;
+        }
+        
+        // Se apenas um tem installmentNumber, ele vem primeiro
+        if (a.installmentNumber && !b.installmentNumber) return -1;
+        if (!a.installmentNumber && b.installmentNumber) return 1;
+        
+        // Se nenhum tem installmentNumber, ordenar por data de vencimento
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+
+      return sortedPayments;
+    }
+
+    // Se não há pagamentos Asaas e não é administrativa, retornar null
+    return null;
   }
 
   /**
