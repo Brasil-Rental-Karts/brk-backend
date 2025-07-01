@@ -44,6 +44,7 @@ const TABLES_ORDER = [
   'Regulations', // FK: seasonId
   'SeasonRegistrations', // FK: seasonId, userId
   'SeasonRegistrationCategories', // FK: seasonRegistrationId, categoryId
+  'SeasonRegistrationStages', // FK: seasonRegistrationId, stageId
   'StageParticipations', // FK: stageId, userId
   'AsaasPayments', // FK: seasonRegistrationId
 ];
@@ -88,11 +89,6 @@ async function copyTableData(prodClient: Client, localClient: Client, tableName:
     // Insere os dados no banco local
     for (const row of result.rows) {
       let processedRow = { ...row };
-      
-      // Tratamento específico para a tabela Regulations - remove o campo isActive
-      if (tableName === 'Regulations' && processedRow.hasOwnProperty('isActive')) {
-        delete processedRow.isActive;
-      }
       
       const columns = Object.keys(processedRow);
       const values = Object.values(processedRow).map(value => {
