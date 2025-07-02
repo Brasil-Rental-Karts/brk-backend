@@ -27,7 +27,6 @@ export class UpdateExistingStaffWithFullPermissions1755000000001 implements Migr
             asaasAccount: true
         })]);
 
-        console.log(`Migration completed: Updated ${result[1]} existing staff members with full permissions`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

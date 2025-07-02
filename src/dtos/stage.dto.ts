@@ -226,4 +226,9 @@ export class UpdateStageDto extends BaseDto {
   @IsString()
   @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário do briefing deve estar no formato HH:MM' })
   briefingTime?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value)
+  // @IsArray({ message: 'Frotas deve ser um array' })
+  fleets?: any[];
 } 

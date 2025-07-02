@@ -619,6 +619,7 @@ export class StageController extends BaseController {
   private async updateStage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
+      
       const stageData: UpdateStageDto = plainToInstance(UpdateStageDto, req.body);
 
       const userId = req.user?.id;

@@ -14,7 +14,6 @@ export class AddRaceDayPermission1758000000000 implements MigrationInterface {
               AND "permissions" != 'null'::jsonb
         `);
 
-        console.log(`Migration completed: Added raceDay permission to existing staff members`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

@@ -38,4 +38,7 @@ export class Stage extends BaseEntity {
 
   @Column({ type: 'jsonb', nullable: true })
   schedule: any;
+
+  @Column({ type: 'jsonb', nullable: true })
+  fleets: any;
 } 
