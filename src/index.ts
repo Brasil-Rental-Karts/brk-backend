@@ -22,6 +22,7 @@ import { StageParticipationController } from './controllers/stage-participation.
 import { UserStatsController } from './controllers/user-stats.controller';
 import { RegulationController } from './controllers/regulation.controller';
 import { AdminStatsController } from './controllers/admin-stats.controller';
+import { RaceTrackController } from './controllers/race-track.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -33,6 +34,7 @@ import { VipPreregister } from './models/vip-preregister.entity';
 import { Category } from './models/category.entity';
 import { GridType } from './models/grid-type.entity';
 import { Regulation } from './models/regulation.entity';
+import { RaceTrack } from './models/race-track.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
@@ -55,6 +57,7 @@ import { StageService } from './services/stage.service';
 import { StageParticipationService } from './services/stage-participation.service';
 import { UserStatsService } from './services/user-stats.service';
 import { RegulationService } from './services/regulation.service';
+import { RaceTrackService } from './services/race-track.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -65,6 +68,7 @@ import { SeasonRepository } from './repositories/season.repository';
 import { VipPreregisterRepository } from './repositories/vip-preregister.repository';
 import { CategoryRepository } from './repositories/category.repository';
 import { RegulationRepositoryImpl } from './repositories/regulation.repository';
+import { RaceTrackRepository } from './repositories/race-track.repository';
 
 // Initialize database connection
 AppDataSource.initialize()
@@ -78,6 +82,7 @@ AppDataSource.initialize()
     const vipPreregisterRepository = new VipPreregisterRepository(AppDataSource.getRepository(VipPreregister));
     const categoryRepository = new CategoryRepository(AppDataSource.getRepository(Category));
     const regulationRepository = new RegulationRepositoryImpl(AppDataSource.getRepository(Regulation));
+    const raceTrackRepository = new RaceTrackRepository(AppDataSource.getRepository(RaceTrack));
     
     // Initialize services
     const emailService = new EmailService();
@@ -97,6 +102,7 @@ AppDataSource.initialize()
     const stageParticipationService = new StageParticipationService();
     const userStatsService = new UserStatsService();
     const regulationService = new RegulationService(regulationRepository);
+    const raceTrackService = new RaceTrackService(raceTrackRepository);
     
     // Initialize controllers
     const controllers = [
@@ -117,7 +123,8 @@ AppDataSource.initialize()
       new StageParticipationController(),
       new UserStatsController(),
       new RegulationController(regulationService, championshipStaffService, seasonService),
-      new AdminStatsController()
+      new AdminStatsController(),
+      new RaceTrackController(raceTrackService)
     ];
 
     // Initialize the app
