@@ -492,6 +492,11 @@ export class StageController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.put('/:id/schedule', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateStageSchedule.bind(this));
+
+    // Salvar sorteio de karts
+    this.router.patch('/:id/kart-draw', authMiddleware, this.saveKartDrawAssignments.bind(this));
+    // Buscar sorteio de karts
+    this.router.get('/:id/kart-draw', authMiddleware, this.getKartDrawAssignments.bind(this));
   }
 
   // Route handlers
@@ -749,6 +754,27 @@ export class StageController extends BaseController {
       } else {
         res.status(500).json({ message: error.message });
       }
+      next(error);
+    }
+  }
+
+  private async saveKartDrawAssignments(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const assignments = req.body;
+      const updatedStage = await this.stageService.updateKartDrawAssignments(id, assignments);
+      res.json({ success: true, data: updatedStage.kart_draw_assignments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async getKartDrawAssignments(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const assignments = await this.stageService.getKartDrawAssignments(id);
+      res.json({ success: true, data: assignments });
+    } catch (error) {
       next(error);
     }
   }

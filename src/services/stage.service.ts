@@ -315,4 +315,23 @@ export class StageService {
       .addOrderBy('stage.time', 'ASC')
       .getOne();
   }
+
+  /**
+   * Atualizar sorteio de karts da etapa
+   */
+  async updateKartDrawAssignments(id: string, assignments: any): Promise<Stage> {
+    const stage = await this.findById(id);
+    stage.kart_draw_assignments = assignments;
+    const updatedStage = await this.stageRepository.save(stage);
+    await this.redisService.invalidateStageCache(id, stage.seasonId);
+    return this.formatTimeFields(updatedStage);
+  }
+
+  /**
+   * Buscar sorteio de karts da etapa
+   */
+  async getKartDrawAssignments(id: string): Promise<any> {
+    const stage = await this.findById(id);
+    return stage.kart_draw_assignments || null;
+  }
 }
