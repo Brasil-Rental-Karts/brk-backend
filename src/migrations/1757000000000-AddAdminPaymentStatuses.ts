@@ -13,6 +13,5 @@ export class AddAdminPaymentStatuses1757000000000 implements MigrationInterface 
         // Nota: PostgreSQL não permite remover valores de enum diretamente
         // Seria necessário recriar o enum sem os valores, mas isso pode afetar dados existentes
         // Por isso, não implementamos o down para esta migração
-        console.log('Warning: Cannot remove enum values safely. Manual intervention may be required.');
     }
 } 

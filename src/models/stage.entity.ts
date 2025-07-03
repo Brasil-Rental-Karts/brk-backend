@@ -35,4 +35,16 @@ export class Stage extends BaseEntity {
 
   @Column({ type: 'time', nullable: true })
   briefingTime: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  schedule: any;
+
+  @Column({ type: 'jsonb', nullable: true })
+  fleets: any;
+
+  @Column({ type: 'jsonb', nullable: true })
+  kart_draw_assignments: any;
+
+  @Column({ type: 'jsonb', nullable: true })
+  stage_results: any;
 } 

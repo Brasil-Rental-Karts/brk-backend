@@ -13,6 +13,7 @@ export interface StaffPermissions {
   stages?: boolean;
   pilots?: boolean;
   regulations?: boolean;
+  raceDay?: boolean;
   editChampionship?: boolean;
   gridTypes?: boolean;
   scoringSystems?: boolean;

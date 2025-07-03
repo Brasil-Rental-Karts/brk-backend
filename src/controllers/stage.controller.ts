@@ -437,8 +437,71 @@ export class StageController extends BaseController {
     this.router.delete(
       '/:id', 
       authMiddleware, 
+      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), 
       this.deleteStage.bind(this)
     );
+
+    /**
+     * @swagger
+     * /stages/{id}/schedule:
+     *   put:
+     *     summary: Atualizar cronograma da etapa
+     *     tags: [Stages]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da etapa
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               schedule:
+     *                 type: array
+     *                 items:
+     *                   type: object
+     *                   properties:
+     *                     label:
+     *                       type: string
+     *                       description: Descrição do item do cronograma
+     *                     time:
+     *                       type: string
+     *                       description: Horário do item (HH:MM)
+     *     responses:
+     *       200:
+     *         description: Cronograma atualizado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Stage'
+     *       401:
+     *         description: Token de acesso inválido
+     *       403:
+     *         description: Acesso negado
+     *       404:
+     *         description: Etapa não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.put('/:id/schedule', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateStageSchedule.bind(this));
+
+    // Salvar sorteio de karts
+    this.router.patch('/:id/kart-draw', authMiddleware, this.saveKartDrawAssignments.bind(this));
+    // Buscar sorteio de karts
+    this.router.get('/:id/kart-draw', authMiddleware, this.getKartDrawAssignments.bind(this));
+
+    // Salvar resultados da etapa
+    this.router.patch('/:id/stage-results', authMiddleware, this.saveStageResults.bind(this));
+    // Buscar resultados da etapa
+    this.router.get('/:id/stage-results', authMiddleware, this.getStageResults.bind(this));
   }
 
   // Route handlers
@@ -566,6 +629,7 @@ export class StageController extends BaseController {
   private async updateStage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
+      
       const stageData: UpdateStageDto = plainToInstance(UpdateStageDto, req.body);
 
       const userId = req.user?.id;
@@ -648,6 +712,95 @@ export class StageController extends BaseController {
       } else {
         res.status(500).json({ message: error.message });
       }
+      next(error);
+    }
+  }
+
+  private async updateStageSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const schedule = req.body.schedule;
+
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new BadRequestException('Usuário não autenticado.');
+      }
+
+      // Buscar a etapa existente para obter o seasonId
+      const existingStage = await this.stageService.findById(id);
+      if (!existingStage) {
+        res.status(404).json({ message: 'Etapa não encontrada' });
+        return;
+      }
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(existingStage.seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para editar o cronograma da etapa
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para editar o cronograma desta etapa'
+        });
+        return;
+      }
+
+      const updatedStage = await this.stageService.updateSchedule(id, schedule);
+      res.status(200).json(updatedStage);
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else if (error instanceof BadRequestException) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  private async saveKartDrawAssignments(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const assignments = req.body;
+      const updatedStage = await this.stageService.updateKartDrawAssignments(id, assignments);
+      res.json({ success: true, data: updatedStage.kart_draw_assignments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async getKartDrawAssignments(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const assignments = await this.stageService.getKartDrawAssignments(id);
+      res.json({ success: true, data: assignments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async saveStageResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const results = req.body;
+      const updatedStage = await this.stageService.updateStageResults(id, results);
+      res.json({ success: true, data: updatedStage.stage_results });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async getStageResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const results = await this.stageService.getStageResults(id);
+      res.json({ success: true, data: results });
+    } catch (error) {
       next(error);
     }
   }

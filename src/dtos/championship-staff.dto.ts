@@ -34,6 +34,9 @@ import { StaffPermissions } from '../models/championship-staff.entity';
  *             regulations:
  *               type: boolean
  *               description: Pode gerenciar regulamentos
+ *             raceDay:
+ *               type: boolean
+ *               description: Pode acessar funcionalidades do dia da corrida
  *             editChampionship:
  *               type: boolean
  *               description: Pode editar dados do campeonato

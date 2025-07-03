@@ -12,7 +12,8 @@ export function validationMiddleware<T extends BaseDto>(dtoClass: new () => T) {
         return;
       }
       
-      req.body = dto;
+      // Não modificar o req.body, apenas validar
+      // req.body = dto;
       next();
     } catch (error) {
       next(new HttpException(500, 'Validation error occurred'));

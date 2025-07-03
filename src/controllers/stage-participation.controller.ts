@@ -4,6 +4,7 @@ import { StageParticipationService, CreateParticipationData } from '../services/
 import { authMiddleware } from '../middleware/auth.middleware';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { UserRole } from '../models/user.entity';
 
 /**
  * @swagger
@@ -313,7 +314,12 @@ export class StageParticipationController extends BaseController {
 
   private async confirmParticipation(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.user!.id;
+      // Se for admin/manager, pode passar userId no body
+      let userId = req.user!.id;
+      if (req.user && (req.user.role === UserRole.ADMINISTRATOR || req.user.role === UserRole.MANAGER)) {
+        userId = req.body.userId || req.user.id;
+      }
+
       const { stageId, categoryId } = req.body;
 
       if (!stageId || !categoryId) {
@@ -346,7 +352,12 @@ export class StageParticipationController extends BaseController {
 
   private async cancelParticipation(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.user!.id;
+      // Se for admin/manager, pode passar userId no body
+      let userId = req.user!.id;
+      if (req.user && (req.user.role === UserRole.ADMINISTRATOR || req.user.role === UserRole.MANAGER)) {
+        userId = req.body.userId || req.user.id;
+      }
+
       const { stageId, categoryId, reason } = req.body;
 
       if (!stageId || !categoryId) {
@@ -364,7 +375,7 @@ export class StageParticipationController extends BaseController {
       } else if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
       } else {
-        console.error('Error cancelling participation:', error);
+        console.error('Error confirming participation:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }

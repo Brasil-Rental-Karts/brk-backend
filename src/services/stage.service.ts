@@ -255,6 +255,23 @@ export class StageService {
   }
 
   /**
+   * Atualizar cronograma da etapa
+   */
+  async updateSchedule(id: string, schedule: any): Promise<Stage> {
+    const stage = await this.findById(id);
+    
+    stage.schedule = schedule;
+    
+    const updatedStage = await this.stageRepository.save(stage);
+    
+    // Limpar cache relacionado
+    await this.redisService.deleteData(`stage:${id}`);
+    await this.redisService.deleteData(`stages:season:${stage.seasonId}`);
+    
+    return this.formatTimeFields(updatedStage);
+  }
+
+  /**
    * Deletar etapa
    */
   async delete(id: string): Promise<void> {
@@ -297,5 +314,43 @@ export class StageService {
       .orderBy('stage.date', 'ASC')
       .addOrderBy('stage.time', 'ASC')
       .getOne();
+  }
+
+  /**
+   * Atualizar sorteio de karts da etapa
+   */
+  async updateKartDrawAssignments(id: string, assignments: any): Promise<Stage> {
+    const stage = await this.findById(id);
+    stage.kart_draw_assignments = assignments;
+    const updatedStage = await this.stageRepository.save(stage);
+    await this.redisService.invalidateStageCache(id, stage.seasonId);
+    return this.formatTimeFields(updatedStage);
+  }
+
+  /**
+   * Buscar sorteio de karts da etapa
+   */
+  async getKartDrawAssignments(id: string): Promise<any> {
+    const stage = await this.findById(id);
+    return stage.kart_draw_assignments || null;
+  }
+
+  /**
+   * Atualizar resultados da etapa
+   */
+  async updateStageResults(id: string, results: any): Promise<Stage> {
+    const stage = await this.findById(id);
+    stage.stage_results = results;
+    const updatedStage = await this.stageRepository.save(stage);
+    await this.redisService.invalidateStageCache(id, stage.seasonId);
+    return this.formatTimeFields(updatedStage);
+  }
+
+  /**
+   * Buscar resultados da etapa
+   */
+  async getStageResults(id: string): Promise<any> {
+    const stage = await this.findById(id);
+    return stage.stage_results || null;
   }
 }

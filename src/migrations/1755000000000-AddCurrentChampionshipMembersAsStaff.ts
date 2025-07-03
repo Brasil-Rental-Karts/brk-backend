@@ -50,7 +50,6 @@ export class AddCurrentChampionshipMembersAsStaff1755000000000 implements Migrat
             }
         }
 
-        console.log(`Migration completed: Added ${championships.length} championship owners as staff members with full permissions`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
