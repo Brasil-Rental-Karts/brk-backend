@@ -334,4 +334,23 @@ export class StageService {
     const stage = await this.findById(id);
     return stage.kart_draw_assignments || null;
   }
+
+  /**
+   * Atualizar resultados da etapa
+   */
+  async updateStageResults(id: string, results: any): Promise<Stage> {
+    const stage = await this.findById(id);
+    stage.stage_results = results;
+    const updatedStage = await this.stageRepository.save(stage);
+    await this.redisService.invalidateStageCache(id, stage.seasonId);
+    return this.formatTimeFields(updatedStage);
+  }
+
+  /**
+   * Buscar resultados da etapa
+   */
+  async getStageResults(id: string): Promise<any> {
+    const stage = await this.findById(id);
+    return stage.stage_results || null;
+  }
 }

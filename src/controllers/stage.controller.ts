@@ -497,6 +497,11 @@ export class StageController extends BaseController {
     this.router.patch('/:id/kart-draw', authMiddleware, this.saveKartDrawAssignments.bind(this));
     // Buscar sorteio de karts
     this.router.get('/:id/kart-draw', authMiddleware, this.getKartDrawAssignments.bind(this));
+
+    // Salvar resultados da etapa
+    this.router.patch('/:id/stage-results', authMiddleware, this.saveStageResults.bind(this));
+    // Buscar resultados da etapa
+    this.router.get('/:id/stage-results', authMiddleware, this.getStageResults.bind(this));
   }
 
   // Route handlers
@@ -774,6 +779,27 @@ export class StageController extends BaseController {
       const { id } = req.params;
       const assignments = await this.stageService.getKartDrawAssignments(id);
       res.json({ success: true, data: assignments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async saveStageResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const results = req.body;
+      const updatedStage = await this.stageService.updateStageResults(id, results);
+      res.json({ success: true, data: updatedStage.stage_results });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async getStageResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const results = await this.stageService.getStageResults(id);
+      res.json({ success: true, data: results });
     } catch (error) {
       next(error);
     }

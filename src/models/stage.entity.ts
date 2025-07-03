@@ -44,4 +44,7 @@ export class Stage extends BaseEntity {
 
   @Column({ type: 'jsonb', nullable: true })
   kart_draw_assignments: any;
+
+  @Column({ type: 'jsonb', nullable: true })
+  stage_results: any;
 } 
