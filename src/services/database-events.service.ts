@@ -188,7 +188,8 @@ export class DatabaseEventsService {
                 name: event.data.name,
                 date: event.data.date,
                 time: event.data.time,
-                kartodrome: event.data.kartodrome,
+                raceTrackId: event.data.raceTrackId,
+                trackLayoutId: event.data.trackLayoutId,
                 streamLink: event.data.streamLink,
                 briefing: event.data.briefing,
                 seasonId: event.data.seasonId

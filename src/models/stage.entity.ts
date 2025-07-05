@@ -1,5 +1,6 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { RaceTrack } from './race-track.entity';
 
 @Entity('Stages')
 export class Stage extends BaseEntity {
@@ -12,11 +13,11 @@ export class Stage extends BaseEntity {
   @Column({ type: 'time', nullable: false })
   time: string;
 
-  @Column({ length: 255, nullable: false })
-  kartodrome: string;
+  @Column({ nullable: false })
+  raceTrackId: string;
 
-  @Column({ type: 'text', nullable: false })
-  kartodromeAddress: string;
+  @Column({ nullable: true })
+  trackLayoutId: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   streamLink: string;
@@ -47,4 +48,9 @@ export class Stage extends BaseEntity {
 
   @Column({ type: 'jsonb', nullable: true })
   stage_results: any;
+
+  // Relacionamento com RaceTrack
+  @ManyToOne(() => RaceTrack, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'raceTrackId' })
+  raceTrack: RaceTrack;
 } 

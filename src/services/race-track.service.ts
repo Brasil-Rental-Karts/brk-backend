@@ -4,9 +4,12 @@ import { BaseService } from './base.service';
 import { CreateRaceTrackDto, UpdateRaceTrackDto, RaceTrackResponseDto } from '../dtos/race-track.dto';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { RedisService } from './redis.service';
+import { validateTrackLayouts, validateDefaultFleets } from '../types/race-track.types';
 
 export class RaceTrackService extends BaseService<RaceTrack> {
   private readonly raceTrackRepository: IRaceTrackRepository;
+  private readonly redisService = RedisService.getInstance();
 
   constructor(raceTrackRepository: RaceTrackRepository) {
     super(raceTrackRepository);
@@ -15,8 +18,23 @@ export class RaceTrackService extends BaseService<RaceTrack> {
 
   async create(createDto: CreateRaceTrackDto): Promise<RaceTrackResponseDto> {
     // Validar dados customizados
-    const trackLayoutErrors = createDto.validateTrackLayouts();
-    const fleetErrors = createDto.validateDefaultFleets();
+    let trackLayoutErrors: string[] = [];
+    let fleetErrors: string[] = [];
+
+    // Verificar se o método existe antes de chamá-lo
+    if (typeof createDto.validateTrackLayouts === 'function') {
+      trackLayoutErrors = createDto.validateTrackLayouts();
+    } else {
+      // Usar a função de validação diretamente
+      trackLayoutErrors = validateTrackLayouts(createDto.trackLayouts);
+    }
+
+    if (typeof createDto.validateDefaultFleets === 'function') {
+      fleetErrors = createDto.validateDefaultFleets();
+    } else {
+      // Usar a função de validação diretamente
+      fleetErrors = validateDefaultFleets(createDto.defaultFleets);
+    }
 
     if (trackLayoutErrors.length > 0 || fleetErrors.length > 0) {
       const errors = [...trackLayoutErrors, ...fleetErrors];
@@ -30,6 +48,8 @@ export class RaceTrackService extends BaseService<RaceTrack> {
     }
 
     const raceTrack = await this.raceTrackRepository.create(createDto);
+    // Cache no Redis
+    await this.redisService.cacheRaceTrackBasicInfo(raceTrack.id, raceTrack);
     return this.mapToResponseDto(raceTrack);
   }
 
@@ -73,9 +93,29 @@ export class RaceTrackService extends BaseService<RaceTrack> {
       throw new NotFoundException('Kartódromo não encontrado');
     }
 
-    // Validar dados customizados
-    const trackLayoutErrors = updateDto.validateTrackLayouts();
-    const fleetErrors = updateDto.validateDefaultFleets();
+    // Validar dados customizados apenas se estiverem presentes
+    let trackLayoutErrors: string[] = [];
+    let fleetErrors: string[] = [];
+
+    if (updateDto.trackLayouts) {
+      // Verificar se o método existe antes de chamá-lo
+      if (typeof updateDto.validateTrackLayouts === 'function') {
+        trackLayoutErrors = updateDto.validateTrackLayouts();
+      } else {
+        // Usar a função de validação diretamente
+        trackLayoutErrors = validateTrackLayouts(updateDto.trackLayouts);
+      }
+    }
+
+    if (updateDto.defaultFleets) {
+      // Verificar se o método existe antes de chamá-lo
+      if (typeof updateDto.validateDefaultFleets === 'function') {
+        fleetErrors = updateDto.validateDefaultFleets();
+      } else {
+        // Usar a função de validação diretamente
+        fleetErrors = validateDefaultFleets(updateDto.defaultFleets);
+      }
+    }
 
     if (trackLayoutErrors.length > 0 || fleetErrors.length > 0) {
       const errors = [...trackLayoutErrors, ...fleetErrors];
@@ -83,7 +123,7 @@ export class RaceTrackService extends BaseService<RaceTrack> {
     }
 
     // Verificar se já existe outro kartódromo com o mesmo nome (exceto o atual)
-    if (updateDto.name !== existingRaceTrack.name) {
+    if (updateDto.name && updateDto.name !== existingRaceTrack.name) {
       const raceTrackWithSameName = await this.raceTrackRepository.findByName(updateDto.name);
       if (raceTrackWithSameName && raceTrackWithSameName.id !== id) {
         throw new BadRequestException('Já existe um kartódromo com este nome');
@@ -95,6 +135,8 @@ export class RaceTrackService extends BaseService<RaceTrack> {
       throw new NotFoundException('Kartódromo não encontrado');
     }
 
+    // Atualizar cache no Redis
+    await this.redisService.cacheRaceTrackBasicInfo(updatedRaceTrack.id, updatedRaceTrack);
     return this.mapToResponseDto(updatedRaceTrack);
   }
 
@@ -110,6 +152,8 @@ export class RaceTrackService extends BaseService<RaceTrack> {
       throw new BadRequestException('Erro ao excluir kartódromo');
     }
     
+    // Remover do cache do Redis
+    await this.redisService.invalidateRaceTrackCache(id);
     return deleted;
   }
 

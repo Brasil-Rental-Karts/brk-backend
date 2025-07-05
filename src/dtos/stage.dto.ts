@@ -12,8 +12,7 @@ import { BaseDto } from './base.dto';
  *         - name
  *         - date
  *         - time
- *         - kartodrome
- *         - kartodromeAddress
+ *         - raceTrackId
  *         - seasonId
  *         - categoryIds
  *       properties:
@@ -32,15 +31,11 @@ import { BaseDto } from './base.dto';
  *           pattern: '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
  *           description: Horário da etapa (HH:MM)
  *           example: "14:30"
- *         kartodrome:
+ *         raceTrackId:
  *           type: string
- *           maxLength: 255
- *           description: Nome do kartódromo
- *           example: "Kartódromo Granja Viana"
- *         kartodromeAddress:
- *           type: string
- *           description: Endereço completo do kartódromo
- *           example: "Rodovia Raposo Tavares, km 26,5 - Granja Viana, Cotia - SP"
+ *           format: uuid
+ *           description: ID do kartódromo
+ *           example: "123e4567-e89b-12d3-a456-426614174000"
  *         streamLink:
  *           type: string
  *           maxLength: 500
@@ -84,14 +79,14 @@ export class CreateStageDto extends BaseDto {
   @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário deve estar no formato HH:MM' })
   time: string;
 
-  @IsString()
-  @IsNotEmpty({ message: 'Nome do kartódromo é obrigatório' })
-  @MaxLength(255, { message: 'Nome do kartódromo deve ter no máximo 255 caracteres' })
-  kartodrome: string;
+  @IsUUID(4, { message: 'ID do kartódromo deve ser um UUID válido' })
+  raceTrackId: string;
 
+  @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsString()
-  @IsNotEmpty({ message: 'Endereço do kartódromo é obrigatório' })
-  kartodromeAddress: string;
+  @MaxLength(255, { message: 'ID do traçado deve ter no máximo 255 caracteres' })
+  trackLayoutId?: string;
 
   @IsOptional()
   @Transform(({ value }) => value === '' ? undefined : value)
@@ -144,15 +139,11 @@ export class CreateStageDto extends BaseDto {
  *           pattern: '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
  *           description: Horário da etapa (HH:MM)
  *           example: "14:30"
- *         kartodrome:
+ *         raceTrackId:
  *           type: string
- *           maxLength: 255
- *           description: Nome do kartódromo
- *           example: "Kartódromo Granja Viana"
- *         kartodromeAddress:
- *           type: string
- *           description: Endereço completo do kartódromo
- *           example: "Rodovia Raposo Tavares, km 26,5 - Granja Viana, Cotia - SP"
+ *           format: uuid
+ *           description: ID do kartódromo
+ *           example: "123e4567-e89b-12d3-a456-426614174000"
  *         streamLink:
  *           type: string
  *           maxLength: 500
@@ -193,13 +184,14 @@ export class UpdateStageDto extends BaseDto {
   time?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(255, { message: 'Nome do kartódromo deve ter no máximo 255 caracteres' })
-  kartodrome?: string;
+  @IsUUID(4, { message: 'ID do kartódromo deve ser um UUID válido' })
+  raceTrackId?: string;
 
   @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsString()
-  kartodromeAddress?: string;
+  @MaxLength(255, { message: 'ID do traçado deve ter no máximo 255 caracteres' })
+  trackLayoutId?: string;
 
   @IsOptional()
   @Transform(({ value }) => value === '' ? undefined : value)

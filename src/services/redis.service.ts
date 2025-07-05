@@ -710,7 +710,8 @@ export class RedisService {
         name: data.name,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         time: data.time,
-        kartodrome: data.kartodrome,
+        raceTrackId: data.raceTrackId,
+        trackLayoutId: data.trackLayoutId || '',
         streamLink: data.streamLink || '',
         briefing: data.briefing || '',
         seasonId: data.seasonId
@@ -758,7 +759,8 @@ export class RedisService {
         name: data.name,
         date: new Date(data.date),
         time: data.time,
-        kartodrome: data.kartodrome,
+        raceTrackId: data.raceTrackId,
+        trackLayoutId: data.trackLayoutId || '',
         streamLink: data.streamLink || '',
         briefing: data.briefing || '',
         seasonId: data.seasonId
@@ -806,7 +808,8 @@ export class RedisService {
           name: data.name,
           date: new Date(data.date),
           time: data.time,
-          kartodrome: data.kartodrome,
+          raceTrackId: data.raceTrackId,
+          trackLayoutId: data.trackLayoutId || '',
           streamLink: data.streamLink || '',
           briefing: data.briefing || '',
           seasonId: data.seasonId
@@ -1056,6 +1059,90 @@ export class RedisService {
       return true;
     } catch (error) {
       // console.error('Error invalidating season indexes:', error);
+      return false;
+    }
+  }
+
+  // RaceTrack-specific cache methods with Redis Hashes for maximum performance
+  async cacheRaceTrackBasicInfo(raceTrackId: string, data: any): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      // Use Redis Hash to store race track data
+      const raceTrackKey = `raceTrack:${raceTrackId}`;
+      const raceTrackData = {
+        id: data.id,
+        name: data.name,
+        city: data.city,
+        state: data.state,
+        address: data.address,
+        trackLayouts: JSON.stringify(data.trackLayouts || []),
+        defaultFleets: JSON.stringify(data.defaultFleets || []),
+        generalInfo: data.generalInfo || '',
+        isActive: data.isActive ? 'true' : 'false',
+        createdAt: data.createdAt instanceof Date ? data.createdAt.toISOString() : data.createdAt,
+        updatedAt: data.updatedAt instanceof Date ? data.updatedAt.toISOString() : data.updatedAt
+      };
+
+      // Store race track data as Redis Hash
+      await this.client.hSet(raceTrackKey, raceTrackData);
+
+      // Add to global race tracks set for bulk operations
+      await this.client.sAdd('raceTracks:all', raceTrackId);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async getCachedRaceTrackBasicInfo(raceTrackId: string): Promise<any | null> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const key = `raceTrack:${raceTrackId}`;
+      const data = await this.client.hGetAll(key);
+      if (Object.keys(data).length === 0) {
+        return null;
+      }
+      return {
+        ...data,
+        trackLayouts: JSON.parse(data.trackLayouts || '[]'),
+        defaultFleets: JSON.parse(data.defaultFleets || '[]'),
+        isActive: data.isActive === 'true',
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async invalidateRaceTrackCache(raceTrackId: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const key = `raceTrack:${raceTrackId}`;
+      await this.client.del(key);
+      await this.client.sRem('raceTracks:all', raceTrackId);
+      return true;
+    } catch (error) {
       return false;
     }
   }

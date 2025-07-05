@@ -75,30 +75,32 @@ export class CreateRaceTrackDto extends BaseDto {
 
 export class UpdateRaceTrackDto extends BaseDto {
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @IsString()
-  @IsNotEmpty()
-  city: string;
+  @IsOptional()
+  city?: string;
 
   @IsString()
-  @IsNotEmpty()
-  state: string;
+  @IsOptional()
+  state?: string;
 
   @IsString()
-  @IsNotEmpty()
-  address: string;
+  @IsOptional()
+  address?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => TrackLayoutDto)
-  trackLayouts: TrackLayoutDto[];
+  @IsOptional()
+  trackLayouts?: TrackLayoutDto[];
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => DefaultFleetDto)
-  defaultFleets: DefaultFleetDto[];
+  @IsOptional()
+  defaultFleets?: DefaultFleetDto[];
 
   @IsString()
   @IsOptional()

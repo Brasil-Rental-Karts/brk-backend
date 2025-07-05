@@ -18,7 +18,7 @@ export interface StageCacheData {
   name: string;
   date: Date;
   time: string;
-  kartodrome: string;
+  raceTrackId: string;
   seasonId: string;
 }
 
@@ -106,11 +106,11 @@ export class StageService {
   }
 
   /**
-   * Buscar etapas por kartódromo
+   * Buscar etapas por kartódromo (agora por raceTrackId)
    */
-  async findByKartodrome(kartodrome: string): Promise<Stage[]> {
+  async findByRaceTrackId(raceTrackId: string): Promise<Stage[]> {
     const stages = await this.stageRepository.find({
-      where: { kartodrome },
+      where: { raceTrackId },
       order: { date: 'ASC', time: 'ASC' }
     });
     return stages.map(stage => this.formatTimeFields(stage));
