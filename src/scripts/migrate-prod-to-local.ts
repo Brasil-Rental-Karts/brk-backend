@@ -27,25 +27,35 @@ const LOCAL_CONFIG = {
 };
 
 // Ordem das tabelas para respeitar as constraints de chave estrangeira
+// Atualizada com as novas tabelas identificadas nas migrações recentes
 const TABLES_ORDER = [
-  // Tabelas independentes (sem FK)
-  'Users',
+  // Tabelas independentes (sem FK) - ordem alfabética
   'Championships',
   'GridTypes',
+  'RaceTracks', // Nova tabela adicionada
   'ScoringSystem',
+  'Users',
   'vip_preregister',
   
-  // Tabelas com dependências
+  // Tabelas com dependências de primeiro nível
   'MemberProfiles', // FK: userId
-  'ChampionshipStaff', // FK: championshipId, userId
   'Seasons', // FK: championshipId
+  
+  // Tabelas com dependências de segundo nível
   'Categories', // FK: seasonId
+  'ChampionshipStaff', // FK: championshipId, userId
+  'Regulations', // FK: seasonId - Nova tabela adicionada
   'Stages', // FK: seasonId
-  'Regulations', // FK: seasonId
+  
+  // Tabelas com dependências de terceiro nível
   'SeasonRegistrations', // FK: seasonId, userId
+  'StageParticipations', // FK: stageId, userId
+  
+  // Tabelas de relacionamento (muitos-para-muitos)
   'SeasonRegistrationCategories', // FK: seasonRegistrationId, categoryId
   'SeasonRegistrationStages', // FK: seasonRegistrationId, stageId
-  'StageParticipations', // FK: stageId, userId
+  
+  // Tabelas de pagamento (dependem de registrations)
   'AsaasPayments', // FK: seasonRegistrationId
 ];
 
@@ -140,6 +150,7 @@ async function migrateData(): Promise<void> {
   
   try {
     console.log('🚀 Iniciando migração de dados de produção para local...');
+    console.log('📋 Tabelas que serão migradas:', TABLES_ORDER.join(', '));
     
     // Conecta aos bancos
     console.log('🔌 Conectando aos bancos de dados...');
@@ -165,6 +176,10 @@ async function migrateData(): Promise<void> {
     await localClient.query('SET session_replication_role = DEFAULT;');
     
     console.log('🎉 Migração concluída com sucesso!');
+    console.log('📊 Resumo das tabelas migradas:');
+    for (const table of TABLES_ORDER) {
+      console.log(`  - ${table}`);
+    }
     
   } catch (error) {
     console.error('❌ Erro durante a migração:', error);
