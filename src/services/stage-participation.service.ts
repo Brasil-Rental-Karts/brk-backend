@@ -50,37 +50,11 @@ export class StageParticipationService {
         seasonId: stage.seasonId,
         status: In([RegistrationStatus.CONFIRMED, RegistrationStatus.PAYMENT_PENDING])
       },
-      relations: ['categories', 'categories.category', 'payments']
+      relations: ['categories', 'categories.category']
     });
 
     if (!registration) {
       throw new BadRequestException('Usuário não está inscrito nesta temporada');
-    }
-
-    // Verificar se o usuário pode confirmar participação baseado no status de pagamento
-    let canConfirmParticipation = false;
-
-    // Verificar se é inscrição administrativa (isenta ou pagamento direto)
-    if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
-      // Inscrições administrativas podem confirmar participação
-      canConfirmParticipation = true;
-    } else if (registration.status === RegistrationStatus.CONFIRMED) {
-      // Inscrição totalmente confirmada - pode confirmar participação
-      canConfirmParticipation = true;
-    } else if (registration.status === RegistrationStatus.PAYMENT_PENDING && registration.payments) {
-      // Verificar se há parcelas pagas e as próximas não estão vencidas
-      const paidPayments = registration.payments.filter(p => 
-        ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(p.status)
-      );
-      
-      const overduePayments = registration.payments.filter(p => p.status === 'OVERDUE');
-      
-      // Pode confirmar se há pelo menos uma parcela paga e não há parcelas vencidas
-      canConfirmParticipation = paidPayments.length > 0 && overduePayments.length === 0;
-    }
-
-    if (!canConfirmParticipation) {
-      throw new BadRequestException('Inscrição não confirmada ou há parcelas vencidas. É necessário ter pelo menos uma parcela paga e não ter parcelas vencidas para confirmar participação.');
     }
 
     // Verificar se o usuário está inscrito na categoria específica
@@ -219,61 +193,39 @@ export class StageParticipationService {
         seasonId: stage.seasonId,
         status: In([RegistrationStatus.CONFIRMED, RegistrationStatus.PAYMENT_PENDING])
       },
-      relations: ['categories', 'categories.category', 'payments']
+      relations: ['categories', 'categories.category']
     });
 
     if (!registration) {
       return [];
     }
 
-    // Verificar se o usuário pode confirmar participação baseado no status de pagamento
-    let canConfirmParticipation = false;
-
-    // Verificar se é inscrição administrativa (isenta ou pagamento direto)
-    if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
-      // Inscrições administrativas podem confirmar participação
-      canConfirmParticipation = true;
-    } else if (registration.status === RegistrationStatus.CONFIRMED) {
-      // Inscrição totalmente confirmada - pode confirmar participação
-      canConfirmParticipation = true;
-    } else if (registration.status === RegistrationStatus.PAYMENT_PENDING && registration.payments) {
-      // Verificar se há parcelas pagas e as próximas não estão vencidas
-      const paidPayments = registration.payments.filter(p => 
-        ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(p.status)
-      );
-      
-      const overduePayments = registration.payments.filter(p => p.status === 'OVERDUE');
-      
-      // Pode confirmar se há pelo menos uma parcela paga e não há parcelas vencidas
-      canConfirmParticipation = paidPayments.length > 0 && overduePayments.length === 0;
-    }
-
-    if (!canConfirmParticipation) {
-      return [];
-    }
-
     // Filtrar categorias que estão disponíveis na etapa e o usuário está inscrito
-    // categoryIds pode ser string ou array, então vamos normalizar
     const stageCategoryIds = Array.isArray(stage.categoryIds) 
       ? stage.categoryIds 
       : stage.categoryIds ? (stage.categoryIds as string).split(',').map(id => id.trim()) : [];
-    
-    const availableCategories = registration.categories.filter(regCategory =>
-      stageCategoryIds.includes(regCategory.categoryId)
-    );
 
-    // Verificar quais categorias o usuário já confirmou participação
+    const availableCategories = registration.categories
+      .filter(regCategory => stageCategoryIds.includes(regCategory.categoryId))
+      .map(regCategory => ({
+        id: regCategory.categoryId,
+        name: regCategory.category.name,
+        ballast: regCategory.category.ballast,
+        isConfirmed: false // Será verificado posteriormente
+      }));
+
+    // Verificar quais categorias já estão confirmadas
     const confirmedParticipations = await this.participationRepository.find({
       where: { userId, stageId, status: ParticipationStatus.CONFIRMED }
     });
 
     const confirmedCategoryIds = confirmedParticipations.map(p => p.categoryId);
 
-    return availableCategories.map(regCategory => ({
-      id: regCategory.categoryId,
-      name: regCategory.category.name,
-      ballast: regCategory.category.ballast,
-      isConfirmed: confirmedCategoryIds.includes(regCategory.categoryId)
-    }));
+    // Marcar categorias já confirmadas
+    availableCategories.forEach(category => {
+      category.isConfirmed = confirmedCategoryIds.includes(category.id);
+    });
+
+    return availableCategories;
   }
 } 
