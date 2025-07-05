@@ -60,7 +60,11 @@ export class StageParticipationService {
     // Verificar se o usuário pode confirmar participação baseado no status de pagamento
     let canConfirmParticipation = false;
 
-    if (registration.status === RegistrationStatus.CONFIRMED) {
+    // Verificar se é inscrição administrativa (isenta ou pagamento direto)
+    if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
+      // Inscrições administrativas podem confirmar participação
+      canConfirmParticipation = true;
+    } else if (registration.status === RegistrationStatus.CONFIRMED) {
       // Inscrição totalmente confirmada - pode confirmar participação
       canConfirmParticipation = true;
     } else if (registration.status === RegistrationStatus.PAYMENT_PENDING && registration.payments) {
@@ -225,7 +229,11 @@ export class StageParticipationService {
     // Verificar se o usuário pode confirmar participação baseado no status de pagamento
     let canConfirmParticipation = false;
 
-    if (registration.status === RegistrationStatus.CONFIRMED) {
+    // Verificar se é inscrição administrativa (isenta ou pagamento direto)
+    if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
+      // Inscrições administrativas podem confirmar participação
+      canConfirmParticipation = true;
+    } else if (registration.status === RegistrationStatus.CONFIRMED) {
       // Inscrição totalmente confirmada - pode confirmar participação
       canConfirmParticipation = true;
     } else if (registration.status === RegistrationStatus.PAYMENT_PENDING && registration.payments) {

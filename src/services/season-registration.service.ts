@@ -632,9 +632,27 @@ export class SeasonRegistrationService {
     });
 
     if (!asaasPayment) {
+      console.log(`[WEBHOOK] Pagamento não encontrado no banco: ${payment.id}`);
       return;
     }
 
+    console.log(`[WEBHOOK] Processando evento: ${event} para pagamento: ${payment.id}`);
+
+    // Tratamento específico para PAYMENT_DELETED
+    if (event === 'PAYMENT_DELETED') {
+      console.log(`[WEBHOOK] Pagamento deletado no Asaas: ${payment.id}`);
+      
+      // Deletar o pagamento do banco de dados
+      await this.paymentRepository.remove(asaasPayment);
+      
+      // Atualizar o status da inscrição
+      await this.updateSeasonRegistrationStatus(asaasPayment.registrationId);
+      
+      console.log(`[WEBHOOK] Pagamento removido do banco e status da inscrição atualizado`);
+      return;
+    }
+
+    // Para outros eventos, atualizar normalmente
     // Atualizar dados do webhook
     asaasPayment.webhookData = webhookData;
     asaasPayment.status = payment.status;
@@ -794,6 +812,9 @@ export class SeasonRegistrationService {
     registration.cancellationReason = reason;
 
     await this.registrationRepository.save(registration);
+    // Remover categorias e etapas vinculadas
+    await this.registrationCategoryRepository.delete({ registrationId });
+    await this.registrationStageRepository.delete({ registrationId });
     return registration;
   }
 
@@ -1315,6 +1336,29 @@ export class SeasonRegistrationService {
       });
 
       if (!payments || payments.length === 0) {
+        // Se não há pagamentos, verificar se é uma inscrição administrativa
+        const registration = await this.registrationRepository.findOne({
+          where: { id: registrationId }
+        });
+
+        if (!registration) {
+          return;
+        }
+
+        // Se não é uma inscrição administrativa e não há pagamentos, cancelar a inscrição
+        if (registration.paymentStatus !== 'exempt' && registration.paymentStatus !== 'direct_payment') {
+          registration.paymentStatus = PaymentStatus.CANCELLED;
+          registration.status = RegistrationStatus.CANCELLED;
+          registration.cancelledAt = new Date();
+          registration.cancellationReason = 'Pagamento removido';
+          registration.updatedAt = new Date();
+
+          await this.registrationRepository.save(registration);
+          // Remover categorias e etapas vinculadas
+          await this.registrationCategoryRepository.delete({ registrationId });
+          await this.registrationStageRepository.delete({ registrationId });
+          console.log(`[WEBHOOK] Inscrição cancelada e vínculos removidos por falta de pagamentos: ${registrationId}`);
+        }
         return;
       }
 
