@@ -1130,35 +1130,6 @@ export class SeasonRegistrationService {
         };
       });
 
-      // Calcular o valor total dos pagamentos Asaas
-      const totalAsaasValue = asaasPayments.reduce((sum, p) => sum + Number(p.value), 0);
-      const registrationAmount = Number(registration.amount);
-
-      // Se o valor total dos pagamentos Asaas é menor que o valor da inscrição,
-      // significa que parte foi paga administrativamente
-      if (totalAsaasValue < registrationAmount) {
-        const adminValue = registrationAmount - totalAsaasValue;
-        
-        // Criar pagamento administrativo virtual para a diferença
-        const virtualPayment: RegistrationPaymentData = {
-          id: `admin_${registrationId}`,
-          registrationId: registrationId,
-          billingType: 'ADMIN_DIRECT',
-          value: adminValue,
-          dueDate: new Date(registration.createdAt).toISOString().split('T')[0],
-          status: 'DIRECT_PAYMENT',
-          installmentNumber: 0, // Colocar antes das parcelas Asaas
-          installmentCount: 1,
-          invoiceUrl: null,
-          bankSlipUrl: null,
-          paymentLink: null,
-          pixQrCode: null,
-          pixCopyPaste: null,
-        };
-        
-        paymentData.push(virtualPayment);
-      }
-
       // Se é uma inscrição administrativa (exempt ou direct_payment), adicionar o pagamento administrativo virtual
       if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
         const virtualPayment: RegistrationPaymentData = {
@@ -1345,19 +1316,15 @@ export class SeasonRegistrationService {
           return;
         }
 
-        // Se não é uma inscrição administrativa e não há pagamentos, cancelar a inscrição
+        // Se não é uma inscrição administrativa e não há pagamentos, remover completamente a inscrição
         if (registration.paymentStatus !== 'exempt' && registration.paymentStatus !== 'direct_payment') {
-          registration.paymentStatus = PaymentStatus.CANCELLED;
-          registration.status = RegistrationStatus.CANCELLED;
-          registration.cancelledAt = new Date();
-          registration.cancellationReason = 'Pagamento removido';
-          registration.updatedAt = new Date();
-
-          await this.registrationRepository.save(registration);
-          // Remover categorias e etapas vinculadas
+          // Remover categorias e etapas vinculadas primeiro
           await this.registrationCategoryRepository.delete({ registrationId });
           await this.registrationStageRepository.delete({ registrationId });
-          console.log(`[WEBHOOK] Inscrição cancelada e vínculos removidos por falta de pagamentos: ${registrationId}`);
+          
+          // Remover a inscrição completamente
+          await this.registrationRepository.remove(registration);
+          console.log(`[WEBHOOK] Inscrição removida completamente por falta de pagamentos: ${registrationId}`);
         }
         return;
       }
