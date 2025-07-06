@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/database.config';
 import { StageParticipation, ParticipationStatus } from '../models/stage-participation.entity';
 import { SeasonRegistration, RegistrationStatus } from '../models/season-registration.entity';
 import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
+import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
 import { Stage } from '../models/stage.entity';
 import { Season, InscriptionType } from '../models/season.entity';
 import { AsaasPayment, AsaasPaymentStatus } from '../models/asaas-payment.entity';
@@ -15,22 +16,30 @@ import { In } from 'typeorm';
  * 
  * Serviço responsável por gerenciar as participações dos usuários em etapas.
  * 
- * NOVA FUNCIONALIDADE - Validação de Pagamento para Temporadas por_temporada:
+ * FUNCIONALIDADES DE VALIDAÇÃO DE PAGAMENTO:
  * 
- * Para temporadas do tipo "por_temporada", o sistema agora implementa as seguintes regras:
- * 
- * 1. PERMITE PARTICIPAÇÃO:
+ * 1. TEMPORADAS POR_TEMPORADA:
+ *    PERMITE PARTICIPAÇÃO:
  *    - Usuário já pagou a totalidade da temporada (paymentStatus = 'paid')
- *    - Usuário tem pagamento isento (paymentStatus = 'exempt')
+ *    - Usuário tem pagamento isento (paymentStatus = 'exempt')  
  *    - Usuário tem pagamento direto (paymentStatus = 'direct_payment')
  *    - Usuário tem pelo menos uma parcela paga (independente das outras)
- * 
- * 2. BLOQUEIA PARTICIPAÇÃO:
+ *    
+ *    BLOQUEIA PARTICIPAÇÃO:
  *    - Usuário tem alguma parcela vencida (status = 'OVERDUE')
  *    - Usuário não tem nenhuma parcela paga (todas pendentes ou outros status)
  * 
- * 3. TEMPORADAS POR_ETAPA:
- *    - Não são afetadas por esta validação, continuam funcionando normalmente
+ * 2. TEMPORADAS POR_ETAPA:
+ *    PERMITE PARTICIPAÇÃO:
+ *    - Usuário já pagou a totalidade da inscrição (paymentStatus = 'paid')
+ *    - Usuário tem pagamento isento (paymentStatus = 'exempt')
+ *    - Usuário tem pagamento direto (paymentStatus = 'direct_payment')
+ *    - Usuário está inscrito na etapa específica E tem pelo menos um pagamento confirmado
+ *    
+ *    BLOQUEIA PARTICIPAÇÃO:
+ *    - Usuário tem alguma parcela vencida (status = 'OVERDUE')
+ *    - Usuário não está inscrito na etapa específica (sem SeasonRegistrationStage)
+ *    - Usuário não tem nenhum pagamento confirmado
  * 
  * Esta validação é aplicada tanto no método confirmParticipation() quanto no
  * método getAvailableCategoriesForUser() para fornecer feedback ao usuário.
@@ -50,6 +59,7 @@ export class StageParticipationService {
   private participationRepository: Repository<StageParticipation>;
   private registrationRepository: Repository<SeasonRegistration>;
   private registrationCategoryRepository: Repository<SeasonRegistrationCategory>;
+  private registrationStageRepository: Repository<SeasonRegistrationStage>;
   private stageRepository: Repository<Stage>;
   private seasonRepository: Repository<Season>;
   private paymentRepository: Repository<AsaasPayment>;
@@ -58,6 +68,7 @@ export class StageParticipationService {
     this.participationRepository = AppDataSource.getRepository(StageParticipation);
     this.registrationRepository = AppDataSource.getRepository(SeasonRegistration);
     this.registrationCategoryRepository = AppDataSource.getRepository(SeasonRegistrationCategory);
+    this.registrationStageRepository = AppDataSource.getRepository(SeasonRegistrationStage);
     this.stageRepository = AppDataSource.getRepository(Stage);
     this.seasonRepository = AppDataSource.getRepository(Season);
     this.paymentRepository = AppDataSource.getRepository(AsaasPayment);
@@ -66,50 +77,72 @@ export class StageParticipationService {
   /**
    * Verifica se o usuário pode participar de uma etapa baseado no status de pagamento
    * Para temporadas por_temporada, verifica se há parcelas vencidas
+   * Para temporadas por_etapa, verifica se a etapa foi paga
    */
-    private async validatePaymentForParticipation(registration: SeasonRegistration, season: Season): Promise<void> {
-    // Aplicar validação apenas para temporadas por_temporada
-    if (season.inscriptionType !== InscriptionType.POR_TEMPORADA) {
-      return;
-    }
-
-    // Se o pagamento já foi totalmente pago, permitir
-    if (registration.paymentStatus === 'paid') {
-      return;
-    }
-
-    // Se é isento ou pagamento direto, permitir
+  private async validatePaymentForParticipation(registration: SeasonRegistration, season: Season, stageId?: string): Promise<void> {
+    // Se é isento ou pagamento direto, sempre permitir
     if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
       return;
     }
-
+    
     // Buscar os pagamentos da inscrição
     const payments = await this.paymentRepository.find({
       where: { registrationId: registration.id },
       order: { dueDate: 'ASC' }
     });
-
+    
     if (!payments || payments.length === 0) {
       throw new BadRequestException('Nenhum pagamento encontrado para esta inscrição');
     }
-
+    
     // Verificar se há parcelas vencidas
     const hasOverduePayments = payments.some(payment => 
       payment.status === AsaasPaymentStatus.OVERDUE
     );
-
+    
     if (hasOverduePayments) {
       throw new BadRequestException('Não é possível confirmar participação pois há parcelas vencidas. Por favor, quite as parcelas em atraso para participar das etapas.');
     }
     
-    // Verificar se há pelo menos uma parcela paga
-    const hasPaidPayments = payments.some(payment => 
-      [AsaasPaymentStatus.RECEIVED, AsaasPaymentStatus.CONFIRMED, AsaasPaymentStatus.RECEIVED_IN_CASH].includes(payment.status)
-    );
+    if (season.inscriptionType === InscriptionType.POR_TEMPORADA) {
+      // Se o pagamento já foi totalmente pago, sempre permitir  
+      if (registration.paymentStatus === 'paid') {
+        return;
+      }
+      // Para temporadas por_temporada: verificar se há pelo menos uma parcela paga
+      const hasPaidPayments = payments.some(payment => 
+        [AsaasPaymentStatus.RECEIVED, AsaasPaymentStatus.CONFIRMED, AsaasPaymentStatus.RECEIVED_IN_CASH].includes(payment.status)
+      );
 
-    // Para temporadas por_temporada, exigir pelo menos uma parcela paga
-    if (!hasPaidPayments) {
-      throw new BadRequestException('Para participar das etapas é necessário ter pelo menos uma parcela paga da temporada.');
+      if (!hasPaidPayments) {
+        throw new BadRequestException('Para participar das etapas é necessário ter pelo menos uma parcela paga da temporada.');
+      }
+    } else if (season.inscriptionType === InscriptionType.POR_ETAPA && stageId) {
+      // Para temporadas por_etapa: verificar se o usuário está inscrito na etapa específica
+      const stageRegistration = await this.registrationStageRepository.findOne({
+        where: {
+          registrationId: registration.id,
+          stageId: stageId
+        }
+      });
+
+      if (!stageRegistration) {
+        throw new BadRequestException('Usuário não está inscrito nesta etapa específica');
+      }
+
+      if (registration.paymentStatus != 'paid') {
+        throw new BadRequestException('Usuário não está inscrito nesta etapa específica');
+      }
+
+      // Verificar se há pelo menos um pagamento pago para a inscrição
+      // (já que os pagamentos em por_etapa cobrem todas as etapas inscritas)
+      const hasPaidPayments = payments.some(payment => 
+        [AsaasPaymentStatus.RECEIVED, AsaasPaymentStatus.CONFIRMED, AsaasPaymentStatus.RECEIVED_IN_CASH].includes(payment.status)
+      );
+
+      if (!hasPaidPayments) {
+        throw new BadRequestException('Para participar da etapa é necessário ter pelo menos um pagamento confirmado.');
+      }
     }
   }
 
@@ -145,8 +178,8 @@ export class StageParticipationService {
       throw new BadRequestException('Usuário não está inscrito nesta temporada');
     }
 
-    // Validar status de pagamento para temporadas por_temporada
-    await this.validatePaymentForParticipation(registration, season);
+    // Validar status de pagamento para temporadas por_temporada e por_etapa
+    await this.validatePaymentForParticipation(registration, season, stageId);
 
     // Verificar se o usuário está inscrito na categoria específica
     const hasCategory = registration.categories.some(regCategory => 
@@ -299,7 +332,7 @@ export class StageParticipationService {
 
     // Verificar se o usuário pode participar baseado no status de pagamento
     try {
-      await this.validatePaymentForParticipation(registration, season);
+      await this.validatePaymentForParticipation(registration, season, stageId);
     } catch (error: any) {
       // Se há problemas de pagamento, retornar array vazio (sem categorias disponíveis)
       console.log(`Bloqueio de pagamento para usuário ${userId} na etapa ${stageId}: ${error.message}`);
