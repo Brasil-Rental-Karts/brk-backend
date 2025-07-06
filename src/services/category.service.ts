@@ -189,6 +189,17 @@ export class CategoryService extends BaseService<Category> {
       }
     }
 
+    // Validações para descarte
+    if (data.allowDiscarding !== undefined && data.allowDiscarding) {
+      if (!data.discardingType || (data.discardingType !== 'bateria' && data.discardingType !== 'etapa')) {
+        errors.push('Tipo de descarte deve ser "bateria" ou "etapa"');
+      }
+      
+      if (data.discardingQuantity === undefined || data.discardingQuantity < 1) {
+        errors.push('Quantidade de descarte deve ser maior que 0');
+      }
+    }
+
     return errors;
   }
 } 
