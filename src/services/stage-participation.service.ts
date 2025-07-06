@@ -80,33 +80,32 @@ export class StageParticipationService {
    * Para temporadas por_etapa, verifica se a etapa foi paga
    */
   private async validatePaymentForParticipation(registration: SeasonRegistration, season: Season, stageId?: string): Promise<void> {
-    // Se é isento ou pagamento direto, sempre permitir
-    if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
-      return;
-    }
-    
+
     // Buscar os pagamentos da inscrição
     const payments = await this.paymentRepository.find({
       where: { registrationId: registration.id },
       order: { dueDate: 'ASC' }
     });
+
+    if (registration.paymentStatus != 'paid' && registration.paymentStatus != 'exempt' && registration.paymentStatus != 'direct_payment') {
     
-    if (!payments || payments.length === 0) {
-      throw new BadRequestException('Nenhum pagamento encontrado para esta inscrição');
-    }
-    
-    // Verificar se há parcelas vencidas
-    const hasOverduePayments = payments.some(payment => 
-      payment.status === AsaasPaymentStatus.OVERDUE
-    );
-    
-    if (hasOverduePayments) {
-      throw new BadRequestException('Não é possível confirmar participação pois há parcelas vencidas. Por favor, quite as parcelas em atraso para participar das etapas.');
+      if (!payments || payments.length === 0) {
+        throw new BadRequestException('Nenhum pagamento encontrado para esta inscrição');
+      }
+      
+      // Verificar se há parcelas vencidas
+      const hasOverduePayments = payments.some(payment => 
+        payment.status === AsaasPaymentStatus.OVERDUE
+      );
+      
+      if (hasOverduePayments) {
+        throw new BadRequestException('Não é possível confirmar participação pois há parcelas vencidas. Por favor, quite as parcelas em atraso para participar das etapas.');
+      }
     }
     
     if (season.inscriptionType === InscriptionType.POR_TEMPORADA) {
-      // Se o pagamento já foi totalmente pago, sempre permitir  
-      if (registration.paymentStatus === 'paid') {
+      // Se é isento ou pagamento direto, sempre permitir
+      if (registration.paymentStatus === 'paid' || registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
         return;
       }
       // Para temporadas por_temporada: verificar se há pelo menos uma parcela paga
@@ -130,7 +129,7 @@ export class StageParticipationService {
         throw new BadRequestException('Usuário não está inscrito nesta etapa específica');
       }
 
-      if (registration.paymentStatus != 'paid') {
+      if (registration.paymentStatus != 'paid' && registration.paymentStatus != 'exempt' && registration.paymentStatus != 'direct_payment') {
         throw new BadRequestException('Usuário não está inscrito nesta etapa específica');
       }
 
@@ -140,7 +139,7 @@ export class StageParticipationService {
         [AsaasPaymentStatus.RECEIVED, AsaasPaymentStatus.CONFIRMED, AsaasPaymentStatus.RECEIVED_IN_CASH].includes(payment.status)
       );
 
-      if (!hasPaidPayments) {
+      if (!hasPaidPayments && (registration.paymentStatus != 'exempt' && registration.paymentStatus != 'direct_payment')) {
         throw new BadRequestException('Para participar da etapa é necessário ter pelo menos um pagamento confirmado.');
       }
     }
