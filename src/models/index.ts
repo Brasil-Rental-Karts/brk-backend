@@ -16,4 +16,5 @@ export * from './scoring-system.entity';
 export * from './stage.entity';
 export * from './stage-participation.entity';
 export * from './regulation.entity';
-export * from './race-track.entity'; 
+export * from './race-track.entity';
+export * from './lap-times.entity'; 
