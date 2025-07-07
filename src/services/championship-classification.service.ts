@@ -19,6 +19,7 @@ export interface StageResultData {
   points: number;
   polePosition?: boolean;
   fastestLap?: boolean;
+  fastestLapCount?: number;
   dnf?: boolean;
   dsq?: boolean;
 }
@@ -201,7 +202,7 @@ export class ChampionshipClassificationService {
         if (result.position === 1) userStats.wins += 1;
         if (result.position <= 5) userStats.podiums += 1;
         if (result.polePosition) userStats.polePositions += 1;
-        if (result.fastestLap) userStats.fastestLaps += 1;
+        if (result.fastestLapCount) userStats.fastestLaps += result.fastestLapCount;
         
         userStats.positions.push(result.position);
       }
@@ -314,30 +315,59 @@ export class ChampionshipClassificationService {
       bestLapTime?: string;
       bestLapMs: number;
       polePosition: boolean;
-      fastestLap: boolean;
+      fastestLapCount: number;
       positions: number[];
     }>();
 
     // Determinar pole position global (melhor largada de qualquer bateria)
     let globalBestStartPosition = Infinity;
-    let globalBestLapTime = Infinity;
-
-    // Primeira passagem: encontrar pole position e fastest lap globais
+    
+    // Primeira passagem: encontrar pole position global
     for (const result of batteryResults) {
       const { data } = result;
       
       if (data.startPosition !== undefined && data.startPosition !== null) {
         globalBestStartPosition = Math.min(globalBestStartPosition, data.startPosition);
       }
-      
-      if (data.bestLap) {
-        const lapTimeMs = this.convertLapTimeToMs(data.bestLap);
-        globalBestLapTime = Math.min(globalBestLapTime, lapTimeMs);
-      }
     }
 
     console.log('🔧 [DEBUG] Pole position global:', globalBestStartPosition);
-    console.log('🔧 [DEBUG] Fastest lap global (ms):', globalBestLapTime);
+
+    // Agrupar resultados por bateria para encontrar fastest lap de cada bateria
+    const batteriesByIndex = new Map<string, Array<{ pilotId: string, data: any }>>();
+    
+    for (const result of batteryResults) {
+      const { batteryIndex, pilotId, data } = result;
+      
+      if (!batteriesByIndex.has(batteryIndex)) {
+        batteriesByIndex.set(batteryIndex, []);
+      }
+      
+      batteriesByIndex.get(batteryIndex)!.push({ pilotId, data });
+    }
+
+    // Encontrar fastest lap de cada bateria
+    const fastestLapByBattery = new Map<string, { pilotId: string, lapTimeMs: number }>();
+    
+    for (const [batteryIndex, batteryResults] of batteriesByIndex) {
+      let fastestLapMs = Infinity;
+      let fastestLapPilot = '';
+      
+      for (const { pilotId, data } of batteryResults) {
+        if (data.bestLap) {
+          const lapTimeMs = this.convertLapTimeToMs(data.bestLap);
+          if (lapTimeMs < fastestLapMs) {
+            fastestLapMs = lapTimeMs;
+            fastestLapPilot = pilotId;
+          }
+        }
+      }
+      
+      if (fastestLapPilot) {
+        fastestLapByBattery.set(batteryIndex, { pilotId: fastestLapPilot, lapTimeMs: fastestLapMs });
+        console.log(`🔧 [DEBUG] Fastest lap bateria ${batteryIndex}: Piloto ${fastestLapPilot} com ${fastestLapMs}ms`);
+      }
+    }
 
     // Segunda passagem: calcular pontos de cada bateria
     for (const result of batteryResults) {
@@ -352,7 +382,7 @@ export class ChampionshipClassificationService {
           bestLapTime: undefined,
           bestLapMs: Infinity,
           polePosition: false,
-          fastestLap: false,
+          fastestLapCount: 0,
           positions: []
         });
       }
@@ -366,11 +396,11 @@ export class ChampionshipClassificationService {
       // Verificar se esta bateria teve pole position
       const hasPoleInThisBattery = data.startPosition === globalBestStartPosition;
       
-      // Verificar se esta bateria teve fastest lap
-      const lapTimeMs = data.bestLap ? this.convertLapTimeToMs(data.bestLap) : Infinity;
-      const hasFastestLapInThisBattery = lapTimeMs === globalBestLapTime;
+      // Verificar se este piloto teve fastest lap nesta bateria específica
+      const batteryFastestLap = fastestLapByBattery.get(batteryIndex);
+      const hasFastestLapInThisBattery = batteryFastestLap && batteryFastestLap.pilotId === pilotId;
       
-      // Pontos adicionais (pole e fastest lap contam apenas uma vez por piloto)
+      // Pontos adicionais
       let polePositionPoints = 0;
       let fastestLapPoints = 0;
       
@@ -379,9 +409,9 @@ export class ChampionshipClassificationService {
         pilotStats.polePosition = true;
       }
       
-      if (hasFastestLapInThisBattery && !pilotStats.fastestLap) {
+      if (hasFastestLapInThisBattery) {
         fastestLapPoints = scoringSystem.fastestLapPoints || 0;
-        pilotStats.fastestLap = true;
+        pilotStats.fastestLapCount += 1;
       }
 
       const batteryTotalPoints = positionPoints + polePositionPoints + fastestLapPoints;
@@ -407,9 +437,12 @@ export class ChampionshipClassificationService {
         }
       }
       
-      if (lapTimeMs < pilotStats.bestLapMs) {
-        pilotStats.bestLapMs = lapTimeMs;
-        pilotStats.bestLapTime = data.bestLap;
+      if (data.bestLap) {
+        const lapTimeMs = this.convertLapTimeToMs(data.bestLap);
+        if (lapTimeMs < pilotStats.bestLapMs) {
+          pilotStats.bestLapMs = lapTimeMs;
+          pilotStats.bestLapTime = data.bestLap;
+        }
       }
     }
 
@@ -422,7 +455,7 @@ export class ChampionshipClassificationService {
         batteryCount: stats.batteryCount,
         bestPosition: stats.bestPosition,
         polePosition: stats.polePosition,
-        fastestLap: stats.fastestLap
+        fastestLapCount: stats.fastestLapCount
       });
 
       results.push({
@@ -431,7 +464,8 @@ export class ChampionshipClassificationService {
         position: stats.bestPosition, // Melhor posição para ordenação
         points: stats.totalPoints, // SOMA de todas as baterias
         polePosition: stats.polePosition,
-        fastestLap: stats.fastestLap,
+        fastestLap: stats.fastestLapCount > 0,
+        fastestLapCount: stats.fastestLapCount,
         dnf: false,
         dsq: false
       });
