@@ -199,7 +199,7 @@ export class ChampionshipClassificationService {
         userStats.totalStages += 1;
         
         if (result.position === 1) userStats.wins += 1;
-        if (result.position <= 3) userStats.podiums += 1;
+        if (result.position <= 5) userStats.podiums += 1;
         if (result.polePosition) userStats.polePositions += 1;
         if (result.fastestLap) userStats.fastestLaps += 1;
         
