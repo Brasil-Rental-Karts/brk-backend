@@ -527,6 +527,62 @@ export class SeasonRegistrationController extends BaseController {
      *         description: Inscrição não encontrada
      */
     this.router.get('/:id/pilot-details', authMiddleware, this.getPilotDetails.bind(this));
+
+    /**
+     * @swagger
+     * /season-registrations/{id}/add-stages:
+     *   post:
+     *     summary: Adicionar etapas a uma inscrição existente
+     *     description: Adiciona etapas a uma inscrição existente (para inscrições confirmadas ou administrativas)
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da inscrição
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - stageIds
+     *               - paymentStatus
+     *               - amount
+     *             properties:
+     *               stageIds:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                   format: uuid
+     *                 description: IDs das etapas a serem adicionadas
+     *               paymentStatus:
+     *                 type: string
+     *                 enum: [exempt, direct_payment]
+     *                 description: Status de pagamento administrativo
+     *               amount:
+     *                 type: number
+     *                 description: Valor do pagamento
+     *               notes:
+     *                 type: string
+     *                 description: Observações sobre o pagamento (opcional)
+     *     responses:
+     *       200:
+     *         description: Etapas adicionadas com sucesso
+     *       400:
+     *         description: Dados inválidos ou etapas duplicadas
+     *       403:
+     *         description: Acesso negado (apenas Administrators)
+     *       404:
+     *         description: Inscrição não encontrada
+     */
+    this.router.post('/:id/add-stages', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.addStagesToRegistration.bind(this));
   }
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
@@ -1025,6 +1081,45 @@ export class SeasonRegistrationController extends BaseController {
       });
     } catch (error) {
       res.status(error instanceof NotFoundException ? 404 : 500).json({
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async addStagesToRegistration(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { stageIds, paymentStatus, amount, notes } = req.body;
+
+      // Validar dados de entrada
+      if (!stageIds || !Array.isArray(stageIds) || stageIds.length === 0) {
+        throw new BadRequestException('stageIds é obrigatório e deve ser um array não vazio');
+      }
+
+      if (!paymentStatus || !['exempt', 'direct_payment'].includes(paymentStatus)) {
+        throw new BadRequestException('paymentStatus é obrigatório e deve ser "exempt" ou "direct_payment"');
+      }
+
+      if (amount === undefined || amount < 0) {
+        throw new BadRequestException('amount é obrigatório e deve ser maior ou igual a zero');
+      }
+
+      const addStagesData = {
+        stageIds,
+        paymentStatus,
+        amount,
+        notes
+      };
+
+      const updatedRegistration = await this.registrationService.addStagesToRegistration(id, addStagesData);
+
+      res.json({
+        message: 'Etapas adicionadas com sucesso',
+        data: updatedRegistration
+      });
+    } catch (error) {
+      res.status(error instanceof NotFoundException ? 404 : 
+                error instanceof BadRequestException ? 400 : 500).json({
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });
     }
