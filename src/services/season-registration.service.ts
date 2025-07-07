@@ -222,9 +222,19 @@ export class SeasonRegistrationService {
     // Calcular o valor total baseado no tipo de inscrição
     let totalAmount: number;
     
+    // Debug log para verificar os dados recebidos
+    console.log('[BACKEND] Dados recebidos do frontend:', {
+      totalAmount: data.totalAmount,
+      paymentMethod: data.paymentMethod,
+      installments: data.installments,
+      categoryIds: data.categoryIds,
+      stageIds: data.stageIds
+    });
+    
     // Se o frontend forneceu o valor total (incluindo taxas), usar ele
     if (data.totalAmount && data.totalAmount > 0) {
       totalAmount = data.totalAmount;
+      console.log('[BACKEND] Usando totalAmount fornecido pelo frontend:', totalAmount);
     } else {
       // Calcular automaticamente se não foi fornecido
       if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
@@ -259,6 +269,7 @@ export class SeasonRegistrationService {
       savedRegistration = await this.registrationRepository.save(existingRegistration);
     } else {
       // Criar nova inscrição
+      console.log('[BACKEND] Salvando inscrição com amount:', totalAmount);
       const registration = this.registrationRepository.create({
         userId: data.userId,
         seasonId: data.seasonId,
