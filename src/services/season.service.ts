@@ -66,13 +66,35 @@ export class SeasonService extends BaseService<Season> {
   }
 
   async findBySlugOrId(slugOrId: string): Promise<Season | null> {
-    // Verifica se é um UUID
-    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
-    
-    if (isUUID) {
-      return await this.findById(slugOrId);
-    } else {
-      return await this.seasonRepository.findBySlug(slugOrId);
+    try {
+      // Verifica se é um UUID
+      const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
+      
+      console.log(`🔍 [BACKEND] Buscando temporada: ${slugOrId} (isUUID: ${isUUID})`);
+      
+      let season: Season | null = null;
+      
+      if (isUUID) {
+        season = await this.findById(slugOrId);
+      } else {
+        season = await this.seasonRepository.findBySlug(slugOrId);
+      }
+      
+      if (season) {
+        console.log(`✅ [BACKEND] Temporada encontrada: ${season.name}`);
+        // Garantir que paymentMethods nunca seja null ou vazio
+        if (!season.paymentMethods || season.paymentMethods.length === 0) {
+          console.warn(`⚠️ [BACKEND] Temporada ${season.id} sem métodos de pagamento válidos, usando PIX como padrão`);
+          season.paymentMethods = ['pix' as any];
+        }
+      } else {
+        console.log(`❌ [BACKEND] Temporada não encontrada: ${slugOrId}`);
+      }
+      
+      return season;
+    } catch (error) {
+      console.error(`❌ [BACKEND] Erro ao buscar temporada ${slugOrId}:`, error);
+      throw error;
     }
   }
 
