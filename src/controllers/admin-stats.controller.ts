@@ -1,6 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { AdminStatsService } from '../services/admin-stats.service';
+import { UserService } from '../services/user.service';
+import { UserRepository } from '../repositories/user.repository';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { AppDataSource } from '../config/database.config';
+import { User } from '../models/user.entity';
+import { MemberProfile } from '../models/member-profile.entity';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 /**
@@ -81,10 +87,15 @@ import { authMiddleware } from '../middleware/auth.middleware';
 
 export class AdminStatsController extends BaseController {
   private adminStatsService: AdminStatsService;
+  private userService: UserService;
 
   constructor() {
     super('/admin-stats');
     this.adminStatsService = new AdminStatsService();
+    this.userService = new UserService(
+      new UserRepository(AppDataSource.getRepository(User)),
+      new MemberProfileRepository(AppDataSource.getRepository(MemberProfile))
+    );
     this.initializeRoutes();
   }
 
@@ -119,6 +130,46 @@ export class AdminStatsController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.get('/', authMiddleware, this.getAdminStats.bind(this));
+
+    /**
+     * @swagger
+     * /admin-stats/cache/users/preload:
+     *   post:
+     *     summary: Faz o preload de todos os usuários no cache Redis
+     *     description: Carrega todos os usuários do banco de dados para o cache Redis para melhor performance
+     *     tags: [Admin Stats]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Preload realizado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                   example: "Cache de usuários atualizado com sucesso"
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     totalUsers:
+     *                       type: number
+     *                       example: 150
+     *                       description: Total de usuários carregados no cache
+     *                     duration:
+     *                       type: string
+     *                       example: "2.5s"
+     *                       description: Tempo que levou para carregar
+     *       401:
+     *         description: Não autorizado
+     *       403:
+     *         description: Acesso negado - requer permissões de administrador
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/cache/users/preload', authMiddleware, this.preloadUsersCache.bind(this));
   }
 
   private async getAdminStats(req: Request, res: Response): Promise<void> {
@@ -139,6 +190,41 @@ export class AdminStatsController extends BaseController {
       });
     } catch (error: any) {
       console.error('Error getting admin stats:', error);
+      res.status(500).json({
+        message: error.message || 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async preloadUsersCache(req: Request, res: Response): Promise<void> {
+    try {
+      // Verificar se o usuário é administrador
+      if (req.user!.role !== 'Administrator') {
+        res.status(403).json({
+          message: 'Acesso negado. Requer permissões de administrador.'
+        });
+        return;
+      }
+
+      const startTime = Date.now();
+      await this.userService.preloadAllUsersToCache();
+      const endTime = Date.now();
+      const duration = ((endTime - startTime) / 1000).toFixed(1);
+      
+      // Get total users for response
+      const totalUsers = (await this.userService.getAllCachedUserIds()).length;
+
+      const result = {
+        totalUsers,
+        duration: `${duration}s`
+      };
+
+      res.json({
+        message: 'Cache de usuários atualizado com sucesso',
+        data: result
+      });
+    } catch (error: any) {
+      console.error('Error preloading users cache:', error);
       res.status(500).json({
         message: error.message || 'Erro interno do servidor'
       });

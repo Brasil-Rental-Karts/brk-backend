@@ -4,6 +4,11 @@ import { redisConfig } from '../config/redis.config';
 import { AppDataSource } from '../config/database.config';
 import { Championship } from '../models/championship.entity';
 import { ChampionshipClassificationService } from './championship-classification.service';
+import { UserRepository } from '../repositories/user.repository';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { UserService } from './user.service';
+import { User } from '../models/user.entity';
+import { MemberProfile } from '../models/member-profile.entity';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -20,11 +25,16 @@ export class DatabaseEventsService {
   private client: Client | null = null;
   private redisService: RedisService;
   private classificationService: ChampionshipClassificationService;
+  private userService: UserService;
   private isListening = false;
 
   private constructor() {
     this.redisService = RedisService.getInstance();
     this.classificationService = new ChampionshipClassificationService();
+    this.userService = new UserService(
+      new UserRepository(AppDataSource.getRepository(User)),
+      new MemberProfileRepository(AppDataSource.getRepository(MemberProfile))
+    );
   }
 
   public static getInstance(): DatabaseEventsService {
@@ -242,6 +252,44 @@ export class DatabaseEventsService {
             // Remove regulation from cache and season regulations index
             if (event.data && event.data.id) {
               await this.redisService.invalidateRegulationCache(event.data.id, event.data.seasonId);
+            }
+            break;
+        }
+      }
+
+      if (event.table === 'Users') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+            // Cache the user basic info whenever a user is created or updated
+            if (event.data && event.data.id) {
+              // Use userService to cache user with nickname from MemberProfile
+              await this.userService.cacheUserBasicInfo(event.data.id);
+            }
+            break;
+          case 'DELETE':
+            // Remove user from cache
+            if (event.data && event.data.id) {
+              await this.redisService.invalidateUserCache(event.data.id);
+            }
+            break;
+        }
+      }
+
+      if (event.table === 'MemberProfiles') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+            // When MemberProfile is created or updated (especially nickname), update user cache
+            if (event.data && event.data.id) {
+              // Use userService to recache user with updated nickname
+              await this.userService.cacheUserBasicInfo(event.data.id);
+            }
+            break;
+          case 'DELETE':
+            // When MemberProfile is deleted, recache user without nickname
+            if (event.data && event.data.id) {
+              await this.userService.cacheUserBasicInfo(event.data.id);
             }
             break;
         }

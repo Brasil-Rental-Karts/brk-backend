@@ -1233,4 +1233,156 @@ export class RedisService {
     }
   }
 
+  // User-specific cache methods
+  async cacheUserBasicInfo(userId: string, data: any): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      // Use Redis Hash to store user data (more efficient than JSON strings)
+      const userKey = `user:${userId}`;
+      const userData = {
+        id: data.id,
+        name: data.name,
+        profilePicture: data.profilePicture || '',
+        active: data.active ? 'true' : 'false',
+        nickname: data.nickname || ''
+      };
+
+      // Store user data as Redis Hash
+      await this.client.hSet(userKey, userData);
+
+      // Add to global users set for bulk operations
+      await this.client.sAdd('users:all', userId);
+
+      return true;
+    } catch (error) {
+      // console.error('Error caching user basic info:', error);
+      return false;
+    }
+  }
+
+  async getCachedUserBasicInfo(userId: string): Promise<any | null> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const key = `user:${userId}`;
+      const data = await this.client.hGetAll(key);
+      
+      if (!data || Object.keys(data).length === 0) {
+        return null;
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        profilePicture: data.profilePicture || '',
+        active: data.active === 'true',
+        nickname: data.nickname || ''
+      };
+    } catch (error) {
+      // console.error('Error getting cached user basic info:', error);
+      return null;
+    }
+  }
+
+  // Get multiple users at once using Redis pipeline (ultra-fast)
+  async getMultipleUsersBasicInfo(userIds: string[]): Promise<any[]> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      if (userIds.length === 0) {
+        return [];
+      }
+
+      // Use Redis pipeline for batch operations
+      const pipeline = this.client.multi();
+      
+      userIds.forEach(id => {
+        pipeline.hGetAll(`user:${id}`);
+      });
+
+      const results = await pipeline.exec();
+      
+      if (!results) {
+        return [];
+      }
+
+      // Process results and convert back to proper format
+      return results
+        .map((result: any) => result[1]) // Get the actual data from pipeline result
+        .filter((data: any) => data && Object.keys(data).length > 0)
+        .map((data: any) => ({
+          id: data.id,
+          name: data.name,
+          profilePicture: data.profilePicture || '',
+          active: data.active === 'true',
+          nickname: data.nickname || ''
+        }));
+    } catch (error) {
+      // console.error('Error getting multiple users from cache:', error);
+      return [];
+    }
+  }
+
+  async invalidateUserCache(userId: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      // Remove user data
+      const userKey = `user:${userId}`;
+      await this.client.del(userKey);
+
+      // Remove from global users set
+      await this.client.sRem('users:all', userId);
+
+      return true;
+    } catch (error) {
+      // console.error('Error invalidating user cache:', error);
+      return false;
+    }
+  }
+
+  // Get all user IDs (for fast bulk retrieval)
+  async getAllUserIds(): Promise<string[]> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const userIds = await this.client.sMembers('users:all');
+      return userIds || [];
+    } catch (error) {
+      // console.error('Error getting all user IDs:', error);
+      return [];
+    }
+  }
+
 } 
