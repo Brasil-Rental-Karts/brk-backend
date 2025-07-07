@@ -1,12 +1,14 @@
 import { Repository } from 'typeorm';
-import { AppDataSource } from '../config/database.config';
 import { Stage } from '../models/stage.entity';
 import { StageParticipation, ParticipationStatus } from '../models/stage-participation.entity';
 import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { RedisService } from './redis.service';
+import { AppDataSource } from '../config/database.config';
 import { ConflictException } from '../exceptions/conflict.exception';
+import { ChampionshipClassificationService, StageResultData } from './championship-classification.service';
+import { ScoringSystemService } from './scoring-system.service';
 
 export interface StageWithParticipants extends Stage {
   participants?: StageParticipation[];
@@ -26,11 +28,17 @@ export class StageService {
   private stageRepository: Repository<Stage>;
   private participationRepository: Repository<StageParticipation>;
   private redisService: RedisService;
+  private classificationService: ChampionshipClassificationService;
+  private scoringSystemService: ScoringSystemService;
+  private seasonRepository: Repository<any>;
 
   constructor() {
     this.stageRepository = AppDataSource.getRepository(Stage);
     this.participationRepository = AppDataSource.getRepository(StageParticipation);
     this.redisService = RedisService.getInstance();
+    this.classificationService = new ChampionshipClassificationService();
+    this.scoringSystemService = new ScoringSystemService();
+    this.seasonRepository = AppDataSource.getRepository('Season');
   }
 
   /**
@@ -339,11 +347,62 @@ export class StageService {
    * Atualizar resultados da etapa
    */
   async updateStageResults(id: string, results: any): Promise<Stage> {
+    console.log('🔧 [DEBUG] updateStageResults iniciado para etapa:', id);
+    
     const stage = await this.findById(id);
     stage.stage_results = results;
     const updatedStage = await this.stageRepository.save(stage);
+    
+    console.log('💾 [DEBUG] Resultados da etapa salvos no banco de dados');
+    
+    // Invalidar cache da etapa
     await this.redisService.invalidateStageCache(id, stage.seasonId);
+    
+    // AUTOMATICAMENTE recalcular toda a classificação da temporada
+    try {
+      console.log('🔄 [DEBUG] Iniciando recálculo automático da classificação da temporada...');
+      
+      // Recalcular classificação completa da temporada
+      await this.classificationService.recalculateSeasonClassification(stage.seasonId);
+      
+      console.log('✅ [DEBUG] Classificação da temporada recalculada e cacheada automaticamente!');
+      
+    } catch (error) {
+      console.error('❌ [DEBUG] Erro ao recalcular classificação da temporada:', error);
+      // Não bloquear o salvamento dos resultados se houver erro na classificação
+    }
+    
     return this.formatTimeFields(updatedStage);
+  }
+
+  // Método removido - agora usa recalculateSeasonClassification() diretamente para evitar redundância
+
+  /**
+   * Calcular pontos baseado na posição e sistema de pontuação
+   */
+  private calculatePointsForPosition(position: number, scoringPositions: Array<{ position: number; points: number }>): number {
+    const scoringPosition = scoringPositions.find(sp => sp.position === position);
+    return scoringPosition ? scoringPosition.points : 0;
+  }
+
+  /**
+   * Converter tempo de volta para milissegundos
+   */
+  private convertLapTimeToMs(lapTime: string): number {
+    try {
+      // Formato pode ser: "47.123" ou "1:23.456"
+      if (lapTime.includes(':')) {
+        // Formato MM:SS.sss
+        const [minutes, seconds] = lapTime.split(':');
+        return (parseFloat(minutes) * 60 + parseFloat(seconds)) * 1000;
+      } else {
+        // Formato SS.sss
+        return parseFloat(lapTime) * 1000;
+      }
+    } catch (error) {
+      console.error('Erro ao converter tempo de volta:', lapTime, error);
+      return 0;
+    }
   }
 
   /**
