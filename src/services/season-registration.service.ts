@@ -23,6 +23,7 @@ export interface CreateRegistrationData {
   paymentMethod: 'pix' | 'cartao_credito';
   userDocument: string; // CPF/CNPJ do usuário (obrigatório)
   installments?: number;
+  totalAmount?: number; // Valor total calculado incluindo taxas
 }
 
 export interface CreateAdminRegistrationData {
@@ -220,19 +221,26 @@ export class SeasonRegistrationService {
 
     // Calcular o valor total baseado no tipo de inscrição
     let totalAmount: number;
-    if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
-      // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
-      totalAmount = Number(season.inscriptionValue) * categories.length * stages.length;
+    
+    // Se o frontend forneceu o valor total (incluindo taxas), usar ele
+    if (data.totalAmount && data.totalAmount > 0) {
+      totalAmount = data.totalAmount;
     } else {
-      // Por temporada: quantidade de categorias x valor da inscrição
-      totalAmount = Number(season.inscriptionValue) * categories.length;
-    }
+      // Calcular automaticamente se não foi fornecido
+      if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
+        // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
+        totalAmount = Number(season.inscriptionValue) * categories.length * stages.length;
+      } else {
+        // Por temporada: quantidade de categorias x valor da inscrição
+        totalAmount = Number(season.inscriptionValue) * categories.length;
+      }
 
-    // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
-    if (!championship.commissionAbsorbedByChampionship) {
-      const platformCommission = Number(championship.platformCommissionPercentage) || 10;
-      const commissionAmount = totalAmount * (platformCommission / 100);
-      totalAmount += commissionAmount;
+      // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
+      if (!championship.commissionAbsorbedByChampionship) {
+        const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+        const commissionAmount = totalAmount * (platformCommission / 100);
+        totalAmount += commissionAmount;
+      }
     }
 
     let savedRegistration: SeasonRegistration;
@@ -427,13 +435,20 @@ export class SeasonRegistrationService {
         if (asaasBillingType === 'CREDIT_CARD') {
           // Usar ngrok URL se disponível, senão usar frontend URL
           let callbackUrl: string;
+          let successUrl: string;
+          
           if (process.env.NGROK_URL) {
             callbackUrl = `${process.env.NGROK_URL}/api/asaas/webhook`;
+            successUrl = `${process.env.NGROK_URL}/api/season-registrations/${savedRegistration.id}/payment-callback`;
           } else {
             callbackUrl = `${process.env.FRONTEND_URL}/api/asaas/webhook`;
+            successUrl = `${process.env.BACKEND_URL || 'http://localhost:3000/api'}/season-registrations/${savedRegistration.id}/payment-callback`;
           }
+          
           paymentPayload.callback = {
-            url: callbackUrl
+            url: callbackUrl,
+            successUrl: successUrl,
+            autoRedirect: true
           };
         }
 
