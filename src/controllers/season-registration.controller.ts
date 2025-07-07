@@ -413,7 +413,7 @@ export class SeasonRegistrationController extends BaseController {
      * @swagger
      * /season-registrations/category/{categoryId}/count:
      *   get:
-     *     summary: Contar inscrições confirmadas de uma categoria
+     *     summary: Contar pilotos inscritos de uma categoria
      *     tags: [Season Registrations]
      *     security:
      *       - bearerAuth: []
@@ -426,7 +426,7 @@ export class SeasonRegistrationController extends BaseController {
      *           format: uuid
      *     responses:
      *       200:
-     *         description: Número de inscrições confirmadas na categoria
+     *         description: Número de pilotos inscritos na categoria (inclui todos os status exceto cancelados e expirados)
      *         content:
      *           application/json:
      *             schema:
@@ -980,7 +980,7 @@ export class SeasonRegistrationController extends BaseController {
       const count = await this.registrationService.countRegistrationsByCategory(categoryId);
       
       res.json({
-        message: 'Número de inscrições confirmadas na categoria recuperado com sucesso',
+        message: 'Número de pilotos inscritos na categoria recuperado com sucesso',
         data: { count }
       });
     } catch (error) {

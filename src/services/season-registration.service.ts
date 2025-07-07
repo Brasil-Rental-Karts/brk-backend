@@ -609,14 +609,16 @@ export class SeasonRegistrationService {
   }
 
   /**
-   * Conta inscrições por categoria
+   * Conta pilotos inscritos por categoria (inclui todos os status exceto cancelados e expirados)
    */
   async countRegistrationsByCategory(categoryId: string): Promise<number> {
     const result = await this.registrationCategoryRepository
       .createQueryBuilder('regCategory')
       .innerJoin('regCategory.registration', 'registration')
       .where('regCategory.categoryId = :categoryId', { categoryId })
-      .andWhere('registration.status = :status', { status: RegistrationStatus.CONFIRMED })
+      .andWhere('registration.status NOT IN (:...excludedStatuses)', { 
+        excludedStatuses: [RegistrationStatus.CANCELLED, RegistrationStatus.EXPIRED] 
+      })
       .getCount();
     
     return result;
