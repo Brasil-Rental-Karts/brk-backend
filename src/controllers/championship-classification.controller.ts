@@ -212,6 +212,35 @@ export class ChampionshipClassificationController extends BaseController {
      *     responses:
      *       200:
      *         description: Classificação recalculada com sucesso
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Temporada não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/season/:seasonId/recalculate', authMiddleware, this.recalculateSeasonClassification.bind(this));
+
+    /**
+     * @swagger
+     * /classification/season/{seasonId}/optimized:
+     *   get:
+     *     summary: Buscar classificação otimizada da temporada (cache Redis)
+     *     description: Retorna classificação da temporada usando dados em cache do Redis para máxima performance
+     *     tags: [Classification]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: seasonId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da temporada
+     *     responses:
+     *       200:
+     *         description: Classificação da temporada com dados do Redis
      *         content:
      *           application/json:
      *             schema:
@@ -219,16 +248,40 @@ export class ChampionshipClassificationController extends BaseController {
      *               properties:
      *                 message:
      *                   type: string
+     *                   example: "Classificação da temporada recuperada com sucesso"
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     lastUpdated:
+     *                       type: string
+     *                       format: date-time
+     *                       description: Data da última atualização
+     *                     totalCategories:
+     *                       type: integer
+     *                       description: Total de categorias
+     *                     totalPilots:
+     *                       type: integer
+     *                       description: Total de pilotos
+     *                     classificationsByCategory:
+     *                       type: object
+     *                       additionalProperties:
+     *                         type: object
+     *                         properties:
+     *                           category:
+     *                             type: object
+     *                             description: Dados da categoria
+     *                           pilots:
+     *                             type: array
+     *                             items:
+     *                               $ref: '#/components/schemas/ChampionshipClassification'
      *       401:
      *         description: Token de acesso inválido
-     *       403:
-     *         description: Sem permissão para recalcular classificação
      *       404:
-     *         description: Temporada não encontrada
+     *         description: Temporada não encontrada ou classificação não disponível
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/season/:seasonId/recalculate', authMiddleware, this.recalculateSeasonClassification.bind(this));
+    this.router.get('/season/:seasonId/optimized', authMiddleware, this.getSeasonClassificationOptimized.bind(this));
   }
 
   private async getClassificationBySeasonAndCategory(req: Request, res: Response): Promise<void> {
@@ -345,6 +398,32 @@ export class ChampionshipClassificationController extends BaseController {
         res.status(404).json({ message: error.message });
       } else {
         console.error('Error recalculating season classification:', error);
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
+    }
+  }
+
+  private async getSeasonClassificationOptimized(req: Request, res: Response): Promise<void> {
+    try {
+      const { seasonId } = req.params;
+
+      if (!seasonId) {
+        throw new BadRequestException('seasonId é obrigatório');
+      }
+
+      const classification = await this.classificationService.getSeasonClassificationOptimized(seasonId);
+
+      res.json({
+        message: 'Classificação da temporada recuperada com sucesso',
+        data: classification
+      });
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
+        console.error('Error getting season classification optimized:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }

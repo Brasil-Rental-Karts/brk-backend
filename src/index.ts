@@ -24,6 +24,7 @@ import { RegulationController } from './controllers/regulation.controller';
 import { AdminStatsController } from './controllers/admin-stats.controller';
 import { RaceTrackController } from './controllers/race-track.controller';
 import { LapTimesController } from './controllers/lap-times.controller';
+import { ChampionshipClassificationController } from './controllers/championship-classification.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -126,7 +127,8 @@ AppDataSource.initialize()
       new RegulationController(regulationService, championshipStaffService, seasonService),
       new AdminStatsController(),
       new RaceTrackController(raceTrackService),
-      new LapTimesController(AppDataSource)
+      new LapTimesController(AppDataSource),
+      new ChampionshipClassificationController()
     ];
 
     // Initialize the app

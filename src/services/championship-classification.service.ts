@@ -863,94 +863,90 @@ export class ChampionshipClassificationService {
   }
 
   /**
-   * Buscar classificação da temporada (cache primeiro, banco depois)
+   * Buscar classificação otimizada da temporada usando dados do Redis
    */
-  async getSeasonClassificationOptimized(seasonId: string): Promise<any> {
-    // Tentar buscar do cache primeiro
-    const cachedData = await this.getSeasonClassificationFromCache(seasonId);
-    
-    if (cachedData) {
-      return cachedData;
-    }
-
-    // Se não encontrou no cache, buscar do banco e cachear
-    console.log('💾 [DEBUG] Cache miss - buscando do banco e recacheando...');
-    
+  async getSeasonClassificationOptimized(seasonId: string) {
     try {
-      await this.cacheSeasonClassificationInRedis(seasonId);
+      console.log('🔍 [DEBUG] Buscando classificação otimizada para temporada:', seasonId);
       
-      // Tentar buscar novamente do cache
-      const newCachedData = await this.getSeasonClassificationFromCache(seasonId);
+      // Buscar dados do Redis de forma otimizada
+      const cachedClassification = await this.redisService.getSeasonClassification(seasonId);
       
-      if (newCachedData) {
-        return newCachedData;
-      }
-    } catch (error) {
-      console.log('❌ [DEBUG] Erro ao recachear classificação:', error);
-    }
-
-    // Fallback: buscar diretamente do banco
-    console.log('🔄 [DEBUG] Fallback - buscando diretamente do banco...');
-    return await this.getClassificationBySeasonFromDatabase(seasonId);
-  }
-
-  /**
-   * Buscar classificação da temporada diretamente do banco
-   */
-  private async getClassificationBySeasonFromDatabase(seasonId: string): Promise<any> {
-    const classifications = await this.classificationRepository.find({
-      where: { seasonId },
-      relations: ['user', 'category'],
-      order: {
-        categoryId: 'ASC',
-        totalPoints: 'DESC',
-        wins: 'DESC',
-        podiums: 'DESC',
-        bestPosition: 'ASC'
-      }
-    });
-
-    // Agrupar por categoria
-    const classificationsByCategory: { [categoryId: string]: any[] } = {};
-    
-    for (const classification of classifications) {
-      if (!classificationsByCategory[classification.categoryId]) {
-        classificationsByCategory[classification.categoryId] = [];
-      }
-      
-      classificationsByCategory[classification.categoryId].push({
-        userId: classification.userId,
-        categoryId: classification.categoryId,
-        seasonId: classification.seasonId,
-        championshipId: classification.championshipId,
-        totalPoints: classification.totalPoints,
-        totalStages: classification.totalStages,
-        wins: classification.wins,
-        podiums: classification.podiums,
-        polePositions: classification.polePositions,
-        fastestLaps: classification.fastestLaps,
-        bestPosition: classification.bestPosition,
-        averagePosition: classification.averagePosition,
-        lastCalculatedAt: classification.lastCalculatedAt,
-        user: {
-          id: classification.user?.id,
-          name: classification.user?.name,
-          email: classification.user?.email
-        },
-        category: {
-          id: classification.category?.id,
-          name: classification.category?.name,
-          ballast: classification.category?.ballast
+      if (cachedClassification) {
+        console.log('✅ [DEBUG] Classificação encontrada no cache Redis');
+        console.log('📊 [DEBUG] Dados do cache:', {
+          totalCategories: cachedClassification.totalCategories,
+          totalPilots: cachedClassification.totalPilots,
+          categorias: Object.keys(cachedClassification.classificationsByCategory || {})
+        });
+        
+        // A estrutura do Redis é: classificationsByCategory[categoryId] = [classification1, classification2, ...]
+        // Precisamos transformar para: classificationsByCategory[categoryId] = { category, pilots: [...] }
+        
+        // Coletar todos os userIds para buscar dados dos usuários
+        const allClassifications = Object.values(cachedClassification.classificationsByCategory || {})
+          .flat() as any[];
+        
+        const userIds = allClassifications.map((classification: any) => classification.userId);
+        
+        if (userIds.length > 0) {
+          // Buscar dados dos usuários em lote do Redis
+          const usersData = await this.redisService.getMultipleUsersBasicInfo(userIds);
+          console.log('👥 [DEBUG] Dados dos usuários encontrados:', usersData.length);
+          
+          // Transformar a estrutura e enriquecer com dados dos usuários
+          const transformedClassificationsByCategory: { [categoryId: string]: any } = {};
+          
+          Object.entries(cachedClassification.classificationsByCategory).forEach(([categoryId, classifications]: [string, any]) => {
+            if (Array.isArray(classifications) && classifications.length > 0) {
+              // Pegar a categoria do primeiro item (todos têm a mesma categoria)
+              const categoryData = classifications[0].category;
+              
+              // Enriquecer cada classificação com dados do usuário
+              const enrichedPilots = classifications.map((classification: any) => {
+                const userData = usersData.find(u => u.id === classification.userId);
+                return {
+                  ...classification,
+                  user: userData || classification.user
+                };
+              });
+              
+              transformedClassificationsByCategory[categoryId] = {
+                category: categoryData,
+                pilots: enrichedPilots
+              };
+            }
+          });
+          
+          console.log('🔄 [DEBUG] Estrutura transformada:', {
+            categorias: Object.keys(transformedClassificationsByCategory),
+            totalPilotos: Object.values(transformedClassificationsByCategory).reduce((acc: number, cat: any) => acc + (cat.pilots?.length || 0), 0)
+          });
+          
+          return {
+            ...cachedClassification,
+            classificationsByCategory: transformedClassificationsByCategory
+          };
+        } else {
+          console.log('⚠️ [DEBUG] Nenhum piloto encontrado nas classificações');
+          return cachedClassification;
         }
-      });
+      } else {
+        console.log('⚠️ [DEBUG] Nenhuma classificação encontrada no cache Redis');
+      }
+      
+      // Se não há dados no cache, retornar estrutura vazia
+      return {
+        lastUpdated: new Date().toISOString(),
+        totalCategories: 0,
+        totalPilots: 0,
+        classificationsByCategory: {}
+      };
+      
+    } catch (error) {
+      console.error('❌ [DEBUG] Erro ao buscar classificação otimizada:', error);
+      throw new Error('Erro ao buscar classificação da temporada');
     }
-
-    return {
-      lastUpdated: new Date().toISOString(),
-      totalCategories: Object.keys(classificationsByCategory).length,
-      totalPilots: classifications.length,
-      classificationsByCategory
-    };
   }
 }
 
