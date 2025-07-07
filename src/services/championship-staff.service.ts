@@ -76,6 +76,7 @@ export class ChampionshipStaffService extends BaseService<ChampionshipStaff> {
         categories: true,
         stages: true,
         pilots: true,
+        classification: true,
         regulations: true,
         editChampionship: true,
         gridTypes: true,

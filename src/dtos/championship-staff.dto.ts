@@ -31,6 +31,9 @@ import { StaffPermissions } from '../models/championship-staff.entity';
  *             pilots:
  *               type: boolean
  *               description: Pode gerenciar pilotos
+ *             classification:
+ *               type: boolean
+ *               description: Pode acessar aba de classificação
  *             regulations:
  *               type: boolean
  *               description: Pode gerenciar regulamentos

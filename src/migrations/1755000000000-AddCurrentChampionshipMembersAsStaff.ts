@@ -38,6 +38,7 @@ export class AddCurrentChampionshipMembersAsStaff1755000000000 implements Migrat
                         categories: true,
                         stages: true,
                         pilots: true,
+                        classification: true,
                         regulations: true,
                         editChampionship: true,
                         gridTypes: true,
@@ -57,7 +58,7 @@ export class AddCurrentChampionshipMembersAsStaff1755000000000 implements Migrat
         // (apenas os que têm todas as permissões habilitadas)
         await queryRunner.query(`
             DELETE FROM "ChampionshipStaff" 
-            WHERE "permissions" = '{"seasons":true,"categories":true,"stages":true,"pilots":true,"regulations":true,"editChampionship":true,"gridTypes":true,"scoringSystems":true,"sponsors":true,"staff":true,"asaasAccount":true}'::jsonb
+            WHERE "permissions" = '{"seasons":true,"categories":true,"stages":true,"pilots":true,"classification":true,"regulations":true,"editChampionship":true,"gridTypes":true,"scoringSystems":true,"sponsors":true,"staff":true,"asaasAccount":true}'::jsonb
         `);
     }
 } 
