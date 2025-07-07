@@ -743,6 +743,7 @@ export class ChampionshipClassificationService {
     await this.cacheSeasonClassificationInRedis(seasonId);
 
     console.log('✅ [DEBUG] Recálculo completo da temporada finalizado!');
+    console.log('🚀 [DEBUG] Classificação automaticamente salva no PostgreSQL e cacheada no Redis - Frontend não precisa fazer nada!');
   }
 
   /**

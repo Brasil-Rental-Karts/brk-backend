@@ -210,13 +210,8 @@ export class DatabaseEventsService {
               await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
             }
             
-            // If stage has results and was updated, recalculate season classification
-            if (event.operation === 'UPDATE' && event.data && event.data.seasonId && event.data.stage_results) {
-              // Only recalculate if the stage actually has results
-              if (event.data.stage_results && typeof event.data.stage_results === 'object' && Object.keys(event.data.stage_results).length > 0) {
-                await this.classificationService.recalculateSeasonClassification(event.data.seasonId);
-              }
-            }
+            // NOTE: Recálculo de classificação removido daqui - agora é feito diretamente no StageService.updateStageResults()
+            // para evitar duplo processamento e melhorar performance
             break;
           case 'DELETE':
             // Remove stage from cache and season stages index

@@ -1177,8 +1177,7 @@ export class RedisService {
       // Add classification field to the existing season hash
       await this.client.hSet(seasonKey, 'classification', classificationJson);
       
-      // Set TTL for the classification (optional - 1 hour)
-      await this.client.expire(seasonKey, 3600);
+      // Removed TTL - season data should be persistent and not expire
 
       return true;
     } catch (error) {
