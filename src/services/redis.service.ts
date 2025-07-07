@@ -390,7 +390,7 @@ export class RedisService {
         return null;
       }
 
-      return {
+      const seasonData: any = {
         id: data.id,
         name: data.name,
         slug: data.slug || '',
@@ -400,6 +400,17 @@ export class RedisService {
         registrationOpen: data.registrationOpen === 'true',
         regulationsEnabled: data.regulationsEnabled === 'true'
       };
+
+      // Include classification if available
+      if (data.classification) {
+        try {
+          seasonData['classification'] = JSON.parse(data.classification);
+        } catch (error) {
+          // If classification parsing fails, just ignore it
+        }
+      }
+
+      return seasonData;
     } catch (error) {
       // console.error('Error getting cached season basic info:', error);
       return null;
@@ -1146,4 +1157,80 @@ export class RedisService {
       return false;
     }
   }
+
+  // Season Classification cache methods
+  async cacheSeasonClassification(seasonId: string, classificationData: any): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const seasonKey = `season:${seasonId}`;
+      
+      // Convert classification data to JSON string for storage in Redis hash
+      const classificationJson = JSON.stringify(classificationData);
+      
+      // Add classification field to the existing season hash
+      await this.client.hSet(seasonKey, 'classification', classificationJson);
+      
+      // Set TTL for the classification (optional - 1 hour)
+      await this.client.expire(seasonKey, 3600);
+
+      return true;
+    } catch (error) {
+      // console.error('Error caching season classification:', error);
+      return false;
+    }
+  }
+
+  async getSeasonClassification(seasonId: string): Promise<any | null> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const seasonKey = `season:${seasonId}`;
+      const classificationJson = await this.client.hGet(seasonKey, 'classification');
+      
+      if (!classificationJson) {
+        return null;
+      }
+
+      return JSON.parse(classificationJson);
+    } catch (error) {
+      // console.error('Error getting season classification from cache:', error);
+      return null;
+    }
+  }
+
+  async invalidateSeasonClassification(seasonId: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const seasonKey = `season:${seasonId}`;
+      
+      // Remove only the classification field from the season hash
+      await this.client.hDel(seasonKey, 'classification');
+
+      return true;
+    } catch (error) {
+      // console.error('Error invalidating season classification cache:', error);
+      return false;
+    }
+  }
+
 } 

@@ -3,6 +3,7 @@ import { RedisService } from './redis.service';
 import { redisConfig } from '../config/redis.config';
 import { AppDataSource } from '../config/database.config';
 import { Championship } from '../models/championship.entity';
+import { ChampionshipClassificationService } from './championship-classification.service';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -18,10 +19,12 @@ export class DatabaseEventsService {
   private static instance: DatabaseEventsService;
   private client: Client | null = null;
   private redisService: RedisService;
+  private classificationService: ChampionshipClassificationService;
   private isListening = false;
 
   private constructor() {
     this.redisService = RedisService.getInstance();
+    this.classificationService = new ChampionshipClassificationService();
   }
 
   public static getInstance(): DatabaseEventsService {
@@ -196,11 +199,24 @@ export class DatabaseEventsService {
               };
               await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
             }
+            
+            // If stage has results and was updated, recalculate season classification
+            if (event.operation === 'UPDATE' && event.data && event.data.seasonId && event.data.stage_results) {
+              // Only recalculate if the stage actually has results
+              if (event.data.stage_results && typeof event.data.stage_results === 'object' && Object.keys(event.data.stage_results).length > 0) {
+                await this.classificationService.recalculateSeasonClassification(event.data.seasonId);
+              }
+            }
             break;
           case 'DELETE':
             // Remove stage from cache and season stages index
             if (event.data && event.data.id) {
               await this.redisService.invalidateStageCache(event.data.id, event.data.seasonId);
+            }
+            
+            // If stage was deleted, recalculate season classification
+            if (event.data && event.data.seasonId) {
+              await this.classificationService.recalculateSeasonClassification(event.data.seasonId);
             }
             break;
         }

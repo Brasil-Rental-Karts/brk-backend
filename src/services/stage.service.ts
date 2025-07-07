@@ -1,12 +1,14 @@
 import { Repository } from 'typeorm';
-import { AppDataSource } from '../config/database.config';
 import { Stage } from '../models/stage.entity';
 import { StageParticipation, ParticipationStatus } from '../models/stage-participation.entity';
 import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { RedisService } from './redis.service';
+import { AppDataSource } from '../config/database.config';
 import { ConflictException } from '../exceptions/conflict.exception';
+import { ChampionshipClassificationService, StageResultData } from './championship-classification.service';
+import { ScoringSystemService } from './scoring-system.service';
 
 export interface StageWithParticipants extends Stage {
   participants?: StageParticipation[];
@@ -26,11 +28,17 @@ export class StageService {
   private stageRepository: Repository<Stage>;
   private participationRepository: Repository<StageParticipation>;
   private redisService: RedisService;
+  private classificationService: ChampionshipClassificationService;
+  private scoringSystemService: ScoringSystemService;
+  private seasonRepository: Repository<any>;
 
   constructor() {
     this.stageRepository = AppDataSource.getRepository(Stage);
     this.participationRepository = AppDataSource.getRepository(StageParticipation);
     this.redisService = RedisService.getInstance();
+    this.classificationService = new ChampionshipClassificationService();
+    this.scoringSystemService = new ScoringSystemService();
+    this.seasonRepository = AppDataSource.getRepository('Season');
   }
 
   /**
@@ -343,7 +351,273 @@ export class StageService {
     stage.stage_results = results;
     const updatedStage = await this.stageRepository.save(stage);
     await this.redisService.invalidateStageCache(id, stage.seasonId);
+    
+    // Atualizar classificação baseada nos resultados
+    try {
+      await this.updateClassificationFromResults(id, results);
+    } catch (error) {
+      console.error('Erro ao atualizar classificação:', error);
+      // Não bloquear o salvamento dos resultados se houver erro na classificação
+    }
+    
     return this.formatTimeFields(updatedStage);
+  }
+
+  /**
+   * Atualizar classificação baseada nos resultados da etapa
+   */
+  private async updateClassificationFromResults(stageId: string, results: any): Promise<void> {
+    console.log('🔧 [DEBUG] Iniciando updateClassificationFromResults');
+    console.log('🔧 [DEBUG] stageId:', stageId);
+    console.log('🔧 [DEBUG] results:', JSON.stringify(results, null, 2));
+
+    if (!results || typeof results !== 'object') {
+      console.log('❌ [DEBUG] Resultados inválidos ou não é objeto');
+      return;
+    }
+
+    // Buscar informações da etapa
+    console.log('🔧 [DEBUG] Buscando informações da etapa...');
+    const stage = await this.stageRepository.findOne({
+      where: { id: stageId }
+    });
+
+    if (!stage) {
+      console.error('❌ [DEBUG] Etapa não encontrada');
+      return;
+    }
+
+    console.log('✅ [DEBUG] Etapa encontrada:', stage.name, 'seasonId:', stage.seasonId);
+
+    // Buscar informações da temporada
+    console.log('🔧 [DEBUG] Buscando informações da temporada...');
+    const season = await this.seasonRepository.findOne({
+      where: { id: stage.seasonId },
+      relations: ['championship']
+    });
+
+    if (!season) {
+      console.error('❌ [DEBUG] Temporada não encontrada');
+      return;
+    }
+
+    console.log('✅ [DEBUG] Temporada encontrada:', season.name, 'championshipId:', season.championshipId);
+
+    // Buscar sistema de pontuação padrão do campeonato
+    console.log('🔧 [DEBUG] Buscando sistema de pontuação...');
+    const scoringSystems = await this.scoringSystemService.findByChampionship(season.championshipId);
+    console.log('🔧 [DEBUG] Sistemas encontrados:', scoringSystems.length);
+    
+    const defaultScoringSystem = scoringSystems.find(ss => ss.isDefault && ss.isActive) || scoringSystems.find(ss => ss.isActive);
+    
+    if (!defaultScoringSystem) {
+      console.error('❌ [DEBUG] Sistema de pontuação não encontrado para o campeonato');
+      return;
+    }
+
+    console.log('✅ [DEBUG] Sistema de pontuação encontrado:', defaultScoringSystem.name);
+    console.log('🔧 [DEBUG] Posições do sistema:', JSON.stringify(defaultScoringSystem.positions, null, 2));
+
+    const stageResults: StageResultData[] = [];
+
+    // Processar resultados por categoria
+    console.log('🔧 [DEBUG] Processando resultados por categoria...');
+    for (const [categoryId, categoryPilots] of Object.entries(results)) {
+      console.log('🔧 [DEBUG] Processando categoria:', categoryId);
+      
+      if (!categoryPilots || typeof categoryPilots !== 'object') {
+        console.log('⚠️ [DEBUG] Categoria inválida ou sem pilotos');
+        continue;
+      }
+
+      // Coletar dados de todos os pilotos da categoria
+      const categoryResults: Array<{
+        userId: string;
+        startPosition?: number;
+        finishPosition?: number;
+        bestLap?: string;
+        bestLapMs?: number;
+      }> = [];
+
+      // Processar cada piloto
+      console.log('🔧 [DEBUG] Processando pilotos da categoria...');
+      for (const [pilotId, pilotBatteries] of Object.entries(categoryPilots as any)) {
+        console.log('🔧 [DEBUG] Processando piloto:', pilotId);
+        
+        if (!pilotBatteries || typeof pilotBatteries !== 'object') {
+          console.log('⚠️ [DEBUG] Piloto sem dados de bateria');
+          continue;
+        }
+
+        // Para cada bateria do piloto, coletar os melhores resultados
+        let bestStartPosition: number | undefined;
+        let bestFinishPosition: number | undefined;
+        let bestLapTime: string | undefined;
+        let bestLapMs: number | undefined;
+
+        console.log('🔧 [DEBUG] Processando baterias do piloto...');
+        for (const [batteryIndex, batteryData] of Object.entries(pilotBatteries as any)) {
+          console.log('🔧 [DEBUG] Bateria:', batteryIndex, 'dados:', JSON.stringify(batteryData, null, 2));
+          
+          if (!batteryData || typeof batteryData !== 'object') {
+            console.log('⚠️ [DEBUG] Dados da bateria inválidos');
+            continue;
+          }
+
+          const typedBatteryData = batteryData as {
+            startPosition?: number;
+            finishPosition?: number;
+            bestLap?: string;
+            weight?: boolean;
+          };
+
+          // Pegar melhor posição de largada (menor número = melhor)
+          if (typedBatteryData.startPosition && (typeof typedBatteryData.startPosition === 'number')) {
+            console.log('🔧 [DEBUG] Posição de largada encontrada:', typedBatteryData.startPosition);
+            if (!bestStartPosition || typedBatteryData.startPosition < bestStartPosition) {
+              bestStartPosition = typedBatteryData.startPosition;
+            }
+          }
+
+          // Pegar melhor posição de chegada (menor número = melhor)
+          if (typedBatteryData.finishPosition && (typeof typedBatteryData.finishPosition === 'number')) {
+            console.log('🔧 [DEBUG] Posição de chegada encontrada:', typedBatteryData.finishPosition);
+            if (!bestFinishPosition || typedBatteryData.finishPosition < bestFinishPosition) {
+              bestFinishPosition = typedBatteryData.finishPosition;
+            }
+          }
+
+          // Pegar melhor volta (menor tempo = melhor)
+          if (typedBatteryData.bestLap && typeof typedBatteryData.bestLap === 'string') {
+            console.log('🔧 [DEBUG] Melhor volta encontrada:', typedBatteryData.bestLap);
+            const lapTimeMs = this.convertLapTimeToMs(typedBatteryData.bestLap);
+            if (lapTimeMs > 0 && (!bestLapMs || lapTimeMs < bestLapMs)) {
+              bestLapTime = typedBatteryData.bestLap;
+              bestLapMs = lapTimeMs;
+            }
+          }
+        }
+
+        console.log('🔧 [DEBUG] Resumo do piloto:', {
+          pilotId,
+          bestStartPosition,
+          bestFinishPosition,
+          bestLapTime,
+          bestLapMs
+        });
+
+        categoryResults.push({
+          userId: pilotId,
+          startPosition: bestStartPosition,
+          finishPosition: bestFinishPosition,
+          bestLap: bestLapTime,
+          bestLapMs: bestLapMs
+        });
+      }
+
+      console.log('🔧 [DEBUG] Resultados da categoria processados:', categoryResults.length, 'pilotos');
+
+      // Determinar pole position (melhor largada)
+      const validStartPositions = categoryResults
+        .filter(r => r.startPosition)
+        .map(r => r.startPosition!);
+      const bestStartPosition = validStartPositions.length > 0 ? Math.min(...validStartPositions) : undefined;
+      console.log('🔧 [DEBUG] Melhor posição de largada:', bestStartPosition);
+      
+      // Determinar volta mais rápida
+      const validLapTimes = categoryResults
+        .filter(r => r.bestLapMs)
+        .map(r => r.bestLapMs!);
+      const bestLapMs = validLapTimes.length > 0 ? Math.min(...validLapTimes) : undefined;
+      console.log('🔧 [DEBUG] Melhor tempo de volta (ms):', bestLapMs);
+
+      // Converter para formato do ChampionshipClassificationService
+      console.log('🔧 [DEBUG] Convertendo para formato de classificação...');
+      for (const result of categoryResults) {
+        // Só processar se tem posição de chegada (resultado da corrida)
+        if (!result.finishPosition) {
+          console.log('⚠️ [DEBUG] Piloto sem posição de chegada, pulando:', result.userId);
+          continue;
+        }
+
+        // Calcular pontos baseado na posição de chegada
+        const positionPoints = this.calculatePointsForPosition(result.finishPosition, defaultScoringSystem.positions);
+        console.log('🔧 [DEBUG] Pontos por posição:', positionPoints, 'para posição:', result.finishPosition);
+        
+        // Pontos extras
+        const polePositionPoints = (bestStartPosition && result.startPosition === bestStartPosition && result.startPosition === 1) 
+          ? defaultScoringSystem.polePositionPoints : 0;
+        const fastestLapPoints = (bestLapMs && result.bestLapMs === bestLapMs && result.bestLapMs > 0) 
+          ? defaultScoringSystem.fastestLapPoints : 0;
+
+        const totalPoints = positionPoints + polePositionPoints + fastestLapPoints;
+
+        console.log('🔧 [DEBUG] Pontos calculados para', result.userId, ':', {
+          positionPoints,
+          polePositionPoints,
+          fastestLapPoints,
+          totalPoints
+        });
+
+        const stageResult: StageResultData = {
+          userId: result.userId,
+          categoryId: categoryId,
+          position: result.finishPosition,
+          points: totalPoints,
+          polePosition: bestStartPosition ? (result.startPosition === bestStartPosition && result.startPosition === 1) : false,
+          fastestLap: bestLapMs ? (result.bestLapMs === bestLapMs && result.bestLapMs > 0) : false,
+          dnf: false, // TODO: implementar lógica para DNF baseado em algum campo
+          dsq: false  // TODO: implementar lógica para DSQ baseado em algum campo
+        };
+
+        console.log('🔧 [DEBUG] Resultado final criado:', JSON.stringify(stageResult, null, 2));
+        stageResults.push(stageResult);
+      }
+    }
+
+    console.log('🔧 [DEBUG] Total de resultados para classificação:', stageResults.length);
+
+    // Atualizar classificação se há resultados válidos
+    if (stageResults.length > 0) {
+      console.log('✅ [DEBUG] Chamando updateClassificationFromStageResults...');
+      try {
+        await this.classificationService.updateClassificationFromStageResults(stageId, stageResults);
+        console.log('✅ [DEBUG] Classificação atualizada com sucesso!');
+      } catch (error) {
+        console.error('❌ [DEBUG] Erro ao atualizar classificação:', error);
+        throw error;
+      }
+    } else {
+      console.log('⚠️ [DEBUG] Nenhum resultado válido para atualizar classificação');
+    }
+  }
+
+  /**
+   * Calcular pontos baseado na posição e sistema de pontuação
+   */
+  private calculatePointsForPosition(position: number, scoringPositions: Array<{ position: number; points: number }>): number {
+    const scoringPosition = scoringPositions.find(sp => sp.position === position);
+    return scoringPosition ? scoringPosition.points : 0;
+  }
+
+  /**
+   * Converter tempo de volta para milissegundos
+   */
+  private convertLapTimeToMs(lapTime: string): number {
+    try {
+      // Formato pode ser: "47.123" ou "1:23.456"
+      if (lapTime.includes(':')) {
+        // Formato MM:SS.sss
+        const [minutes, seconds] = lapTime.split(':');
+        return (parseFloat(minutes) * 60 + parseFloat(seconds)) * 1000;
+      } else {
+        // Formato SS.sss
+        return parseFloat(lapTime) * 1000;
+      }
+    } catch (error) {
+      console.error('Erro ao converter tempo de volta:', lapTime, error);
+      return 0;
+    }
   }
 
   /**
