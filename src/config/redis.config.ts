@@ -9,13 +9,16 @@ export const redisConfig = {
   db: parseInt(process.env.REDIS_DB || '0'),
   // List of tables to track changes
   trackedTables: [
+    'Championships',
     'Seasons',
     'SeasonRegistrations',
     'SeasonRegistrationStages',
     'Stages',
+    'Categories',
+    'Regulations',
     'Users',
     'MemberProfiles'
-  ], // Track Seasons, SeasonRegistrations, SeasonRegistrationStages, Stages, Users and MemberProfiles tables for cache
+  ], // Track Championships, Seasons, SeasonRegistrations, SeasonRegistrationStages, Stages, Categories, Regulations, Users and MemberProfiles tables for cache
   // Channel name for database events
   channelName: 'database_events'
 }; 

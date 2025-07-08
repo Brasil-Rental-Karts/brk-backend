@@ -46,8 +46,8 @@ export class DatabaseEventsService {
 
   async publishEvent(event: DatabaseEvent): Promise<boolean> {
     try {
-      // Track Championships, Seasons, Categories and Stages tables
-      if (['Championships', 'Seasons', 'Categories', 'Stages'].includes(event.table)) {
+      // Track all tables from redisConfig.trackedTables
+      if (redisConfig.trackedTables.includes(event.table)) {
         // Publish the message to Redis
         const success = await this.redisService.publishMessage(event);
         
