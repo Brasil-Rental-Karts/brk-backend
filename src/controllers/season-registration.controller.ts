@@ -587,8 +587,19 @@ export class SeasonRegistrationController extends BaseController {
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
     try {
-      const { seasonId, categoryIds, stageIds, paymentMethod, userDocument, installments } = req.body;
+      const { seasonId, categoryIds, stageIds, paymentMethod, userDocument, installments, totalAmount } = req.body;
       const userId = req.user!.id;
+
+      // Debug log para verificar os dados recebidos
+      console.log('[CONTROLLER] Dados recebidos:', {
+        seasonId,
+        categoryIds,
+        stageIds,
+        paymentMethod,
+        userDocument,
+        installments,
+        totalAmount
+      });
 
       // Validar dados de entrada
       if (!seasonId || !paymentMethod || !categoryIds || !userDocument) {
@@ -617,7 +628,8 @@ export class SeasonRegistrationController extends BaseController {
         stageIds,
         paymentMethod,
         userDocument,
-        installments
+        installments,
+        totalAmount
       };
 
       const result = await this.registrationService.createRegistration(registrationData);

@@ -10,6 +10,7 @@ import { Stage } from '../models/stage.entity';
 import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
 import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
 import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from './asaas.service';
+import { CreditCardFeesService } from './credit-card-fees.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { removeDocumentMask } from '../utils/document.util';
@@ -23,6 +24,7 @@ export interface CreateRegistrationData {
   paymentMethod: 'pix' | 'cartao_credito';
   userDocument: string; // CPF/CNPJ do usuário (obrigatório)
   installments?: number;
+  totalAmount?: number; // Valor total calculado incluindo taxas
 }
 
 export interface CreateAdminRegistrationData {
@@ -69,6 +71,7 @@ export class SeasonRegistrationService {
   private registrationCategoryRepository: Repository<SeasonRegistrationCategory>;
   private registrationStageRepository: Repository<SeasonRegistrationStage>;
   private asaasService: AsaasService;
+  private creditCardFeesService: CreditCardFeesService;
 
   constructor() {
     this.registrationRepository = AppDataSource.getRepository(SeasonRegistration);
@@ -81,6 +84,7 @@ export class SeasonRegistrationService {
     this.registrationCategoryRepository = AppDataSource.getRepository(SeasonRegistrationCategory);
     this.registrationStageRepository = AppDataSource.getRepository(SeasonRegistrationStage);
     this.asaasService = new AsaasService();
+    this.creditCardFeesService = new CreditCardFeesService();
   }
 
   /**
@@ -92,6 +96,48 @@ export class SeasonRegistrationService {
     const commission = platformCommissionPercentage / 100;
     const splitPercentage = (commission / (1 + commission)) * 100;
     return Math.round(splitPercentage * 100) / 100; // Arredondar para 2 casas decimais
+  }
+
+  /**
+   * Calcula as taxas do cartão de crédito baseado nas configurações do campeonato
+   */
+  async calculateCreditCardFees(championshipId: string, baseAmount: number, installments: number): Promise<{
+    percentageRate: number;
+    fixedFee: number;
+    totalFees: number;
+    totalAmount: number;
+    isDefault: boolean;
+  }> {
+    // Tentar buscar taxas configuradas para o campeonato
+    const configuredRate = await this.creditCardFeesService.getRateForInstallments(championshipId, installments);
+    
+    if (configuredRate) {
+      const percentageFee = (baseAmount * configuredRate.percentageRate) / 100;
+      const totalFees = percentageFee + configuredRate.fixedFee;
+      const totalAmount = baseAmount + totalFees;
+      
+      return {
+        percentageRate: configuredRate.percentageRate,
+        fixedFee: configuredRate.fixedFee,
+        totalFees: Math.round(totalFees * 100) / 100, // Arredondar para 2 casas decimais
+        totalAmount: Math.round(totalAmount * 100) / 100, // Arredondar para 2 casas decimais
+        isDefault: false
+      };
+    }
+    
+    // Se não encontrar configuração, usar taxas padrão
+    const defaultRate = await this.creditCardFeesService.getDefaultRateForInstallments(installments);
+    const percentageFee = (baseAmount * defaultRate.percentageRate) / 100;
+    const totalFees = percentageFee + defaultRate.fixedFee;
+    const totalAmount = baseAmount + totalFees;
+    
+    return {
+      percentageRate: defaultRate.percentageRate,
+      fixedFee: defaultRate.fixedFee,
+      totalFees: Math.round(totalFees * 100) / 100, // Arredondar para 2 casas decimais
+      totalAmount: Math.round(totalAmount * 100) / 100, // Arredondar para 2 casas decimais
+      isDefault: true
+    };
   }
 
   /**
@@ -220,19 +266,36 @@ export class SeasonRegistrationService {
 
     // Calcular o valor total baseado no tipo de inscrição
     let totalAmount: number;
-    if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
-      // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
-      totalAmount = Number(season.inscriptionValue) * categories.length * stages.length;
+    
+    // Debug log para verificar os dados recebidos
+    console.log('[BACKEND] Dados recebidos do frontend:', {
+      totalAmount: data.totalAmount,
+      paymentMethod: data.paymentMethod,
+      installments: data.installments,
+      categoryIds: data.categoryIds,
+      stageIds: data.stageIds
+    });
+    
+    // Se o frontend forneceu o valor total (incluindo taxas), usar ele
+    if (data.totalAmount && data.totalAmount > 0) {
+      totalAmount = data.totalAmount;
+      console.log('[BACKEND] Usando totalAmount fornecido pelo frontend:', totalAmount);
     } else {
-      // Por temporada: quantidade de categorias x valor da inscrição
-      totalAmount = Number(season.inscriptionValue) * categories.length;
-    }
+      // Calcular automaticamente se não foi fornecido
+      if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
+        // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
+        totalAmount = Number(season.inscriptionValue) * categories.length * stages.length;
+      } else {
+        // Por temporada: quantidade de categorias x valor da inscrição
+        totalAmount = Number(season.inscriptionValue) * categories.length;
+      }
 
-    // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
-    if (!championship.commissionAbsorbedByChampionship) {
-      const platformCommission = Number(championship.platformCommissionPercentage) || 10;
-      const commissionAmount = totalAmount * (platformCommission / 100);
-      totalAmount += commissionAmount;
+      // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
+      if (!championship.commissionAbsorbedByChampionship) {
+        const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+        const commissionAmount = totalAmount * (platformCommission / 100);
+        totalAmount += commissionAmount;
+      }
     }
 
     let savedRegistration: SeasonRegistration;
@@ -251,6 +314,7 @@ export class SeasonRegistrationService {
       savedRegistration = await this.registrationRepository.save(existingRegistration);
     } else {
       // Criar nova inscrição
+      console.log('[BACKEND] Salvando inscrição com amount:', totalAmount);
       const registration = this.registrationRepository.create({
         userId: data.userId,
         seasonId: data.seasonId,
@@ -427,13 +491,20 @@ export class SeasonRegistrationService {
         if (asaasBillingType === 'CREDIT_CARD') {
           // Usar ngrok URL se disponível, senão usar frontend URL
           let callbackUrl: string;
+          let successUrl: string;
+          
           if (process.env.NGROK_URL) {
             callbackUrl = `${process.env.NGROK_URL}/api/asaas/webhook`;
+            successUrl = `${process.env.NGROK_URL}/api/season-registrations/${savedRegistration.id}/payment-callback`;
           } else {
             callbackUrl = `${process.env.FRONTEND_URL}/api/asaas/webhook`;
+            successUrl = `${process.env.BACKEND_URL || 'http://localhost:3000/api'}/season-registrations/${savedRegistration.id}/payment-callback`;
           }
+          
           paymentPayload.callback = {
-            url: callbackUrl
+            url: callbackUrl,
+            successUrl: successUrl,
+            autoRedirect: true
           };
         }
 
