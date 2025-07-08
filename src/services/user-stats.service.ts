@@ -125,11 +125,13 @@ export class UserStatsService {
     });
 
     // Para campeonatos únicos, precisamos fazer uma query mais complexa
-    const registrationsWithSeasons = await this.registrationRepository.find({
-      where: { userId },
-      relations: ['season'],
-      select: ['id', 'seasonId']
-    });
+    // Usar query builder para selecionar apenas as colunas necessárias
+    const registrationsWithSeasons = await this.registrationRepository
+      .createQueryBuilder('registration')
+      .leftJoinAndSelect('registration.season', 'season')
+      .select(['registration.id', 'registration.seasonId', 'season.championshipId'])
+      .where('registration.userId = :userId', { userId })
+      .getMany();
 
     const championshipIds = new Set(registrationsWithSeasons.map(r => r.season.championshipId));
     const seasonIds = new Set(registrationsWithSeasons.map(r => r.seasonId));

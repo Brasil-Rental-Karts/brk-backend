@@ -1,96 +1,35 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { SeasonService } from '../services/season.service';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { ChampionshipService } from '../services/championship.service';
-import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
-import { Season, SeasonStatus, InscriptionType, PaymentMethod } from '../models/season.entity';
-import { UserRole } from '../models/user.entity';
+import { Season, SeasonStatus, InscriptionType, PaymentMethod, PaymentCondition } from '../models/season.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
-import { ChampionshipStaffService } from '../services/championship-staff.service';
+import { authMiddleware } from '../middleware/auth.middleware';
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     Season:
- *       type: object
- *       required:
- *         - name
- *         - description
- *         - startDate
- *         - endDate
- *         - inscriptionValue
- *         - inscriptionType
- *         - paymentMethods
- *         - championshipId
- *       properties:
- *         id:
- *           type: string
- *           format: uuid
- *           description: ID único da temporada
- *         name:
- *           type: string
- *           maxLength: 75
- *           description: Nome da temporada
- *         description:
- *           type: string
- *           maxLength: 1000
- *           description: Descrição da temporada
- *         startDate:
- *           type: string
- *           format: date
- *           example: "2025-03-15"
- *           description: Data de início da temporada (formato YYYY-MM-DD)
- *         endDate:
- *           type: string
- *           format: date
- *           example: "2025-12-20"
- *           description: Data de fim da temporada (formato YYYY-MM-DD)
- *         status:
- *           type: string
- *           enum: [agendado, em_andamento, cancelado, finalizado]
- *           description: Status da temporada
- *         registrationOpen:
- *           type: boolean
- *           default: true
- *           description: Indica se as inscrições estão abertas para esta temporada
- *         inscriptionValue:
- *           type: number
- *           description: Valor da inscrição
- *         inscriptionType:
- *           type: string
- *           enum: [por_temporada, por_etapa]
- *           description: Tipo da inscrição
- *         paymentMethods:
- *           type: array
- *           items:
- *             type: string
-    *             enum: [pix, cartao_credito]
- *           description: Métodos de pagamento aceitos
- *         championshipId:
- *           type: string
- *           format: uuid
- *           description: ID do campeonato
- *         pixInstallments:
- *           type: integer
- *           default: 1
- *           minimum: 1
- *           maximum: 12
- *           description: Número máximo de parcelas para pagamento via PIX
- *         creditCardInstallments:
- *           type: integer
- *           default: 1
- *           minimum: 1
- *           maximum: 12
- *           description: Número máximo de parcelas para pagamento via cartão de crédito
-
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
+ * Controller para gerenciar temporadas
+ * 
+ * Endpoints disponíveis:
+ * - GET /seasons - Lista todas as temporadas
+ * - GET /seasons/championship/:championshipId - Lista temporadas de um campeonato
+ * - GET /seasons/:id - Busca uma temporada específica
+ * - POST /seasons - Cria uma nova temporada
+ * - PUT /seasons/:id - Atualiza uma temporada
+ * - DELETE /seasons/:id - Remove uma temporada
+ * - POST /seasons/:id/refresh-cache - Atualiza cache da temporada
+ * 
+ * Validações:
+ * - name: deve ter entre 3 e 75 caracteres
+ * - description: deve ter entre 10 e 1000 caracteres
+ * - startDate: deve ser uma data válida
+ * - endDate: deve ser uma data válida e posterior ao startDate
+ * - status: deve ser um valor válido do enum SeasonStatus
+ * - championshipId: deve ser um UUID válido
+ * - paymentConditions: deve ser um array válido de condições de pagamento
+ * - paymentMethods: deve ser um array com pelo menos um método válido
+ * - inscriptionValue: deve ser um número positivo
  */
 
 export class SeasonController extends BaseController {
@@ -100,186 +39,20 @@ export class SeasonController extends BaseController {
     private championshipService: ChampionshipService
   ) {
     super('/seasons');
+    console.log('[DEBUG] SeasonController inicializado');
     this.initializeRoutes();
   }
 
   public initializeRoutes(): void {
-    /**
-     * @swagger
-     * /seasons:
-     *   get:
-     *     summary: Listar todas as temporadas com paginação
-     *     tags: [Seasons]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: query
-     *         name: page
-     *         schema:
-     *           type: integer
-     *           default: 1
-     *         description: Número da página
-     *       - in: query
-     *         name: limit
-     *         schema:
-     *           type: integer
-     *           default: 10
-     *         description: Itens por página
-     *     responses:
-     *       200:
-     *         description: Lista paginada de temporadas
-     */
-    this.router.get('/', authMiddleware, this.getAllSeasons.bind(this));
+    // Rotas públicas
+    this.router.get('/', this.getAllSeasons.bind(this));
+    this.router.get('/championship/:championshipId', this.getSeasonsByChampionship.bind(this));
+    this.router.get('/:id', this.getSeasonById.bind(this));
 
-    /**
-     * @swagger
-     * /seasons/championship/{championshipId}:
-     *   get:
-     *     summary: Listar temporadas de um campeonato específico
-     *     tags: [Seasons]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: championshipId
-     *         required: true
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *       - in: query
-     *         name: page
-     *         schema:
-     *           type: integer
-     *           default: 1
-     *       - in: query
-     *         name: limit
-     *         schema:
-     *           type: integer
-     *           default: 10
-     *     responses:
-     *       200:
-     *         description: Lista paginada de temporadas do campeonato
-     */
-    this.router.get('/championship/:championshipId', authMiddleware, this.getSeasonsByChampionship.bind(this));
-
-    /**
-     * @swagger
-     * /seasons/{id}:
-     *   get:
-     *     summary: Buscar temporada por ID
-     *     tags: [Seasons]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: id
-     *         required: true
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *     responses:
-     *       200:
-     *         description: Temporada encontrada
-     *       404:
-     *         description: Temporada não encontrada
-     */
-    this.router.get('/:id', authMiddleware, this.getSeasonById.bind(this));
-
-    /**
-     * @swagger
-     * /seasons:
-     *   post:
-     *     summary: Criar nova temporada
-     *     tags: [Seasons]
-     *     security:
-     *       - bearerAuth: []
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             $ref: '#/components/schemas/Season'
-     *     responses:
-     *       201:
-     *         description: Temporada criada com sucesso
-     *       400:
-     *         description: Dados inválidos
-     */
+    // Rotas protegidas
     this.router.post('/', authMiddleware, this.createSeason.bind(this));
-
-    /**
-     * @swagger
-     * /seasons/{id}:
-     *   put:
-     *     summary: Atualizar temporada
-     *     tags: [Seasons]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: id
-     *         required: true
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             $ref: '#/components/schemas/Season'
-     *     responses:
-     *       200:
-     *         description: Temporada atualizada com sucesso
-     *       404:
-     *         description: Temporada não encontrada
-     */
     this.router.put('/:id', authMiddleware, this.updateSeason.bind(this));
-
-    /**
-     * @swagger
-     * /seasons/{id}:
-     *   delete:
-     *     summary: Deletar temporada
-     *     tags: [Seasons]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: id
-     *         required: true
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *     responses:
-     *       200:
-     *         description: Temporada deletada com sucesso
-     *       404:
-     *         description: Temporada não encontrada
-     */
     this.router.delete('/:id', authMiddleware, this.deleteSeason.bind(this));
-
-    /**
-     * @swagger
-     * /seasons/{id}/refresh-cache:
-     *   post:
-     *     summary: Forçar atualização do cache da temporada
-     *     tags: [Seasons]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: id
-     *         required: true
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *     responses:
-     *       200:
-     *         description: Cache atualizado com sucesso
-     *       404:
-     *         description: Temporada não encontrada
-     */
     this.router.post('/:id/refresh-cache', authMiddleware, this.refreshSeasonCache.bind(this));
   }
 
@@ -290,7 +63,7 @@ export class SeasonController extends BaseController {
       const seasons = await this.seasonService.findAllPaginated(page, limit);
       res.status(200).json(seasons);
     } catch (error: any) {
-      res.status(500).json({ message: 'Erro ao listar temporadas', details: error.message });
+      res.status(500).json({ message: 'Erro ao buscar temporadas', details: error.message });
     }
   }
 
@@ -302,7 +75,7 @@ export class SeasonController extends BaseController {
       const seasons = await this.seasonService.findByChampionshipId(championshipId, page, limit);
       res.status(200).json(seasons);
     } catch (error: any) {
-      res.status(500).json({ message: 'Erro ao listar temporadas do campeonato', details: error.message });
+      res.status(500).json({ message: 'Erro ao buscar temporadas do campeonato', details: error.message });
     }
   }
 
@@ -311,47 +84,59 @@ export class SeasonController extends BaseController {
       const { id } = req.params;
       const season = await this.seasonService.findBySlugOrId(id);
       if (!season) {
-        throw new NotFoundException('Temporada não encontrada');
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
       }
       res.status(200).json(season);
     } catch (error: any) {
-      if (error instanceof NotFoundException) {
-        res.status(404).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: 'Erro ao buscar temporada', details: error.message });
-      }
+      res.status(500).json({ message: 'Erro ao buscar temporada', details: error.message });
     }
   }
 
   private async createSeason(req: Request, res: Response): Promise<void> {
     try {
-      this.validateSeasonData(req.body);
       const userId = req.user!.id;
-      const championshipId = req.body.championshipId;
+      this.validateSeasonData(req.body, true);
 
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      // Verificar permissões
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, req.body.championshipId);
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para criar uma temporada neste campeonato.',
+          message: 'Você não tem permissão para criar temporadas neste campeonato.',
           details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
         });
         return;
       }
 
-      // Verificar se as inscrições estão abertas e se o Wallet ID está configurado
-      const registrationOpen = req.body.registrationOpen !== undefined ? req.body.registrationOpen : true;
+      // Verificar se está tentando abrir as inscrições e se o Wallet ID está configurado
+      const registrationOpen = req.body.registrationOpen !== false;
       if (registrationOpen) {
-        const championship = await this.championshipService.findById(championshipId);
+        const championship = await this.championshipService.findById(req.body.championshipId);
         if (!championship) {
           throw new NotFoundException('Campeonato não encontrado');
         }
 
         if (championship.splitEnabled && !championship.asaasWalletId) {
           throw new BadRequestException(
-            'Não é possível criar uma temporada com inscrições abertas sem configurar o Wallet ID do Asaas. ' +
+            'Não é possível abrir as inscrições sem configurar o Wallet ID do Asaas. ' +
             'Configure a conta Asaas em Configurações > Conta Asaas.'
           );
         }
+      }
+
+      // Processar paymentConditions
+      let paymentConditions: PaymentCondition[] = [];
+
+      if (req.body.paymentConditions && Array.isArray(req.body.paymentConditions)) {
+        paymentConditions = req.body.paymentConditions.map((condition: any) => ({
+          type: condition.type,
+          value: parseFloat(condition.value),
+          description: condition.description || '',
+          enabled: condition.enabled !== false,
+          paymentMethods: condition.paymentMethods || [],
+          pixInstallments: condition.pixInstallments || 1,
+          creditCardInstallments: condition.creditCardInstallments || 1
+        }));
       }
 
       const seasonData: Partial<Season> = {
@@ -361,13 +146,8 @@ export class SeasonController extends BaseController {
         endDate: new Date(req.body.endDate),
         status: req.body.status || SeasonStatus.AGENDADO,
         registrationOpen: registrationOpen,
-        inscriptionValue: parseFloat(req.body.inscriptionValue),
-        inscriptionType: req.body.inscriptionType,
-        paymentMethods: req.body.paymentMethods,
+        paymentConditions: paymentConditions,
         championshipId: req.body.championshipId,
-        pixInstallments: req.body.pixInstallments || 1,
-        creditCardInstallments: req.body.creditCardInstallments || 1,
-
       };
 
       const season = await this.seasonService.create(seasonData);
@@ -387,7 +167,7 @@ export class SeasonController extends BaseController {
       const userId = req.user!.id;
       this.validateSeasonData(req.body, false);
 
-      const existingSeason = await this.seasonService.findById(id);
+      const existingSeason = await this.seasonService.findBySlugOrId(id);
       if (!existingSeason) {
         throw new NotFoundException('Temporada não encontrada');
       }
@@ -425,14 +205,21 @@ export class SeasonController extends BaseController {
       if (req.body.status) seasonData.status = req.body.status;
       if (req.body.registrationOpen !== undefined) seasonData.registrationOpen = req.body.registrationOpen;
       if (req.body.regulationsEnabled !== undefined) seasonData.regulationsEnabled = req.body.regulationsEnabled;
-      if (req.body.inscriptionValue) seasonData.inscriptionValue = parseFloat(req.body.inscriptionValue);
-      if (req.body.inscriptionType) seasonData.inscriptionType = req.body.inscriptionType;
-      if (req.body.paymentMethods) seasonData.paymentMethods = req.body.paymentMethods;
-      if (req.body.pixInstallments !== undefined) seasonData.pixInstallments = req.body.pixInstallments;
-      if (req.body.creditCardInstallments !== undefined) seasonData.creditCardInstallments = req.body.creditCardInstallments;
 
+      // Processar paymentConditions se fornecido
+      if (req.body.paymentConditions && Array.isArray(req.body.paymentConditions)) {
+        seasonData.paymentConditions = req.body.paymentConditions.map((condition: any) => ({
+          type: condition.type,
+          value: parseFloat(condition.value),
+          description: condition.description || '',
+          enabled: condition.enabled !== false,
+          paymentMethods: condition.paymentMethods || [],
+          pixInstallments: condition.pixInstallments || 1,
+          creditCardInstallments: condition.creditCardInstallments || 1
+        }));
+      }
 
-      const season = await this.seasonService.update(id, seasonData);
+      const season = await this.seasonService.update(existingSeason.id, seasonData);
 
       if (!season) {
         throw new NotFoundException('Temporada não encontrada');
@@ -454,7 +241,7 @@ export class SeasonController extends BaseController {
       const { id } = req.params;
       const userId = req.user!.id;
 
-      const existingSeason = await this.seasonService.findById(id);
+      const existingSeason = await this.seasonService.findBySlugOrId(id);
       if (!existingSeason) {
         throw new NotFoundException('Temporada não encontrada');
       }
@@ -468,7 +255,7 @@ export class SeasonController extends BaseController {
         return;
       }
 
-      await this.seasonService.delete(id);
+      await this.seasonService.delete(existingSeason.id);
       res.status(200).json({ message: 'Temporada deletada com sucesso' });
     } catch (error: any) {
       if (error instanceof NotFoundException) {
@@ -484,7 +271,7 @@ export class SeasonController extends BaseController {
       const { id } = req.params;
       const userId = req.user!.id;
 
-      const existingSeason = await this.seasonService.findById(id);
+      const existingSeason = await this.seasonService.findBySlugOrId(id);
       if (!existingSeason) {
         throw new NotFoundException('Temporada não encontrada');
       }
@@ -492,26 +279,19 @@ export class SeasonController extends BaseController {
       const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, existingSeason.championshipId);
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para atualizar o cache desta temporada.',
+          message: 'Você não tem permissão para atualizar esta temporada.',
           details: 'Apenas administradores do sistema ou staff do campeonato podem realizar esta ação.'
         });
         return;
       }
 
-      const success = await this.seasonService.refreshSeasonCache(id);
+      const success = await this.seasonService.refreshSeasonCache(existingSeason.id);
       if (!success) {
         res.status(500).json({ message: 'Erro ao atualizar cache da temporada' });
         return;
       }
 
-      res.status(200).json({ 
-        message: 'Cache da temporada atualizado com sucesso',
-        season: {
-          id: existingSeason.id,
-          name: existingSeason.name,
-          registrationOpen: existingSeason.registrationOpen
-        }
-      });
+      res.status(200).json({ message: 'Cache da temporada atualizado com sucesso' });
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
@@ -522,83 +302,86 @@ export class SeasonController extends BaseController {
   }
 
   private validateSeasonData(data: any, isCreate: boolean = true): void {
-    const requiredFieldsCreate: string[] = [
-      'name', 'description', 'startDate', 'endDate', 
-      'inscriptionValue', 'inscriptionType', 'paymentMethods', 'championshipId'
-    ];
-  
-    if (isCreate) {
-      for (const field of requiredFieldsCreate) {
-        if (data[field] === undefined || data[field] === null || (typeof data[field] === 'string' && data[field].trim() === '')) {
-          throw new BadRequestException(`${field} é obrigatório`);
-        }
+    const requiredFields = ['name', 'description', 'startDate', 'endDate', 'championshipId'];
+    const optionalFields = ['status', 'registrationOpen', 'regulationsEnabled', 'paymentConditions'];
+
+    // Validar campos obrigatórios
+    for (const field of requiredFields) {
+      if (isCreate && (!data[field] || data[field].toString().trim() === '')) {
+        throw new BadRequestException(`Campo obrigatório: ${field}`);
       }
     }
-  
-    if (data.name !== undefined && (typeof data.name !== 'string' || data.name.length > 75)) {
-      throw new BadRequestException('Nome da temporada inválido ou excede 75 caracteres.');
-    }
-    
-    if (data.description !== undefined && (typeof data.description !== 'string' || data.description.length > 1000)) {
-      throw new BadRequestException('Descrição da temporada inválida ou excede 1000 caracteres.');
-    }
-  
-    // Validação de parcelamento por método de pagamento
-    if (data.pixInstallments !== undefined && (typeof data.pixInstallments !== 'number' || data.pixInstallments < 1 || data.pixInstallments > 12)) {
-      throw new BadRequestException('Número de parcelas PIX deve ser entre 1 e 12.');
-    }
-  
-    if (data.creditCardInstallments !== undefined && (typeof data.creditCardInstallments !== 'number' || data.creditCardInstallments < 1 || data.creditCardInstallments > 12)) {
-      throw new BadRequestException('Número de parcelas do cartão de crédito deve ser entre 1 e 12.');
-    }
-  
 
-  
-    if (data.startDate !== undefined && isNaN(new Date(data.startDate).getTime())) {
-      throw new BadRequestException('Data de início inválida. Use o formato YYYY-MM-DD');
+    // Validar nome
+    if (data.name && (data.name.length < 3 || data.name.length > 75)) {
+      throw new BadRequestException('Nome deve ter entre 3 e 75 caracteres');
     }
-  
-    if (data.endDate !== undefined && isNaN(new Date(data.endDate).getTime())) {
-      throw new BadRequestException('Data de fim inválida. Use o formato YYYY-MM-DD');
+
+    // Validar descrição
+    if (data.description && (data.description.length < 10 || data.description.length > 1000)) {
+      throw new BadRequestException('Descrição deve ter entre 10 e 1000 caracteres');
     }
-  
-    if (data.startDate && data.endDate && new Date(data.startDate) >= new Date(data.endDate)) {
-      throw new BadRequestException('Data de início deve ser anterior à data de fim');
+
+    // Validar datas
+    if (data.startDate) {
+      const startDate = new Date(data.startDate);
+      if (isNaN(startDate.getTime())) {
+        throw new BadRequestException('Data de início inválida');
+      }
     }
-  
-    const minDate = new Date('2020-01-01');
-    const maxDate = new Date('2050-12-31');
-    if (data.startDate && (new Date(data.startDate) < minDate || new Date(data.startDate) > maxDate)) {
-      throw new BadRequestException('Data de início deve estar entre 2020 e 2050');
+
+    if (data.endDate) {
+      const endDate = new Date(data.endDate);
+      if (isNaN(endDate.getTime())) {
+        throw new BadRequestException('Data de fim inválida');
+      }
     }
-  
-    if (data.endDate && (new Date(data.endDate) < minDate || new Date(data.endDate) > maxDate)) {
-      throw new BadRequestException('Data de fim deve estar entre 2020 e 2050');
+
+    if (data.startDate && data.endDate) {
+      const startDate = new Date(data.startDate);
+      const endDate = new Date(data.endDate);
+      if (endDate <= startDate) {
+        throw new BadRequestException('Data de fim deve ser posterior à data de início');
+      }
     }
-  
+
+    // Validar status
     if (data.status && !Object.values(SeasonStatus).includes(data.status)) {
       throw new BadRequestException('Status inválido');
     }
-  
-    if (data.inscriptionValue !== undefined && isNaN(parseFloat(data.inscriptionValue))) {
-      throw new BadRequestException('Valor da inscrição deve ser um número válido');
+
+    // Validar championshipId (UUID)
+    if (data.championshipId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.championshipId)) {
+      throw new BadRequestException('ID do campeonato inválido');
     }
-  
-    if (data.inscriptionType && !Object.values(InscriptionType).includes(data.inscriptionType)) {
-      throw new BadRequestException('Tipo de inscrição inválido');
-    }
-  
-    if (data.paymentMethods && Array.isArray(data.paymentMethods)) {
-      if (data.paymentMethods.length === 0 && isCreate) {
-        throw new BadRequestException('Métodos de pagamento são obrigatórios');
-      }
-      for (const method of data.paymentMethods) {
-        if (!Object.values(PaymentMethod).includes(method)) {
-          throw new BadRequestException(`Método de pagamento inválido: ${method}`);
+
+    // Validar paymentConditions
+    if (data.paymentConditions && Array.isArray(data.paymentConditions)) {
+      for (const condition of data.paymentConditions) {
+        if (!condition.type || !['por_temporada', 'por_etapa'].includes(condition.type)) {
+          throw new BadRequestException('Tipo de condição de pagamento inválido');
+        }
+
+        if (typeof condition.value !== 'number' || condition.value <= 0) {
+          throw new BadRequestException('Valor da condição de pagamento deve ser um número positivo');
+        }
+
+        if (condition.paymentMethods && Array.isArray(condition.paymentMethods)) {
+          for (const method of condition.paymentMethods) {
+            if (!Object.values(PaymentMethod).includes(method)) {
+              throw new BadRequestException(`Método de pagamento inválido: ${method}`);
+            }
+          }
+        }
+
+        if (condition.pixInstallments !== undefined && (typeof condition.pixInstallments !== 'number' || condition.pixInstallments < 1 || condition.pixInstallments > 12)) {
+          throw new BadRequestException('Parcelamento PIX deve ser entre 1 e 12');
+        }
+
+        if (condition.creditCardInstallments !== undefined && (typeof condition.creditCardInstallments !== 'number' || condition.creditCardInstallments < 1 || condition.creditCardInstallments > 12)) {
+          throw new BadRequestException('Parcelamento cartão de crédito deve ser entre 1 e 12');
         }
       }
-    } else if (isCreate) {
-      throw new BadRequestException('Métodos de pagamento são obrigatórios e devem ser um array');
     }
   }
 } 
