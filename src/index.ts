@@ -25,6 +25,7 @@ import { AdminStatsController } from './controllers/admin-stats.controller';
 import { RaceTrackController } from './controllers/race-track.controller';
 import { LapTimesController } from './controllers/lap-times.controller';
 import { ChampionshipClassificationController } from './controllers/championship-classification.controller';
+import { CreditCardFeesController } from './controllers/credit-card-fees.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -60,6 +61,7 @@ import { StageParticipationService } from './services/stage-participation.servic
 import { UserStatsService } from './services/user-stats.service';
 import { RegulationService } from './services/regulation.service';
 import { RaceTrackService } from './services/race-track.service';
+import { CreditCardFeesService } from './services/credit-card-fees.service';
 
 // Repositories
 import { UserRepository } from './repositories/user.repository';
@@ -105,6 +107,7 @@ AppDataSource.initialize()
     const userStatsService = new UserStatsService();
     const regulationService = new RegulationService(regulationRepository);
     const raceTrackService = new RaceTrackService(raceTrackRepository);
+    const creditCardFeesService = new CreditCardFeesService();
     
     // Initialize controllers
     const controllers = [
@@ -128,7 +131,8 @@ AppDataSource.initialize()
       new AdminStatsController(),
       new RaceTrackController(raceTrackService),
       new LapTimesController(AppDataSource),
-      new ChampionshipClassificationController()
+      new ChampionshipClassificationController(),
+      new CreditCardFeesController()
     ];
 
     // Initialize the app

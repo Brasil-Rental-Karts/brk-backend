@@ -10,6 +10,7 @@ import { Stage } from '../models/stage.entity';
 import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
 import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
 import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from './asaas.service';
+import { CreditCardFeesService } from './credit-card-fees.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { removeDocumentMask } from '../utils/document.util';
@@ -70,6 +71,7 @@ export class SeasonRegistrationService {
   private registrationCategoryRepository: Repository<SeasonRegistrationCategory>;
   private registrationStageRepository: Repository<SeasonRegistrationStage>;
   private asaasService: AsaasService;
+  private creditCardFeesService: CreditCardFeesService;
 
   constructor() {
     this.registrationRepository = AppDataSource.getRepository(SeasonRegistration);
@@ -82,6 +84,7 @@ export class SeasonRegistrationService {
     this.registrationCategoryRepository = AppDataSource.getRepository(SeasonRegistrationCategory);
     this.registrationStageRepository = AppDataSource.getRepository(SeasonRegistrationStage);
     this.asaasService = new AsaasService();
+    this.creditCardFeesService = new CreditCardFeesService();
   }
 
   /**
@@ -93,6 +96,48 @@ export class SeasonRegistrationService {
     const commission = platformCommissionPercentage / 100;
     const splitPercentage = (commission / (1 + commission)) * 100;
     return Math.round(splitPercentage * 100) / 100; // Arredondar para 2 casas decimais
+  }
+
+  /**
+   * Calcula as taxas do cartão de crédito baseado nas configurações do campeonato
+   */
+  async calculateCreditCardFees(championshipId: string, baseAmount: number, installments: number): Promise<{
+    percentageRate: number;
+    fixedFee: number;
+    totalFees: number;
+    totalAmount: number;
+    isDefault: boolean;
+  }> {
+    // Tentar buscar taxas configuradas para o campeonato
+    const configuredRate = await this.creditCardFeesService.getRateForInstallments(championshipId, installments);
+    
+    if (configuredRate) {
+      const percentageFee = (baseAmount * configuredRate.percentageRate) / 100;
+      const totalFees = percentageFee + configuredRate.fixedFee;
+      const totalAmount = baseAmount + totalFees;
+      
+      return {
+        percentageRate: configuredRate.percentageRate,
+        fixedFee: configuredRate.fixedFee,
+        totalFees: Math.round(totalFees * 100) / 100, // Arredondar para 2 casas decimais
+        totalAmount: Math.round(totalAmount * 100) / 100, // Arredondar para 2 casas decimais
+        isDefault: false
+      };
+    }
+    
+    // Se não encontrar configuração, usar taxas padrão
+    const defaultRate = await this.creditCardFeesService.getDefaultRateForInstallments(installments);
+    const percentageFee = (baseAmount * defaultRate.percentageRate) / 100;
+    const totalFees = percentageFee + defaultRate.fixedFee;
+    const totalAmount = baseAmount + totalFees;
+    
+    return {
+      percentageRate: defaultRate.percentageRate,
+      fixedFee: defaultRate.fixedFee,
+      totalFees: Math.round(totalFees * 100) / 100, // Arredondar para 2 casas decimais
+      totalAmount: Math.round(totalAmount * 100) / 100, // Arredondar para 2 casas decimais
+      isDefault: true
+    };
   }
 
   /**
