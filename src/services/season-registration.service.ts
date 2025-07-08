@@ -176,10 +176,10 @@ export class SeasonRegistrationService {
       // Verificar o número máximo de parcelas baseado no método de pagamento
       switch (data.paymentMethod) {
         case 'pix':
-          maxInstallments = season.pixInstallments;
+          maxInstallments = season.getPixInstallmentsForCondition(season.getInscriptionType() === 'por_etapa' ? 'por_etapa' : 'por_temporada');
           break;
         case 'cartao_credito':
-          maxInstallments = season.creditCardInstallments;
+          maxInstallments = season.getCreditCardInstallmentsForCondition(season.getInscriptionType() === 'por_etapa' ? 'por_etapa' : 'por_temporada');
           break;
       }
       
@@ -222,12 +222,12 @@ export class SeasonRegistrationService {
     });
 
     // Para temporadas por temporada, não permitir inscrição duplicada
-    if (season.inscriptionType === 'por_temporada' && existingRegistration) {
+    if (season.getInscriptionType() === 'por_temporada' && existingRegistration) {
       throw new BadRequestException('Usuário já está inscrito nesta temporada');
     }
 
     // Para temporadas por etapa, verificar se as etapas já estão inscritas
-    if (season.inscriptionType === 'por_etapa' && existingRegistration && data.stageIds && data.stageIds.length > 0) {
+    if (season.getInscriptionType() === 'por_etapa' && existingRegistration && data.stageIds && data.stageIds.length > 0) {
       const existingStageIds = existingRegistration.stages.map(stage => stage.stageId);
       const duplicateStageIds = data.stageIds.filter(stageId => existingStageIds.includes(stageId));
       
@@ -242,7 +242,7 @@ export class SeasonRegistrationService {
 
     // Verificar se a temporada aceita o método de pagamento solicitado
     const asaasBillingType = this.asaasService.mapPaymentMethodToAsaas(data.paymentMethod);
-    const seasonPaymentMethods = season.paymentMethods.map(pm => this.asaasService.mapPaymentMethodToAsaas(pm));
+    const seasonPaymentMethods = season.getPaymentMethodsForCondition(season.getInscriptionType() === 'por_etapa' ? 'por_etapa' : 'por_temporada').map(pm => this.asaasService.mapPaymentMethodToAsaas(pm));
     
     if (!seasonPaymentMethods.includes(asaasBillingType)) {
       throw new BadRequestException(`Método de pagamento ${data.paymentMethod} não aceito para esta temporada`);
@@ -251,7 +251,16 @@ export class SeasonRegistrationService {
     // Buscar etapas se for inscrição por etapa
     let stages: Stage[] = [];
     
-    if (season.inscriptionType === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
+    console.log('[BACKEND] Verificando tipo de inscrição:', {
+      getInscriptionType: season.getInscriptionType(),
+      hasPaymentConditionPorEtapa: season.hasPaymentCondition('por_etapa'),
+      hasPaymentConditionPorTemporada: season.hasPaymentCondition('por_temporada'),
+      stageIds: data.stageIds,
+      stageIdsLength: data.stageIds?.length || 0,
+      paymentConditions: season.paymentConditions
+    });
+    
+    if (season.getInscriptionType() === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
       stages = await this.stageRepository.find({
         where: { 
           id: In(data.stageIds),
@@ -282,13 +291,32 @@ export class SeasonRegistrationService {
       console.log('[BACKEND] Usando totalAmount fornecido pelo frontend:', totalAmount);
     } else {
       // Calcular automaticamente se não foi fornecido
-      if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
-        // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
-        totalAmount = Number(season.inscriptionValue) * categories.length * stages.length;
+      let baseAmount = 0;
+      
+      // Usar nova estrutura de paymentConditions se disponível
+      if (season.paymentConditions && season.paymentConditions.length > 0) {
+        // Calcular valor baseado nas condições ativas
+        for (const condition of season.paymentConditions) {
+          if (condition.enabled) {
+            if (condition.type === 'por_temporada') {
+              baseAmount += condition.value * categories.length;
+            } else if (condition.type === 'por_etapa' && stages.length > 0) {
+              baseAmount += condition.value * categories.length * stages.length;
+            }
+          }
+        }
       } else {
-        // Por temporada: quantidade de categorias x valor da inscrição
-        totalAmount = Number(season.inscriptionValue) * categories.length;
+        // Usar campos legados para compatibilidade
+        if (season.getInscriptionType() === 'por_etapa' && stages.length > 0) {
+          // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
+          baseAmount = Number(season.getInscriptionValue()) * categories.length * stages.length;
+        } else {
+          // Por temporada: quantidade de categorias x valor da inscrição
+          baseAmount = Number(season.getInscriptionValue()) * categories.length;
+        }
       }
+      
+      totalAmount = baseAmount;
 
       // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
       if (!championship.commissionAbsorbedByChampionship) {
@@ -301,7 +329,7 @@ export class SeasonRegistrationService {
     let savedRegistration: SeasonRegistration;
 
     // Para temporadas por etapa, se já existe inscrição, atualizar ela
-    if (season.inscriptionType === 'por_etapa' && existingRegistration) {
+    if (season.hasPaymentCondition('por_etapa') && existingRegistration) {
       // Atualizar o valor total (adicionar ao valor existente)
       const newTotalAmount = Number(existingRegistration.amount) + totalAmount;
       
@@ -328,7 +356,7 @@ export class SeasonRegistrationService {
     }
 
     // Para inscrições novas, salvar as categorias selecionadas
-    if (!existingRegistration || season.inscriptionType === 'por_temporada') {
+    if (!existingRegistration) {
       const registrationCategories = categories.map(category => 
         this.registrationCategoryRepository.create({
           registrationId: savedRegistration.id,
@@ -341,7 +369,14 @@ export class SeasonRegistrationService {
 
     // Salvar as etapas selecionadas (se for inscrição por etapa)
     
-    if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
+    console.log('[BACKEND] Verificando salvamento de etapas:', {
+      hasPaymentConditionPorEtapa: season.hasPaymentCondition('por_etapa'),
+      stagesLength: stages.length,
+      stages: stages.map(s => ({ id: s.id, name: s.name })),
+      registrationId: savedRegistration.id
+    });
+    
+    if (season.hasPaymentCondition('por_etapa') && stages.length > 0) {
       const registrationStages = stages.map(stage => 
         this.registrationStageRepository.create({
           registrationId: savedRegistration.id,
@@ -350,6 +385,7 @@ export class SeasonRegistrationService {
       );
       
       await this.registrationStageRepository.save(registrationStages);
+      console.log('[BACKEND] Etapas salvas com sucesso:', registrationStages.map(rs => ({ registrationId: rs.registrationId, stageId: rs.stageId })));
     }
 
     try {
@@ -1402,7 +1438,7 @@ export class SeasonRegistrationService {
     }
 
     // Verificar se a temporada permite inscrições por etapa
-    if (season.inscriptionType !== 'por_etapa') {
+    if (season.getInscriptionType() !== 'por_etapa') {
       throw new BadRequestException('Apenas temporadas com inscrições por etapa permitem adição de etapas');
     }
 

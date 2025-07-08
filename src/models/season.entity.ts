@@ -22,6 +22,16 @@ export enum PaymentMethod {
   CARTAO_CREDITO = 'cartao_credito'
 }
 
+export interface PaymentCondition {
+  type: 'por_temporada' | 'por_etapa';
+  value: number;
+  description?: string;
+  enabled: boolean;
+  paymentMethods: PaymentMethod[];
+  pixInstallments?: number;
+  creditCardInstallments?: number;
+}
+
 @Entity('Seasons')
 export class Season extends BaseEntity {
   // Dados Gerais
@@ -56,28 +66,9 @@ export class Season extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   regulationsEnabled: boolean;
 
-  // Dados Financeiros
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
-  inscriptionValue: number;
-
-  @Column({ 
-    type: 'enum', 
-    enum: InscriptionType, 
-    nullable: false 
-  })
-  inscriptionType: InscriptionType;
-
-  @Column({ type: 'simple-array', nullable: false })
-  paymentMethods: PaymentMethod[];
-
-  // Parcelamento por método de pagamento
-  @Column({ type: 'int', default: 1 })
-  pixInstallments: number;
-
-  @Column({ type: 'int', default: 1 })
-  creditCardInstallments: number;
-
-
+  // Dados Financeiros - Nova estrutura para múltiplas condições
+  @Column({ type: 'jsonb', nullable: false, default: () => "'[]'" })
+  paymentConditions: PaymentCondition[];
 
   // Relacionamento com o campeonato
   @Column({ nullable: false })
@@ -99,5 +90,48 @@ export class Season extends BaseEntity {
     if (this.name) {
       this.slug = slugify(this.name);
     }
+  }
+
+  // Métodos auxiliares para compatibilidade
+  getInscriptionValue(): number {
+    if (this.paymentConditions && this.paymentConditions.length > 0) {
+      // Retorna o valor da primeira condição ativa por temporada
+      const tempCondition = this.paymentConditions.find(c => c.type === 'por_temporada' && c.enabled);
+      return tempCondition ? tempCondition.value : 0;
+    }
+    return 0;
+  }
+
+  getInscriptionType(): InscriptionType {
+    if (this.paymentConditions && this.paymentConditions.length > 0) {
+      // Se há condições por etapa ativas, retorna por_etapa
+      const hasStageConditions = this.paymentConditions.some(c => c.type === 'por_etapa' && c.enabled);
+      return hasStageConditions ? InscriptionType.POR_ETAPA : InscriptionType.POR_TEMPORADA;
+    }
+    return InscriptionType.POR_TEMPORADA;
+  }
+
+  hasPaymentCondition(type: 'por_temporada' | 'por_etapa'): boolean {
+    return this.paymentConditions?.some(c => c.type === type && c.enabled) || false;
+  }
+
+  getPaymentCondition(type: 'por_temporada' | 'por_etapa'): PaymentCondition | undefined {
+    return this.paymentConditions?.find(c => c.type === type && c.enabled);
+  }
+
+  // Métodos auxiliares para métodos de pagamento por condição
+  getPaymentMethodsForCondition(type: 'por_temporada' | 'por_etapa'): PaymentMethod[] {
+    const condition = this.getPaymentCondition(type);
+    return condition?.paymentMethods || [];
+  }
+
+  getPixInstallmentsForCondition(type: 'por_temporada' | 'por_etapa'): number {
+    const condition = this.getPaymentCondition(type);
+    return condition?.pixInstallments || 1;
+  }
+
+  getCreditCardInstallmentsForCondition(type: 'por_temporada' | 'por_etapa'): number {
+    const condition = this.getPaymentCondition(type);
+    return condition?.creditCardInstallments || 1;
   }
 } 

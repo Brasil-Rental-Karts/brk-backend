@@ -103,7 +103,7 @@ export class StageParticipationService {
       }
     }
     
-    if (season.inscriptionType === InscriptionType.POR_TEMPORADA) {
+    if (season.hasPaymentCondition('por_temporada')) {
       // Se é isento ou pagamento direto, sempre permitir
       if (registration.paymentStatus === 'paid' || registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
         return;
@@ -116,7 +116,7 @@ export class StageParticipationService {
       if (!hasPaidPayments) {
         throw new BadRequestException('Para participar das etapas é necessário ter pelo menos uma parcela paga da temporada.');
       }
-    } else if (season.inscriptionType === InscriptionType.POR_ETAPA && stageId) {
+    } else if (season.hasPaymentCondition('por_etapa') && stageId) {
       // Para temporadas por_etapa: verificar se o usuário está inscrito na etapa específica
       const stageRegistration = await this.registrationStageRepository.findOne({
         where: {
