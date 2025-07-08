@@ -32,31 +32,34 @@ const TABLES_ORDER = [
   // Tabelas independentes (sem FK) - ordem alfabética
   'Championships',
   'GridTypes',
-  'RaceTracks', // Nova tabela adicionada
+  'RaceTracks',
   'ScoringSystem',
   'Users',
   'vip_preregister',
   
   // Tabelas com dependências de primeiro nível
+  'CreditCardFees', // FK: championshipId
   'MemberProfiles', // FK: userId
   'Seasons', // FK: championshipId
   
   // Tabelas com dependências de segundo nível
   'Categories', // FK: seasonId
   'ChampionshipStaff', // FK: championshipId, userId
-  'Regulations', // FK: seasonId - Nova tabela adicionada
+  'Regulations', // FK: seasonId
   'Stages', // FK: seasonId
   
   // Tabelas com dependências de terceiro nível
   'SeasonRegistrations', // FK: seasonId, userId
   'StageParticipations', // FK: stageId, userId
   
-  // Tabelas de relacionamento (muitos-para-muitos)
+  // Tabelas com dependências de quarto nível
   'SeasonRegistrationCategories', // FK: seasonRegistrationId, categoryId
   'SeasonRegistrationStages', // FK: seasonRegistrationId, stageId
   
-  // Tabelas de pagamento (dependem de registrations)
+  // Tabelas de pagamento e resultados (dependem de registrations e stages)
   'AsaasPayments', // FK: seasonRegistrationId
+  'lap_times', // FK: stageId, userId
+  'ChampionshipClassification', // FK: championshipId, userId
 ];
 
 async function createConnection(config: any): Promise<Client> {

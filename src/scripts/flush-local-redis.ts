@@ -5,6 +5,11 @@ import { createClient } from 'redis';
 // Carrega as variáveis de ambiente do arquivo .env no diretório scripts
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+// NOTA: Este script copia TODOS os dados do Redis de produção para local
+// O Redis é um banco de dados key-value, então não há dependências de tabelas
+// como no PostgreSQL. Todos os dados são copiados independentemente da estrutura
+// do banco de dados relacional.
+
 // Configurações do Redis de PRODUÇÃO
 const PROD_REDIS_CONFIG = {
   socket: {
