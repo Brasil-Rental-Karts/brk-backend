@@ -169,6 +169,9 @@ export class SeasonRegistrationService {
       throw new BadRequestException('CPF/CNPJ é obrigatório para realizar a inscrição');
     }
 
+    // Determinar o tipo de inscrição baseado nos dados recebidos
+    const inscriptionType = data.stageIds && data.stageIds.length > 0 ? 'por_etapa' : 'por_temporada';
+
     // Validar se o parcelamento é permitido e se o número de parcelas é válido
     if (data.installments && data.installments > 1) {
       let maxInstallments = 1;
@@ -176,10 +179,10 @@ export class SeasonRegistrationService {
       // Verificar o número máximo de parcelas baseado no método de pagamento
       switch (data.paymentMethod) {
         case 'pix':
-          maxInstallments = season.getPixInstallmentsForCondition(season.getInscriptionType() === 'por_etapa' ? 'por_etapa' : 'por_temporada');
+          maxInstallments = season.getPixInstallmentsForCondition(inscriptionType);
           break;
         case 'cartao_credito':
-          maxInstallments = season.getCreditCardInstallmentsForCondition(season.getInscriptionType() === 'por_etapa' ? 'por_etapa' : 'por_temporada');
+          maxInstallments = season.getCreditCardInstallmentsForCondition(inscriptionType);
           break;
       }
       
@@ -222,12 +225,12 @@ export class SeasonRegistrationService {
     });
 
     // Para temporadas por temporada, não permitir inscrição duplicada
-    if (season.getInscriptionType() === 'por_temporada' && existingRegistration) {
+    if (inscriptionType === 'por_temporada' && existingRegistration) {
       throw new BadRequestException('Usuário já está inscrito nesta temporada');
     }
 
     // Para temporadas por etapa, verificar se as etapas já estão inscritas
-    if (season.getInscriptionType() === 'por_etapa' && existingRegistration && data.stageIds && data.stageIds.length > 0) {
+    if (inscriptionType === 'por_etapa' && existingRegistration && data.stageIds && data.stageIds.length > 0) {
       const existingStageIds = existingRegistration.stages.map(stage => stage.stageId);
       const duplicateStageIds = data.stageIds.filter(stageId => existingStageIds.includes(stageId));
       
@@ -242,7 +245,7 @@ export class SeasonRegistrationService {
 
     // Verificar se a temporada aceita o método de pagamento solicitado
     const asaasBillingType = this.asaasService.mapPaymentMethodToAsaas(data.paymentMethod);
-    const seasonPaymentMethods = season.getPaymentMethodsForCondition(season.getInscriptionType() === 'por_etapa' ? 'por_etapa' : 'por_temporada').map(pm => this.asaasService.mapPaymentMethodToAsaas(pm));
+    const seasonPaymentMethods = season.getPaymentMethodsForCondition(inscriptionType).map(pm => this.asaasService.mapPaymentMethodToAsaas(pm));
     
     if (!seasonPaymentMethods.includes(asaasBillingType)) {
       throw new BadRequestException(`Método de pagamento ${data.paymentMethod} não aceito para esta temporada`);
@@ -252,7 +255,7 @@ export class SeasonRegistrationService {
     let stages: Stage[] = [];
     
     console.log('[BACKEND] Verificando tipo de inscrição:', {
-      getInscriptionType: season.getInscriptionType(),
+      inscriptionType: inscriptionType,
       hasPaymentConditionPorEtapa: season.hasPaymentCondition('por_etapa'),
       hasPaymentConditionPorTemporada: season.hasPaymentCondition('por_temporada'),
       stageIds: data.stageIds,
@@ -260,7 +263,7 @@ export class SeasonRegistrationService {
       paymentConditions: season.paymentConditions
     });
     
-    if (season.getInscriptionType() === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
+    if (inscriptionType === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
       stages = await this.stageRepository.find({
         where: { 
           id: In(data.stageIds),
@@ -307,7 +310,7 @@ export class SeasonRegistrationService {
         }
       } else {
         // Usar campos legados para compatibilidade
-        if (season.getInscriptionType() === 'por_etapa' && stages.length > 0) {
+        if (inscriptionType === 'por_etapa' && stages.length > 0) {
           // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
           baseAmount = Number(season.getInscriptionValue()) * categories.length * stages.length;
         } else {
@@ -1331,13 +1334,21 @@ export class SeasonRegistrationService {
         asaasPayment.bankSlipUrl = payment.bankSlipUrl || null;
         asaasPayment.rawResponse = payment;
         
-        // Buscar QR Code PIX para cada parcela
-        try {
-          const pixQrCode = await this.asaasService.getPixQrCode(payment.id);
-          asaasPayment.pixQrCode = pixQrCode.encodedImage;
-          asaasPayment.pixCopyPaste = pixQrCode.payload;
-        } catch (error) {
-          console.warn(`Erro ao buscar QR Code PIX para parcela ${payment.id}:`, error);
+        // Verificar se o QR Code já vem na resposta do pagamento
+        if (payment.qrCode) {
+          asaasPayment.pixQrCode = payment.qrCode.encodedImage;
+          asaasPayment.pixCopyPaste = payment.qrCode.payload;
+          console.log(`[BACKEND] QR Code PIX obtido da resposta do pagamento: ${payment.id}`);
+        } else {
+          // Buscar QR Code PIX para cada parcela se não vier na resposta
+          try {
+            const pixQrCode = await this.asaasService.getPixQrCode(payment.id);
+            asaasPayment.pixQrCode = pixQrCode.encodedImage;
+            asaasPayment.pixCopyPaste = pixQrCode.payload;
+            console.log(`[BACKEND] QR Code PIX obtido via chamada adicional: ${payment.id}`);
+          } catch (error) {
+            console.warn(`Erro ao buscar QR Code PIX para parcela ${payment.id}:`, error);
+          }
         }
         
         await this.paymentRepository.save(asaasPayment);

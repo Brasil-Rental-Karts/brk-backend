@@ -83,7 +83,7 @@ export class SeasonService extends BaseService<Season> {
       if (season) {
         console.log(`✅ [BACKEND] Temporada encontrada: ${season.name}`);
         // Garantir que paymentMethods nunca seja null ou vazio
-        const paymentMethods = season.getPaymentMethodsForCondition(season.getInscriptionType() === 'por_etapa' ? 'por_etapa' : 'por_temporada');
+        const paymentMethods = season.getPaymentMethodsForCondition('por_temporada');
         if (!paymentMethods || paymentMethods.length === 0) {
           console.warn(`⚠️ [BACKEND] Temporada ${season.id} sem métodos de pagamento válidos, usando PIX como padrão`);
         }

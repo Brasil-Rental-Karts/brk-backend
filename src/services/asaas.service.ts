@@ -170,7 +170,7 @@ export class AsaasService {
         'Content-Type': 'application/json',
         'User-Agent': 'BRK-Backend/1.0.0',
       },
-      timeout: process.env.NODE_ENV === 'production' ? 60000 : 30000,
+      timeout: process.env.NODE_ENV === 'production' ? 120000 : 60000, // Aumentado para 60s em dev e 120s em prod
     });
   }
 
@@ -360,21 +360,44 @@ export class AsaasService {
    * Gera QR Code PIX para uma cobrança
    */
   async getPixQrCode(paymentId: string): Promise<{ encodedImage: string; payload: string; expirationDate: string }> {
-    try {
-      const response: AxiosResponse<{ encodedImage: string; payload: string; expirationDate: string }> = 
-        await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
-      
-      return response.data;
-    } catch (error: any) {
-      console.error('[ASAAS] Erro ao buscar QR Code PIX:', {
-        paymentId,
-        error: error.message,
-        response: error.response?.data
-      });
-      throw new BadRequestException(
-        error.response?.data?.errors?.[0]?.description || error.message
-      );
+    const maxRetries = 3;
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[ASAAS] Tentativa ${attempt} de buscar QR Code PIX para: ${paymentId}`);
+        
+        const response: AxiosResponse<{ encodedImage: string; payload: string; expirationDate: string }> = 
+          await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
+        
+        console.log(`[ASAAS] QR Code PIX obtido com sucesso na tentativa ${attempt}: ${paymentId}`);
+        return response.data;
+      } catch (error: any) {
+        lastError = error;
+        console.error(`[ASAAS] Erro na tentativa ${attempt} ao buscar QR Code PIX:`, {
+          paymentId,
+          error: error.message,
+          response: error.response?.data
+        });
+        
+        if (attempt < maxRetries) {
+          // Aguardar antes da próxima tentativa (backoff exponencial)
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          console.log(`[ASAAS] Aguardando ${delay}ms antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
+    
+    console.error('[ASAAS] Todas as tentativas falharam ao buscar QR Code PIX:', {
+      paymentId,
+      finalError: lastError.message
+    });
+    
+    throw new BadRequestException(
+      lastError.response?.data?.errors?.[0]?.description || 
+      `Erro ao gerar QR Code PIX após ${maxRetries} tentativas: ${lastError.message}`
+    );
   }
 
   /**
