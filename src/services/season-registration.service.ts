@@ -1783,7 +1783,7 @@ export class SeasonRegistrationService {
       id: payment.id,
       registrationId: payment.registrationId,
       billingType: payment.billingType,
-      value: payment.value,
+      value: Number(payment.value) || 0,
       dueDate: payment.dueDate,
       status: payment.status,
       installmentNumber: (payment.rawResponse as any)?.installmentNumber,
@@ -1930,7 +1930,7 @@ export class SeasonRegistrationService {
         status: AsaasPaymentStatus.OVERDUE,
         billingType: AsaasBillingType.PIX
       },
-      relations: ['registration'],
+      relations: ['registration', 'registration.user', 'registration.season', 'registration.season.championship'],
       order: { dueDate: 'ASC' }
     });
 
@@ -1938,7 +1938,7 @@ export class SeasonRegistrationService {
       id: payment.id,
       registrationId: payment.registrationId,
       billingType: payment.billingType,
-      value: payment.value,
+      value: Number(payment.value) || 0,
       dueDate: payment.dueDate,
       status: payment.status,
       installmentNumber: (payment.rawResponse as any)?.installmentNumber,
@@ -1948,14 +1948,27 @@ export class SeasonRegistrationService {
       paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
       pixQrCode: payment.pixQrCode,
       pixCopyPaste: payment.pixCopyPaste,
-      // Adicionar informações da inscrição
+      // Adicionar informações da inscrição com dados do usuário e temporada
       registration: payment.registration ? {
         id: payment.registration.id,
         userId: payment.registration.userId,
         seasonId: payment.registration.seasonId,
         amount: payment.registration.amount,
         paymentStatus: payment.registration.paymentStatus,
-        createdAt: payment.registration.createdAt
+        createdAt: payment.registration.createdAt,
+        user: payment.registration.user ? {
+          id: payment.registration.user.id,
+          name: payment.registration.user.name,
+          email: payment.registration.user.email
+        } : null,
+        season: payment.registration.season ? {
+          id: payment.registration.season.id,
+          name: payment.registration.season.name,
+          championship: payment.registration.season.championship ? {
+            id: payment.registration.season.championship.id,
+            name: payment.registration.season.championship.name
+          } : null
+        } : null
       } : null
     }));
   }
