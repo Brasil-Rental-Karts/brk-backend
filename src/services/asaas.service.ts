@@ -397,6 +397,96 @@ export class AsaasService {
   }
 
   /**
+   * Atualiza a data de vencimento de uma cobrança
+   */
+  async updatePaymentDueDate(paymentId: string, newDueDate: string): Promise<AsaasPaymentResponse> {
+    console.log('[ASAAS DEBUG] Atualizando data de vencimento:', { paymentId, newDueDate });
+    
+    try {
+      const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.put(
+        `/payments/${paymentId}`,
+        { dueDate: newDueDate }
+      );
+      
+      console.log('[ASAAS DEBUG] Resposta da API:', {
+        status: response.status,
+        paymentStatus: response.data.status,
+        dueDate: response.data.dueDate
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('[ASAAS DEBUG] Erro detalhado ao atualizar data de vencimento:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        headers: error.response?.headers,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        }
+      });
+      
+      // Se for erro 400, tentar obter mais detalhes
+      if (error.response?.status === 400) {
+        const errorDetails = error.response?.data;
+        if (errorDetails?.errors && Array.isArray(errorDetails.errors)) {
+          const errorMessage = errorDetails.errors.map((err: any) => 
+            `${err.code}: ${err.description}`
+          ).join(', ');
+          throw new BadRequestException(`Erro 400 do Asaas: ${errorMessage}`);
+        } else if (errorDetails?.message) {
+          throw new BadRequestException(`Erro 400 do Asaas: ${errorDetails.message}`);
+        } else {
+          throw new BadRequestException(`Erro 400 do Asaas: ${JSON.stringify(errorDetails)}`);
+        }
+      }
+      
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || 'Erro ao atualizar data de vencimento no Asaas.'
+      );
+    }
+  }
+
+  /**
+   * Reativa uma fatura vencida atualizando a data de vencimento e gerando novo QR Code PIX
+   */
+  async reactivateOverduePayment(paymentId: string, newDueDate: string): Promise<{
+    payment: AsaasPaymentResponse;
+    qrCode: { encodedImage: string; payload: string; expirationDate: string };
+  }> {
+    console.log('[ASAAS DEBUG] Iniciando reativação:', { paymentId, newDueDate });
+    
+    try {
+      // 1. Atualizar a data de vencimento
+      console.log('[ASAAS DEBUG] Atualizando data de vencimento');
+      const updatedPayment = await this.updatePaymentDueDate(paymentId, newDueDate);
+      console.log('[ASAAS DEBUG] Data atualizada com sucesso:', updatedPayment.status);
+      
+      // 2. Gerar novo QR Code PIX
+      console.log('[ASAAS DEBUG] Gerando novo QR Code PIX');
+      const qrCode = await this.getPixQrCode(paymentId);
+      console.log('[ASAAS DEBUG] QR Code gerado com sucesso');
+      
+      return {
+        payment: updatedPayment,
+        qrCode
+      };
+    } catch (error: any) {
+      console.error('[ASAAS DEBUG] Erro durante reativação:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description || 'Erro ao reativar fatura vencida.'
+      );
+    }
+  }
+
+  /**
    * Mapeia os métodos de pagamento do sistema interno para os aceitos pela Asaas
    */
   mapPaymentMethodToAsaas(paymentMethod: string): 'CREDIT_CARD' | 'PIX' {

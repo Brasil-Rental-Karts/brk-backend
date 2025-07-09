@@ -1759,4 +1759,210 @@ export class SeasonRegistrationService {
       payments: paymentData || []
     };
   }
+
+  /**
+   * Busca pagamentos vencidos (OVERDUE) de uma inscrição
+   */
+  async getOverduePayments(registrationId: string): Promise<RegistrationPaymentData[]> {
+    const overduePayments = await this.paymentRepository.find({
+      where: { 
+        registrationId,
+        status: AsaasPaymentStatus.OVERDUE,
+        billingType: AsaasBillingType.PIX
+      },
+      order: { dueDate: 'ASC' }
+    });
+
+    return overduePayments.map(payment => ({
+      id: payment.id,
+      registrationId: payment.registrationId,
+      billingType: payment.billingType,
+      value: payment.value,
+      dueDate: payment.dueDate,
+      status: payment.status,
+      installmentNumber: (payment.rawResponse as any)?.installmentNumber,
+      installmentCount: (payment.rawResponse as any)?.installmentCount || null,
+      invoiceUrl: payment.invoiceUrl,
+      bankSlipUrl: payment.bankSlipUrl,
+      paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+      pixQrCode: payment.pixQrCode,
+      pixCopyPaste: payment.pixCopyPaste,
+    }));
+  }
+
+  /**
+   * Reativa uma fatura vencida atualizando a data de vencimento e gerando novo QR Code PIX
+   */
+  async reactivateOverduePayment(paymentId: string, newDueDate: string): Promise<RegistrationPaymentData> {
+    console.log('[DEBUG] Iniciando reativação de pagamento:', { paymentId, newDueDate });
+    
+    // Buscar o pagamento no banco
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+      relations: ['registration']
+    });
+
+    if (!payment) {
+      console.log('[DEBUG] Pagamento não encontrado:', paymentId);
+      throw new BadRequestException('Pagamento não encontrado');
+    }
+
+    console.log('[DEBUG] Pagamento encontrado:', {
+      id: payment.id,
+      status: payment.status,
+      billingType: payment.billingType,
+      asaasPaymentId: payment.asaasPaymentId
+    });
+
+    if (payment.status !== AsaasPaymentStatus.OVERDUE) {
+      console.log('[DEBUG] Pagamento não está vencido:', payment.status);
+      throw new BadRequestException('Apenas faturas vencidas podem ser reativadas');
+    }
+
+    if (payment.billingType !== AsaasBillingType.PIX) {
+      console.log('[DEBUG] Pagamento não é PIX:', payment.billingType);
+      throw new BadRequestException('Apenas pagamentos PIX podem ser reativados');
+    }
+
+    try {
+      console.log('[DEBUG] Formatando data para Asaas:', newDueDate);
+      const formattedDate = this.asaasService.formatDateForAsaas(new Date(newDueDate));
+      console.log('[DEBUG] Data formatada:', formattedDate);
+
+      // Primeiro, verificar se o pagamento ainda existe no Asaas
+      console.log('[DEBUG] Verificando se pagamento existe no Asaas:', payment.asaasPaymentId);
+      let asaasPayment;
+      try {
+        asaasPayment = await this.asaasService.getPayment(payment.asaasPaymentId);
+        console.log('[DEBUG] Pagamento encontrado no Asaas:', asaasPayment.status);
+      } catch (error: any) {
+        if (error.message.includes('404')) {
+          console.log('[DEBUG] Pagamento não existe mais no Asaas. Marcando como cancelado.');
+          
+          // Marcar como cancelado no banco local
+          payment.status = AsaasPaymentStatus.REFUNDED;
+          payment.rawResponse = {
+            ...payment.rawResponse,
+            deleted: true,
+            status: AsaasPaymentStatus.REFUNDED
+          };
+          
+          await this.paymentRepository.save(payment);
+          
+          // Atualizar o status da inscrição
+          await this.updateSeasonRegistrationStatus(payment.registrationId);
+          
+          throw new BadRequestException('Este pagamento não existe mais no sistema de pagamentos e não pode ser reativado. Entre em contato com o suporte.');
+        } else {
+          throw error;
+        }
+      }
+
+      // Reativar no Asaas
+      console.log('[DEBUG] Chamando Asaas para reativar pagamento:', {
+        asaasPaymentId: payment.asaasPaymentId,
+        newDueDate: formattedDate
+      });
+      
+      const result = await this.asaasService.reactivateOverduePayment(
+        payment.asaasPaymentId,
+        formattedDate
+      );
+
+      console.log('[DEBUG] Resultado do Asaas:', {
+        paymentStatus: result.payment.status,
+        qrCodeGenerated: !!result.qrCode
+      });
+
+      // Atualizar no banco local
+      payment.dueDate = formattedDate;
+      payment.status = result.payment.status as AsaasPaymentStatus;
+      payment.pixQrCode = result.qrCode.encodedImage;
+      payment.pixCopyPaste = result.qrCode.payload;
+      payment.rawResponse = result.payment;
+
+      console.log('[DEBUG] Salvando pagamento atualizado no banco');
+      await this.paymentRepository.save(payment);
+
+      // Atualizar o status da inscrição
+      console.log('[DEBUG] Atualizando status da inscrição');
+      await this.updateSeasonRegistrationStatus(payment.registrationId);
+
+      console.log('[DEBUG] Reativação concluída com sucesso');
+
+      return {
+        id: payment.id,
+        registrationId: payment.registrationId,
+        billingType: payment.billingType,
+        value: payment.value,
+        dueDate: payment.dueDate,
+        status: payment.status,
+        installmentNumber: (payment.rawResponse as any)?.installmentNumber,
+        installmentCount: (payment.rawResponse as any)?.installmentCount || null,
+        invoiceUrl: payment.invoiceUrl,
+        bankSlipUrl: payment.bankSlipUrl,
+        paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+        pixQrCode: payment.pixQrCode,
+        pixCopyPaste: payment.pixCopyPaste,
+      };
+    } catch (error: any) {
+      console.error('[DEBUG] Erro durante reativação:', {
+        error: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
+      throw new BadRequestException(`Erro ao reativar fatura: ${error.message}`);
+    }
+  }
+
+  /**
+   * Busca todos os pagamentos vencidos do sistema
+   */
+  async getAllOverduePayments(): Promise<RegistrationPaymentData[]> {
+    const overduePayments = await this.paymentRepository.find({
+      where: { 
+        status: AsaasPaymentStatus.OVERDUE,
+        billingType: AsaasBillingType.PIX
+      },
+      relations: ['registration'],
+      order: { dueDate: 'ASC' }
+    });
+
+    return overduePayments.map(payment => ({
+      id: payment.id,
+      registrationId: payment.registrationId,
+      billingType: payment.billingType,
+      value: payment.value,
+      dueDate: payment.dueDate,
+      status: payment.status,
+      installmentNumber: (payment.rawResponse as any)?.installmentNumber,
+      installmentCount: (payment.rawResponse as any)?.installmentCount || null,
+      invoiceUrl: payment.invoiceUrl,
+      bankSlipUrl: payment.bankSlipUrl,
+      paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+      pixQrCode: payment.pixQrCode,
+      pixCopyPaste: payment.pixCopyPaste,
+      // Adicionar informações da inscrição
+      registration: payment.registration ? {
+        id: payment.registration.id,
+        userId: payment.registration.userId,
+        seasonId: payment.registration.seasonId,
+        amount: payment.registration.amount,
+        paymentStatus: payment.registration.paymentStatus,
+        createdAt: payment.registration.createdAt
+      } : null
+    }));
+  }
+
+  /**
+   * Testa a conexão com o Asaas
+   */
+  async testAsaasConnection(): Promise<boolean> {
+    try {
+      return await this.asaasService.testConnection();
+    } catch (error) {
+      console.error('[DEBUG] Erro ao testar conexão com Asaas:', error);
+      return false;
+    }
+  }
 } 

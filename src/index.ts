@@ -26,6 +26,7 @@ import { RaceTrackController } from './controllers/race-track.controller';
 import { LapTimesController } from './controllers/lap-times.controller';
 import { ChampionshipClassificationController } from './controllers/championship-classification.controller';
 import { CreditCardFeesController } from './controllers/credit-card-fees.controller';
+import { PaymentManagementController } from './controllers/payment-management.controller';
 
 // Entities
 import { User } from './models/user.entity';
@@ -132,7 +133,8 @@ AppDataSource.initialize()
       new RaceTrackController(raceTrackService),
       new LapTimesController(AppDataSource),
       new ChampionshipClassificationController(),
-      new CreditCardFeesController()
+      new CreditCardFeesController(),
+      new PaymentManagementController(seasonRegistrationService)
     ];
 
     // Initialize the app
