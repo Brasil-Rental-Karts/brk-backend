@@ -11,6 +11,7 @@ import { SeasonRegistrationCategory } from '../models/season-registration-catego
 import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
 import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from './asaas.service';
 import { CreditCardFeesService } from './credit-card-fees.service';
+import { RedisService } from './redis.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { removeDocumentMask } from '../utils/document.util';
@@ -72,6 +73,7 @@ export class SeasonRegistrationService {
   private registrationStageRepository: Repository<SeasonRegistrationStage>;
   private asaasService: AsaasService;
   private creditCardFeesService: CreditCardFeesService;
+  private redisService: RedisService;
 
   constructor() {
     this.registrationRepository = AppDataSource.getRepository(SeasonRegistration);
@@ -85,6 +87,7 @@ export class SeasonRegistrationService {
     this.registrationStageRepository = AppDataSource.getRepository(SeasonRegistrationStage);
     this.asaasService = new AsaasService();
     this.creditCardFeesService = new CreditCardFeesService();
+    this.redisService = RedisService.getInstance();
   }
 
   /**
@@ -96,6 +99,50 @@ export class SeasonRegistrationService {
     const commission = platformCommissionPercentage / 100;
     const splitPercentage = (commission / (1 + commission)) * 100;
     return Math.round(splitPercentage * 100) / 100; // Arredondar para 2 casas decimais
+  }
+
+  /**
+   * Atualiza o cache do Redis para as categorias quando um usuário se inscreve
+   */
+  private async updateCategoryPilotsCache(userId: string, categoryIds: string[]): Promise<void> {
+    try {
+      for (const categoryId of categoryIds) {
+        // Buscar pilotos atuais da categoria no cache
+        const currentPilots = await this.redisService.getCachedCategoryPilots(categoryId);
+        
+        // Adicionar o novo usuário se não estiver na lista
+        if (!currentPilots.includes(userId)) {
+          const updatedPilots = [...currentPilots, userId];
+          await this.redisService.cacheCategoryPilots(categoryId, updatedPilots.map(pilotId => ({ userId: pilotId })));
+          console.log(`[REDIS] Usuário ${userId} adicionado ao cache da categoria ${categoryId}`);
+        }
+      }
+    } catch (error) {
+      console.error('[REDIS] Erro ao atualizar cache das categorias:', error);
+      // Não lançar erro para não interromper o fluxo principal
+    }
+  }
+
+  /**
+   * Remove um usuário do cache do Redis para categorias específicas
+   */
+  private async removeUserFromCategoryPilotsCache(userId: string, categoryIds: string[]): Promise<void> {
+    try {
+      for (const categoryId of categoryIds) {
+        // Buscar pilotos atuais da categoria no cache
+        const currentPilots = await this.redisService.getCachedCategoryPilots(categoryId);
+        
+        // Remover o usuário se estiver na lista
+        if (currentPilots.includes(userId)) {
+          const updatedPilots = currentPilots.filter(pilotId => pilotId !== userId);
+          await this.redisService.cacheCategoryPilots(categoryId, updatedPilots.map(pilotId => ({ userId: pilotId })));
+          console.log(`[REDIS] Usuário ${userId} removido do cache da categoria ${categoryId}`);
+        }
+      }
+    } catch (error) {
+      console.error('[REDIS] Erro ao remover usuário do cache das categorias:', error);
+      // Não lançar erro para não interromper o fluxo principal
+    }
   }
 
   /**
@@ -368,6 +415,9 @@ export class SeasonRegistrationService {
       );
       
       await this.registrationCategoryRepository.save(registrationCategories);
+      
+      // Atualizar cache do Redis com os novos pilotos nas categorias
+      await this.updateCategoryPilotsCache(data.userId, data.categoryIds);
     }
 
     // Salvar as etapas selecionadas (se for inscrição por etapa)
@@ -864,6 +914,9 @@ export class SeasonRegistrationService {
       });
 
       await this.registrationCategoryRepository.save(categoryRegistrations);
+      
+      // Atualizar cache do Redis com os novos pilotos nas categorias
+      await this.updateCategoryPilotsCache(data.userId, data.categoryIds);
     }
 
     // Criar registros de etapas
@@ -930,10 +983,19 @@ export class SeasonRegistrationService {
     registration.cancelledAt = new Date();
     registration.cancellationReason = reason;
 
+    // Obter IDs das categorias antes de remover para atualizar o cache
+    const categoryIds = registration.categories?.map(cat => cat.categoryId) || [];
+
     await this.registrationRepository.save(registration);
     // Remover categorias e etapas vinculadas
     await this.registrationCategoryRepository.delete({ registrationId });
     await this.registrationStageRepository.delete({ registrationId });
+
+    // Remover usuário do cache das categorias
+    if (categoryIds.length > 0) {
+      await this.removeUserFromCategoryPilotsCache(registration.userId, categoryIds);
+    }
+
     return registration;
   }
 
@@ -1395,6 +1457,9 @@ export class SeasonRegistrationService {
       throw new BadRequestException('Uma ou mais categorias são inválidas ou não pertencem a esta temporada');
     }
 
+    // Obter IDs das categorias atuais para atualizar o cache
+    const currentCategoryIds = registration.categories?.map(cat => cat.categoryId) || [];
+
     // Remover categorias atuais
     if (registration.categories && registration.categories.length > 0) {
       await this.registrationCategoryRepository.delete({
@@ -1411,6 +1476,10 @@ export class SeasonRegistrationService {
     );
     
     await this.registrationCategoryRepository.save(registrationCategories);
+
+    // Atualizar cache do Redis: remover das categorias antigas e adicionar às novas
+    await this.removeUserFromCategoryPilotsCache(registration.userId, currentCategoryIds);
+    await this.updateCategoryPilotsCache(registration.userId, newCategoryIds);
 
     // Buscar a inscrição atualizada com as novas categorias
     const updatedRegistration = await this.findById(registrationId);
