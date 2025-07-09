@@ -70,7 +70,6 @@ export class SeasonService extends BaseService<Season> {
       // Verifica se é um UUID
       const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
       
-      console.log(`🔍 [BACKEND] Buscando temporada: ${slugOrId} (isUUID: ${isUUID})`);
       
       let season: Season | null = null;
       
@@ -81,14 +80,12 @@ export class SeasonService extends BaseService<Season> {
       }
       
       if (season) {
-        console.log(`✅ [BACKEND] Temporada encontrada: ${season.name}`);
         // Garantir que paymentMethods nunca seja null ou vazio
         const paymentMethods = season.getPaymentMethodsForCondition('por_temporada');
         if (!paymentMethods || paymentMethods.length === 0) {
           console.warn(`⚠️ [BACKEND] Temporada ${season.id} sem métodos de pagamento válidos, usando PIX como padrão`);
         }
       } else {
-        console.log(`❌ [BACKEND] Temporada não encontrada: ${slugOrId}`);
       }
       
       return season;

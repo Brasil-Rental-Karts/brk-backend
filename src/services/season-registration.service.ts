@@ -114,7 +114,6 @@ export class SeasonRegistrationService {
         if (!currentPilots.includes(userId)) {
           const updatedPilots = [...currentPilots, userId];
           await this.redisService.cacheCategoryPilots(categoryId, updatedPilots.map(pilotId => ({ userId: pilotId })));
-          console.log(`[REDIS] Usuário ${userId} adicionado ao cache da categoria ${categoryId}`);
         }
       }
     } catch (error) {
@@ -136,7 +135,6 @@ export class SeasonRegistrationService {
         if (currentPilots.includes(userId)) {
           const updatedPilots = currentPilots.filter(pilotId => pilotId !== userId);
           await this.redisService.cacheCategoryPilots(categoryId, updatedPilots.map(pilotId => ({ userId: pilotId })));
-          console.log(`[REDIS] Usuário ${userId} removido do cache da categoria ${categoryId}`);
         }
       }
     } catch (error) {
@@ -301,14 +299,7 @@ export class SeasonRegistrationService {
     // Buscar etapas se for inscrição por etapa
     let stages: Stage[] = [];
     
-    console.log('[BACKEND] Verificando tipo de inscrição:', {
-      inscriptionType: inscriptionType,
-      hasPaymentConditionPorEtapa: season.hasPaymentCondition('por_etapa'),
-      hasPaymentConditionPorTemporada: season.hasPaymentCondition('por_temporada'),
-      stageIds: data.stageIds,
-      stageIdsLength: data.stageIds?.length || 0,
-      paymentConditions: season.paymentConditions
-    });
+
     
     if (inscriptionType === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
       stages = await this.stageRepository.find({
@@ -326,19 +317,11 @@ export class SeasonRegistrationService {
     // Calcular o valor total baseado no tipo de inscrição
     let totalAmount: number;
     
-    // Debug log para verificar os dados recebidos
-    console.log('[BACKEND] Dados recebidos do frontend:', {
-      totalAmount: data.totalAmount,
-      paymentMethod: data.paymentMethod,
-      installments: data.installments,
-      categoryIds: data.categoryIds,
-      stageIds: data.stageIds
-    });
+
     
     // Se o frontend forneceu o valor total (incluindo taxas), usar ele
     if (data.totalAmount && data.totalAmount > 0) {
       totalAmount = data.totalAmount;
-      console.log('[BACKEND] Usando totalAmount fornecido pelo frontend:', totalAmount);
     } else {
       // Calcular automaticamente se não foi fornecido
       let baseAmount = 0;
@@ -392,7 +375,6 @@ export class SeasonRegistrationService {
       savedRegistration = await this.registrationRepository.save(existingRegistration);
     } else {
       // Criar nova inscrição
-      console.log('[BACKEND] Salvando inscrição com amount:', totalAmount);
       const registration = this.registrationRepository.create({
         userId: data.userId,
         seasonId: data.seasonId,
@@ -422,13 +404,6 @@ export class SeasonRegistrationService {
 
     // Salvar as etapas selecionadas (se for inscrição por etapa)
     
-    console.log('[BACKEND] Verificando salvamento de etapas:', {
-      hasPaymentConditionPorEtapa: season.hasPaymentCondition('por_etapa'),
-      stagesLength: stages.length,
-      stages: stages.map(s => ({ id: s.id, name: s.name })),
-      registrationId: savedRegistration.id
-    });
-    
     if (season.hasPaymentCondition('por_etapa') && stages.length > 0) {
       const registrationStages = stages.map(stage => 
         this.registrationStageRepository.create({
@@ -438,7 +413,6 @@ export class SeasonRegistrationService {
       );
       
       await this.registrationStageRepository.save(registrationStages);
-      console.log('[BACKEND] Etapas salvas com sucesso:', registrationStages.map(rs => ({ registrationId: rs.registrationId, stageId: rs.stageId })));
     }
 
     try {
@@ -801,23 +775,17 @@ export class SeasonRegistrationService {
     });
 
     if (!asaasPayment) {
-      console.log(`[WEBHOOK] Pagamento não encontrado no banco: ${payment.id}`);
       return;
     }
 
-    console.log(`[WEBHOOK] Processando evento: ${event} para pagamento: ${payment.id}`);
-
     // Tratamento específico para PAYMENT_DELETED
     if (event === 'PAYMENT_DELETED') {
-      console.log(`[WEBHOOK] Pagamento deletado no Asaas: ${payment.id}`);
-      
       // Deletar o pagamento do banco de dados
       await this.paymentRepository.remove(asaasPayment);
       
       // Atualizar o status da inscrição
       await this.updateSeasonRegistrationStatus(asaasPayment.registrationId);
       
-      console.log(`[WEBHOOK] Pagamento removido do banco e status da inscrição atualizado`);
       return;
     }
 
@@ -1400,14 +1368,12 @@ export class SeasonRegistrationService {
         if (payment.qrCode) {
           asaasPayment.pixQrCode = payment.qrCode.encodedImage;
           asaasPayment.pixCopyPaste = payment.qrCode.payload;
-          console.log(`[BACKEND] QR Code PIX obtido da resposta do pagamento: ${payment.id}`);
         } else {
           // Buscar QR Code PIX para cada parcela se não vier na resposta
           try {
             const pixQrCode = await this.asaasService.getPixQrCode(payment.id);
             asaasPayment.pixQrCode = pixQrCode.encodedImage;
             asaasPayment.pixCopyPaste = pixQrCode.payload;
-            console.log(`[BACKEND] QR Code PIX obtido via chamada adicional: ${payment.id}`);
           } catch (error) {
             console.warn(`Erro ao buscar QR Code PIX para parcela ${payment.id}:`, error);
           }
@@ -1633,7 +1599,6 @@ export class SeasonRegistrationService {
           
           // Remover a inscrição completamente
           await this.registrationRepository.remove(registration);
-          console.log(`[WEBHOOK] Inscrição removida completamente por falta de pagamentos: ${registrationId}`);
         }
         return;
       }

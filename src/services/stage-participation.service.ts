@@ -334,7 +334,6 @@ export class StageParticipationService {
       await this.validatePaymentForParticipation(registration, season, stageId);
     } catch (error: any) {
       // Se há problemas de pagamento, retornar array vazio (sem categorias disponíveis)
-      console.log(`Bloqueio de pagamento para usuário ${userId} na etapa ${stageId}: ${error.message}`);
       return [];
     }
 

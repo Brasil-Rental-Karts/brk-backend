@@ -39,7 +39,6 @@ export class SeasonController extends BaseController {
     private championshipService: ChampionshipService
   ) {
     super('/seasons');
-    console.log('[DEBUG] SeasonController inicializado');
     this.initializeRoutes();
   }
 

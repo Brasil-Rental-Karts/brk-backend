@@ -66,8 +66,7 @@ export class ChampionshipClassificationService {
    * Atualizar a classificação baseado nos resultados de uma etapa
    */
   async updateClassificationFromStageResults(stageId: string, results: StageResultData[]): Promise<void> {
-    console.log('🔧 [DEBUG] updateClassificationFromStageResults iniciado para etapa:', stageId);
-    
+
     const stage = await this.stageRepository.findOne({
       where: { id: stageId }
     });
@@ -93,12 +92,8 @@ export class ChampionshipClassificationService {
     });
 
     if (!scoringSystem) {
-      console.error('❌ [DEBUG] Sistema de pontuação não encontrado para championship:', championship.id);
       return;
     }
-
-    console.log('✅ [DEBUG] Sistema de pontuação encontrado:', scoringSystem.name);
-
     // Buscar todas as etapas da temporada UMA SÓ VEZ
     const allStages = await this.stageRepository
       .createQueryBuilder('stage')
@@ -107,7 +102,6 @@ export class ChampionshipClassificationService {
       .andWhere('stage.stage_results != :emptyJson', { emptyJson: '{}' })
       .getMany();
 
-    console.log('🔧 [DEBUG] Total de etapas encontradas:', allStages.length);
 
     // Agrupar resultados por categoria
     const resultsByCategory = new Map<string, StageResultData[]>();
@@ -118,12 +112,9 @@ export class ChampionshipClassificationService {
       resultsByCategory.get(result.categoryId)!.push(result);
     }
 
-    console.log('🔧 [DEBUG] Categorias a processar:', Array.from(resultsByCategory.keys()));
-
     // Processar todas as categorias
     for (const [categoryId, categoryResults] of resultsByCategory) {
-      console.log('🔧 [DEBUG] Processando categoria:', categoryId);
-      
+
       await this.updateCategoryClassificationOptimized(
         season.id,
         championship.id,
@@ -135,7 +126,6 @@ export class ChampionshipClassificationService {
       // Redis removido - classificação sempre buscada do banco
     }
     
-    console.log('✅ [DEBUG] Processamento de todas as categorias concluído!');
   }
 
   /**
@@ -148,8 +138,7 @@ export class ChampionshipClassificationService {
     allStages: Stage[],
     scoringSystem: ScoringSystem
   ): Promise<void> {
-    console.log('🔧 [DEBUG] updateCategoryClassificationOptimized para categoria:', categoryId);
-    
+
     // Coletar todos os resultados históricos da categoria
     const allResults = new Map<string, {
       totalPoints: number;
@@ -164,19 +153,15 @@ export class ChampionshipClassificationService {
     // Processar cada etapa
     for (const stage of allStages) {
       const stageResultsData = stage.stage_results;
-      console.log('🔧 [DEBUG] Processando etapa:', stage.name, 'com categorias:', Object.keys(stageResultsData || {}));
       
       if (!stageResultsData || !stageResultsData[categoryId]) {
-        console.log('🔧 [DEBUG] Sem dados para categoria:', categoryId, 'na etapa:', stage.name);
         continue;
       }
 
       const categoryStageResults = stageResultsData[categoryId];
-      console.log('🔧 [DEBUG] Dados da categoria encontrados:', Object.keys(categoryStageResults));
       
       // Processar o formato real dos dados: { pilotId: { batteryIndex: { data } } }
       const processedResults = await this.processStageResultsData(categoryId, categoryStageResults, scoringSystem);
-      console.log('🔧 [DEBUG] Resultados processados:', processedResults.length);
       
       // Processar resultados da etapa
       for (const result of processedResults) {
@@ -208,16 +193,12 @@ export class ChampionshipClassificationService {
       }
     }
 
-    console.log('🔧 [DEBUG] Total de pilotos processados na categoria:', categoryId, ':', allResults.size);
-
     // Atualizar registros de classificação
     for (const [userId, stats] of allResults) {
       const bestPosition = stats.positions.length > 0 ? Math.min(...stats.positions) : null;
       const averagePosition = stats.positions.length > 0 
         ? stats.positions.reduce((sum, pos) => sum + pos, 0) / stats.positions.length 
         : null;
-
-      console.log('🔧 [DEBUG] Salvando classificação para piloto:', userId, 'categoria:', categoryId, 'com stats:', stats);
 
       await this.upsertClassification({
         userId,
@@ -251,7 +232,6 @@ export class ChampionshipClassificationService {
     });
 
     if (!scoringSystem) {
-      console.error('❌ [DEBUG] Sistema de pontuação não encontrado para championship:', championshipId);
       return;
     }
 
@@ -281,18 +261,15 @@ export class ChampionshipClassificationService {
     categoryData: any,
     scoringSystem: ScoringSystem
   ): Promise<StageResultData[]> {
-    console.log('🔧 [DEBUG] processStageResultsData iniciado para categoria:', categoryId);
     
     // Armazenar resultados de cada bateria separadamente
     const batteryResults: { batteryIndex: string, pilotId: string, data: any }[] = [];
     
     // Coletar todos os resultados de todas as baterias
     for (const [pilotId, pilotData] of Object.entries(categoryData)) {
-      console.log('🔧 [DEBUG] Processando piloto:', pilotId);
       
       for (const [batteryIndex, batteryData] of Object.entries(pilotData as any)) {
         const data = batteryData as any;
-        console.log('🔧 [DEBUG] Bateria:', batteryIndex, 'dados:', data);
         
         if (data.finishPosition !== undefined && data.finishPosition !== null) {
           batteryResults.push({
@@ -303,8 +280,6 @@ export class ChampionshipClassificationService {
         }
       }
     }
-
-    console.log('🔧 [DEBUG] Total de resultados de baterias:', batteryResults.length);
 
     // Agrupar pontos por piloto (somar pontos de todas as baterias)
     const pilotTotalPoints = new Map<string, {
@@ -330,8 +305,6 @@ export class ChampionshipClassificationService {
         globalBestStartPosition = Math.min(globalBestStartPosition, data.startPosition);
       }
     }
-
-    console.log('🔧 [DEBUG] Pole position global:', globalBestStartPosition);
 
     // Agrupar resultados por bateria para encontrar fastest lap de cada bateria
     const batteriesByIndex = new Map<string, Array<{ pilotId: string, data: any }>>();
@@ -365,7 +338,6 @@ export class ChampionshipClassificationService {
       
       if (fastestLapPilot) {
         fastestLapByBattery.set(batteryIndex, { pilotId: fastestLapPilot, lapTimeMs: fastestLapMs });
-        console.log(`🔧 [DEBUG] Fastest lap bateria ${batteryIndex}: Piloto ${fastestLapPilot} com ${fastestLapMs}ms`);
       }
     }
 
@@ -415,14 +387,6 @@ export class ChampionshipClassificationService {
       }
 
       const batteryTotalPoints = positionPoints + polePositionPoints + fastestLapPoints;
-      
-      console.log(`🔧 [DEBUG] Piloto ${pilotId} Bateria ${batteryIndex}:`, {
-        position,
-        positionPoints,
-        polePositionPoints,
-        fastestLapPoints,
-        batteryTotalPoints
-      });
 
       // Acumular pontos e estatísticas
       pilotStats.totalPoints += batteryTotalPoints;
@@ -450,13 +414,6 @@ export class ChampionshipClassificationService {
     const results: StageResultData[] = [];
     
     for (const [pilotId, stats] of pilotTotalPoints) {
-      console.log(`🔧 [DEBUG] Resultado final ${pilotId}:`, {
-        totalPoints: stats.totalPoints,
-        batteryCount: stats.batteryCount,
-        bestPosition: stats.bestPosition,
-        polePosition: stats.polePosition,
-        fastestLapCount: stats.fastestLapCount
-      });
 
       results.push({
         userId: pilotId,
@@ -478,10 +435,6 @@ export class ChampionshipClassificationService {
       }
       return a.position - b.position; // Melhor posição primeiro em caso de empate
     });
-
-    console.log('🔧 [DEBUG] Resultados finais ordenados:', results.map(r => 
-      `${r.userId}: ${r.points}pts (melhor pos: ${r.position})`
-    ));
 
     return results;
   }
@@ -527,7 +480,6 @@ export class ChampionshipClassificationService {
     bestPosition: number | null;
     averagePosition: number | null;
   }): Promise<ChampionshipClassification> {
-    console.log('💾 [DEBUG] upsertClassification chamada para:', data.userId, 'categoria:', data.categoryId);
     
     const existingClassification = await this.classificationRepository.findOne({
       where: {
@@ -536,8 +488,6 @@ export class ChampionshipClassificationService {
         seasonId: data.seasonId
       }
     });
-
-    console.log('💾 [DEBUG] Classificação existente encontrada:', existingClassification ? 'SIM' : 'NÃO');
 
     let savedClassification: ChampionshipClassification;
 
@@ -553,19 +503,15 @@ export class ChampionshipClassificationService {
       existingClassification.averagePosition = data.averagePosition;
       existingClassification.lastCalculatedAt = new Date();
 
-      console.log('💾 [DEBUG] Atualizando classificação existente...');
       savedClassification = await this.classificationRepository.save(existingClassification);
-      console.log('✅ [DEBUG] Classificação atualizada com sucesso! ID:', savedClassification.id);
     } else {
       // Criar nova classificação
-      console.log('💾 [DEBUG] Criando nova classificação...');
       const classification = this.classificationRepository.create({
         ...data,
         lastCalculatedAt: new Date()
       });
 
       savedClassification = await this.classificationRepository.save(classification);
-      console.log('✅ [DEBUG] Nova classificação criada com sucesso! ID:', savedClassification.id);
     }
 
     // Redis removido - classificação sempre buscada do banco
@@ -663,7 +609,6 @@ export class ChampionshipClassificationService {
    * Recalcular classificação de uma temporada completa
    */
   async recalculateSeasonClassification(seasonId: string): Promise<void> {
-    console.log('🔄 [DEBUG] Iniciando recálculo completo da temporada:', seasonId);
     
     const season = await this.seasonRepository.findOne({
       where: { id: seasonId },
@@ -674,11 +619,7 @@ export class ChampionshipClassificationService {
       throw new NotFoundException('Temporada não encontrada');
     }
 
-    console.log('🔄 [DEBUG] Temporada encontrada:', season.name);
-    console.log('🔄 [DEBUG] Campeonato:', season.championship.name);
-
     // Limpar classificações existentes da temporada
-    console.log('🗑️ [DEBUG] Limpando classificações existentes...');
     await this.classificationRepository.delete({ seasonId });
 
     // Invalidar cache de classificação da temporada
@@ -692,16 +633,12 @@ export class ChampionshipClassificationService {
       .andWhere('stage.stage_results != :emptyJson', { emptyJson: '{}' })
       .getMany();
 
-    console.log('🔄 [DEBUG] Etapas encontradas com resultados:', stages.length);
-
     // Processar cada etapa usando o método atualizado
     for (let i = 0; i < stages.length; i++) {
       const stage = stages[i];
-      console.log(`🔄 [DEBUG] Processando etapa ${i + 1}/${stages.length}:`, stage.name);
       
       const stageResults = stage.stage_results;
       if (!stageResults) {
-        console.log('⚠️ [DEBUG] Etapa sem resultados, pulando...');
         continue;
       }
 
@@ -711,7 +648,6 @@ export class ChampionshipClassificationService {
       
       // Identificar categorias que têm dados
       const categoriesWithData = Object.keys(stageResults);
-      console.log('🔄 [DEBUG] Categorias com dados:', categoriesWithData);
       
       // Criar um resultado fictício para cada categoria apenas para acionar o processamento
       for (const categoryId of categoriesWithData) {
@@ -731,19 +667,13 @@ export class ChampionshipClassificationService {
       }
 
       if (mockResults.length > 0) {
-        console.log('🔄 [DEBUG] Chamando updateClassificationFromStageResults para etapa:', stage.id);
         // Chamar o método atualizado que processará os dados raw corretamente
         await this.updateClassificationFromStageResults(stage.id, mockResults);
-      } else {
-        console.log('⚠️ [DEBUG] Nenhuma categoria com dados válidos encontrada');
       }
     }
 
     // Após recalcular tudo, buscar e cachear a classificação completa no Redis
     await this.cacheSeasonClassificationInRedis(seasonId);
-
-    console.log('✅ [DEBUG] Recálculo completo da temporada finalizado!');
-    console.log('🚀 [DEBUG] Classificação automaticamente salva no PostgreSQL e cacheada no Redis - Frontend não precisa fazer nada!');
   }
 
   /**
@@ -751,7 +681,6 @@ export class ChampionshipClassificationService {
    */
   private async cacheSeasonClassificationInRedis(seasonId: string): Promise<void> {
     try {
-      console.log('💾 [DEBUG] Iniciando cache da classificação no Redis para temporada:', seasonId);
 
       // Buscar todas as classificações da temporada agrupadas por categoria
       const classifications = await this.classificationRepository.find({
@@ -767,7 +696,6 @@ export class ChampionshipClassificationService {
       });
 
       if (classifications.length === 0) {
-        console.log('⚠️ [DEBUG] Nenhuma classificação encontrada para cachear');
         return;
       }
 
@@ -815,20 +743,9 @@ export class ChampionshipClassificationService {
       };
 
       // Cachear no Redis
-      const success = await this.redisService.cacheSeasonClassification(seasonId, cacheData);
-      
-      if (success) {
-        console.log('✅ [DEBUG] Classificação cacheada no Redis com sucesso!');
-        console.log('📊 [DEBUG] Estatísticas do cache:', {
-          categorias: cacheData.totalCategories,
-          pilotos: cacheData.totalPilots,
-          ultimaAtualizacao: cacheData.lastUpdated
-        });
-      } else {
-        console.log('❌ [DEBUG] Falha ao cachear classificação no Redis');
-      }
+      await this.redisService.cacheSeasonClassification(seasonId, cacheData);
     } catch (error) {
-      console.log('❌ [DEBUG] Erro ao cachear classificação no Redis:', error);
+      // Silently handle error
     }
   }
 
@@ -875,24 +792,14 @@ export class ChampionshipClassificationService {
    */
   async getSeasonClassificationFromCache(seasonId: string): Promise<any | null> {
     try {
-      console.log('🔍 [DEBUG] Buscando classificação da temporada no cache Redis:', seasonId);
-      
       const cachedData = await this.redisService.getSeasonClassification(seasonId);
       
       if (cachedData) {
-        console.log('✅ [DEBUG] Classificação encontrada no cache Redis');
-        console.log('📊 [DEBUG] Estatísticas do cache encontrado:', {
-          categorias: cachedData.totalCategories,
-          pilotos: cachedData.totalPilots,
-          ultimaAtualizacao: cachedData.lastUpdated
-        });
         return cachedData;
       } else {
-        console.log('⚠️ [DEBUG] Classificação não encontrada no cache Redis');
         return null;
       }
     } catch (error) {
-      console.log('❌ [DEBUG] Erro ao buscar classificação do cache Redis:', error);
       return null;
     }
   }
@@ -902,18 +809,10 @@ export class ChampionshipClassificationService {
    */
   async getSeasonClassificationOptimized(seasonId: string) {
     try {
-      console.log('🔍 [DEBUG] Buscando classificação otimizada para temporada:', seasonId);
-      
       // Buscar dados do Redis de forma otimizada
       const cachedClassification = await this.redisService.getSeasonClassification(seasonId);
       
       if (cachedClassification) {
-        console.log('✅ [DEBUG] Classificação encontrada no cache Redis');
-        console.log('📊 [DEBUG] Dados do cache:', {
-          totalCategories: cachedClassification.totalCategories,
-          totalPilots: cachedClassification.totalPilots,
-          categorias: Object.keys(cachedClassification.classificationsByCategory || {})
-        });
         
         // A estrutura do Redis é: classificationsByCategory[categoryId] = [classification1, classification2, ...]
         // Precisamos transformar para: classificationsByCategory[categoryId] = { category, pilots: [...] }
@@ -927,7 +826,6 @@ export class ChampionshipClassificationService {
         if (userIds.length > 0) {
           // Buscar dados dos usuários em lote do Redis
           const usersData = await this.redisService.getMultipleUsersBasicInfo(userIds);
-          console.log('👥 [DEBUG] Dados dos usuários encontrados:', usersData.length);
           
           // Transformar a estrutura e enriquecer com dados dos usuários
           const transformedClassificationsByCategory: { [categoryId: string]: any } = {};
@@ -953,21 +851,13 @@ export class ChampionshipClassificationService {
             }
           });
           
-          console.log('🔄 [DEBUG] Estrutura transformada:', {
-            categorias: Object.keys(transformedClassificationsByCategory),
-            totalPilotos: Object.values(transformedClassificationsByCategory).reduce((acc: number, cat: any) => acc + (cat.pilots?.length || 0), 0)
-          });
-          
           return {
             ...cachedClassification,
             classificationsByCategory: transformedClassificationsByCategory
           };
         } else {
-          console.log('⚠️ [DEBUG] Nenhum piloto encontrado nas classificações');
           return cachedClassification;
         }
-      } else {
-        console.log('⚠️ [DEBUG] Nenhuma classificação encontrada no cache Redis');
       }
       
       // Se não há dados no cache, retornar estrutura vazia
@@ -979,7 +869,6 @@ export class ChampionshipClassificationService {
       };
       
     } catch (error) {
-      console.error('❌ [DEBUG] Erro ao buscar classificação otimizada:', error);
       throw new Error('Erro ao buscar classificação da temporada');
     }
   }

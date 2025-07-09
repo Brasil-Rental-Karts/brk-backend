@@ -590,17 +590,6 @@ export class SeasonRegistrationController extends BaseController {
       const { seasonId, categoryIds, stageIds, paymentMethod, userDocument, installments, totalAmount } = req.body;
       const userId = req.user!.id;
 
-      // Debug log para verificar os dados recebidos
-      console.log('[CONTROLLER] Dados recebidos:', {
-        seasonId,
-        categoryIds,
-        stageIds,
-        paymentMethod,
-        userDocument,
-        installments,
-        totalAmount
-      });
-
       // Validar dados de entrada
       if (!seasonId || !paymentMethod || !categoryIds || !userDocument) {
         throw new BadRequestException('seasonId, categoryIds, paymentMethod e userDocument são obrigatórios');

@@ -347,25 +347,17 @@ export class StageService {
    * Atualizar resultados da etapa
    */
   async updateStageResults(id: string, results: any): Promise<Stage> {
-    console.log('🔧 [DEBUG] updateStageResults iniciado para etapa:', id);
-    
     const stage = await this.findById(id);
     stage.stage_results = results;
     const updatedStage = await this.stageRepository.save(stage);
-    
-    console.log('💾 [DEBUG] Resultados da etapa salvos no banco de dados');
     
     // Invalidar cache da etapa
     await this.redisService.invalidateStageCache(id, stage.seasonId);
     
     // AUTOMATICAMENTE recalcular toda a classificação da temporada
     try {
-      console.log('🔄 [DEBUG] Iniciando recálculo automático da classificação da temporada...');
-      
       // Recalcular classificação completa da temporada
       await this.classificationService.recalculateSeasonClassification(stage.seasonId);
-      
-      console.log('✅ [DEBUG] Classificação da temporada recalculada e cacheada automaticamente!');
       
     } catch (error) {
       console.error('❌ [DEBUG] Erro ao recalcular classificação da temporada:', error);

@@ -365,12 +365,9 @@ export class AsaasService {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[ASAAS] Tentativa ${attempt} de buscar QR Code PIX para: ${paymentId}`);
-        
         const response: AxiosResponse<{ encodedImage: string; payload: string; expirationDate: string }> = 
           await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
         
-        console.log(`[ASAAS] QR Code PIX obtido com sucesso na tentativa ${attempt}: ${paymentId}`);
         return response.data;
       } catch (error: any) {
         lastError = error;
@@ -383,7 +380,6 @@ export class AsaasService {
         if (attempt < maxRetries) {
           // Aguardar antes da próxima tentativa (backoff exponencial)
           const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-          console.log(`[ASAAS] Aguardando ${delay}ms antes da próxima tentativa...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
