@@ -5,6 +5,8 @@ import { SeasonRegistration, RegistrationStatus } from '../models/season-registr
 import { Championship } from '../models/championship.entity';
 import { Season } from '../models/season.entity';
 import { AsaasPayment, AsaasPaymentStatus } from '../models/asaas-payment.entity';
+import { Category } from '../models/category.entity';
+import { RedisService } from './redis.service';
 
 export interface AdminStats {
   totalUsers: number;
@@ -28,12 +30,20 @@ export interface ChampionshipStats {
   pilotsOverdue: number;
 }
 
+export interface PreloadCategoriesResult {
+  totalCategories: number;
+  totalPilots: number;
+  duration: string;
+}
+
 export class AdminStatsService {
   private userRepository: Repository<User>;
   private registrationRepository: Repository<SeasonRegistration>;
   private championshipRepository: Repository<Championship>;
   private seasonRepository: Repository<Season>;
   private paymentRepository: Repository<AsaasPayment>;
+  private categoryRepository: Repository<Category>;
+  private redisService: RedisService;
 
   constructor() {
     this.userRepository = AppDataSource.getRepository(User);
@@ -41,6 +51,8 @@ export class AdminStatsService {
     this.championshipRepository = AppDataSource.getRepository(Championship);
     this.seasonRepository = AppDataSource.getRepository(Season);
     this.paymentRepository = AppDataSource.getRepository(AsaasPayment);
+    this.categoryRepository = AppDataSource.getRepository(Category);
+    this.redisService = RedisService.getInstance();
   }
 
   /**
@@ -231,5 +243,62 @@ export class AdminStatsService {
     }
 
     return stats;
+  }
+
+  /**
+   * Atualiza o cache de pilotos por categoria no Redis
+   */
+  async updateCategoriesPilotsCache(): Promise<PreloadCategoriesResult> {
+    const startTime = Date.now();
+    
+    // Buscar todas as categorias
+    const categories = await this.categoryRepository.find({
+      relations: ['season']
+    });
+
+    let totalPilots = 0;
+
+    // Para cada categoria, buscar os pilotos inscritos
+    for (const category of categories) {
+      // Buscar todas as temporadas do campeonato da categoria
+      const seasons = await this.seasonRepository.find({
+        where: { championshipId: category.season.championshipId },
+        select: ['id']
+      });
+
+      if (seasons.length === 0) {
+        await this.redisService.cacheCategoryPilots(category.id, []);
+        continue;
+      }
+
+      const seasonIds = seasons.map(s => s.id);
+
+      // Buscar todas as inscrições que incluem esta categoria
+      const registrations = await this.registrationRepository.find({
+        where: { 
+          seasonId: In(seasonIds)
+        },
+        relations: ['user', 'categories', 'categories.category']
+      });
+
+      // Filtrar inscrições que incluem esta categoria específica
+      const categoryPilots = registrations.filter(registration =>
+        registration.categories.some(rc => rc.category.id === category.id)
+      );
+
+      // Cachear os pilotos desta categoria
+      await this.redisService.cacheCategoryPilots(category.id, categoryPilots);
+      
+      totalPilots += categoryPilots.length;
+    }
+
+    const endTime = Date.now();
+    const duration = ((endTime - startTime) / 1000).toFixed(1);
+
+    return {
+      totalCategories: categories.length,
+      totalPilots,
+      duration: `${duration}s`
+    };
   }
 } 

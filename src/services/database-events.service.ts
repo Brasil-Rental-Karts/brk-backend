@@ -185,6 +185,38 @@ export class DatabaseEventsService {
             // Remove category from cache and season categories index
             if (event.data && event.data.id) {
               await this.redisService.invalidateCategoryCache(event.data.id, event.data.seasonId);
+              // Also invalidate category pilots cache
+              await this.redisService.invalidateCategoryPilotsCache(event.data.id);
+            }
+            break;
+        }
+      }
+
+      // Handle SeasonRegistrationCategory changes (when pilots are added/removed from categories)
+      if (event.table === 'SeasonRegistrationCategories') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+          case 'DELETE':
+            // Invalidate category pilots cache when registration categories change
+            if (event.data && event.data.categoryId) {
+              await this.redisService.invalidateCategoryPilotsCache(event.data.categoryId);
+            }
+            break;
+        }
+      }
+
+      // Handle SeasonRegistration changes (when registrations are created/updated/deleted)
+      if (event.table === 'SeasonRegistrations') {
+        switch (event.operation) {
+          case 'INSERT':
+          case 'UPDATE':
+          case 'DELETE':
+            // Invalidate all category pilots caches when registrations change
+            // This is a bit heavy-handed but ensures consistency
+            const categories = await this.redisService.getSeasonCategoryIds(event.data?.seasonId || '');
+            for (const categoryId of categories) {
+              await this.redisService.invalidateCategoryPilotsCache(categoryId);
             }
             break;
         }

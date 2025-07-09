@@ -547,13 +547,19 @@ export class RedisService {
 
       // Use Redis Hash to store category data (more efficient than JSON strings)
       const categoryKey = `category:${categoryId}`;
+      
+      // Get existing data to preserve pilots
+      const existingData = await this.client.hGetAll(categoryKey);
+      
       const categoryData = {
         id: data.id,
         name: data.name,
         ballast: data.ballast,
         maxPilots: data.maxPilots.toString(),
         minimumAge: data.minimumAge.toString(),
-        seasonId: data.seasonId
+        seasonId: data.seasonId,
+        // Preserve existing pilots data if it exists
+        ...(existingData.pilots && { pilots: existingData.pilots })
       };
 
       // Store category data as Redis Hash
@@ -593,7 +599,7 @@ export class RedisService {
       }
 
       // Convert string numbers back to integers
-      return {
+      const result: any = {
         id: data.id,
         name: data.name,
         ballast: data.ballast,
@@ -601,6 +607,13 @@ export class RedisService {
         minimumAge: parseInt(data.minimumAge),
         seasonId: data.seasonId
       };
+
+      // Include pilots if they exist
+      if (data.pilots) {
+        result.pilots = JSON.parse(data.pilots);
+      }
+
+      return result;
     } catch (error) {
       // console.error('Error getting cached category basic info:', error);
       return null;
@@ -639,14 +652,23 @@ export class RedisService {
       return results
         .map((result: any) => result[1]) // Get the actual data from pipeline result
         .filter((data: any) => data && Object.keys(data).length > 0)
-        .map((data: any) => ({
-          id: data.id,
-          name: data.name,
-          ballast: data.ballast,
-          maxPilots: parseInt(data.maxPilots),
-          minimumAge: parseInt(data.minimumAge),
-          seasonId: data.seasonId
-        }));
+        .map((data: any) => {
+          const result: any = {
+            id: data.id,
+            name: data.name,
+            ballast: data.ballast,
+            maxPilots: parseInt(data.maxPilots),
+            minimumAge: parseInt(data.minimumAge),
+            seasonId: data.seasonId
+          };
+
+          // Include pilots if they exist
+          if (data.pilots) {
+            result.pilots = JSON.parse(data.pilots);
+          }
+
+          return result;
+        });
     } catch (error) {
       // console.error('Error getting multiple categories from cache:', error);
       return [];
@@ -1070,6 +1092,115 @@ export class RedisService {
       return true;
     } catch (error) {
       // console.error('Error invalidating season indexes:', error);
+      return false;
+    }
+  }
+
+  // Cache pilots by category
+  async cacheCategoryPilots(categoryId: string, pilots: any[]): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const categoryKey = `category:${categoryId}`;
+      
+      // Get existing category data
+      const existingData = await this.client.hGetAll(categoryKey);
+      
+      // Extract userIds from pilots
+      const userIds = pilots.map(pilot => pilot.userId);
+      
+      // Update category data with pilots
+      const updatedData = {
+        ...existingData,
+        pilots: JSON.stringify(userIds)
+      };
+      
+      // Store updated category data
+      await this.client.hSet(categoryKey, updatedData);
+      
+      return true;
+    } catch (error) {
+      console.error('Error caching category pilots:', error);
+      return false;
+    }
+  }
+
+  // Get cached pilots for a category
+  async getCachedCategoryPilots(categoryId: string): Promise<string[]> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const categoryKey = `category:${categoryId}`;
+      const categoryData = await this.client.hGetAll(categoryKey);
+      
+      if (!categoryData || !categoryData.pilots) {
+        return [];
+      }
+
+      return JSON.parse(categoryData.pilots);
+    } catch (error) {
+      console.error('Error getting cached category pilots:', error);
+      return [];
+    }
+  }
+
+  // Invalidate category pilots cache
+  async invalidateCategoryPilotsCache(categoryId: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const categoryKey = `category:${categoryId}`;
+      
+      // Remove pilots field from category data
+      await this.client.hDel(categoryKey, 'pilots');
+      
+      return true;
+    } catch (error) {
+      console.error('Error invalidating category pilots cache:', error);
+      return false;
+    }
+  }
+
+  // Check if a user is in a category (utility method)
+  async isUserInCategory(categoryId: string, userId: string): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const categoryKey = `category:${categoryId}`;
+      const categoryData = await this.client.hGetAll(categoryKey);
+      
+      if (!categoryData || !categoryData.pilots) {
+        return false;
+      }
+
+      const userIds = JSON.parse(categoryData.pilots);
+      return userIds.includes(userId);
+    } catch (error) {
+      console.error('Error checking if user is in category:', error);
       return false;
     }
   }

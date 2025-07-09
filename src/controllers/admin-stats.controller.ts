@@ -104,8 +104,8 @@ export class AdminStatsController extends BaseController {
      * @swagger
      * /admin-stats:
      *   get:
-     *     summary: Obtém estatísticas administrativas do sistema
-     *     description: Retorna estatísticas gerais do sistema incluindo total de usuários, inscrições e dados por campeonato
+     *     summary: Obtém estatísticas administrativas
+     *     description: Retorna estatísticas gerais do sistema para administradores
      *     tags: [Admin Stats]
      *     security:
      *       - bearerAuth: []
@@ -170,6 +170,50 @@ export class AdminStatsController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.post('/cache/users/preload', authMiddleware, this.preloadUsersCache.bind(this));
+
+    /**
+     * @swagger
+     * /admin-stats/cache/categories/update:
+     *   post:
+     *     summary: Atualiza o cache de pilotos por categoria no Redis
+     *     description: Carrega todos os pilotos inscritos em cada categoria para o cache Redis
+     *     tags: [Admin Stats]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Cache de categorias atualizado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                   example: "Cache de categorias atualizado com sucesso"
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     totalCategories:
+     *                       type: number
+     *                       example: 25
+     *                       description: Total de categorias processadas
+     *                     totalPilots:
+     *                       type: number
+     *                       example: 1500
+     *                       description: Total de pilotos carregados no cache
+     *                     duration:
+     *                       type: string
+     *                       example: "3.2s"
+     *                       description: Tempo que levou para carregar
+     *       401:
+     *         description: Não autorizado
+     *       403:
+     *         description: Acesso negado - requer permissões de administrador
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/cache/categories/update', authMiddleware, this.updateCategoriesCache.bind(this));
   }
 
   private async getAdminStats(req: Request, res: Response): Promise<void> {
@@ -225,6 +269,30 @@ export class AdminStatsController extends BaseController {
       });
     } catch (error: any) {
       console.error('Error preloading users cache:', error);
+      res.status(500).json({
+        message: error.message || 'Erro interno do servidor'
+      });
+    }
+  }
+
+  private async updateCategoriesCache(req: Request, res: Response): Promise<void> {
+    try {
+      // Verificar se o usuário é administrador
+      if (req.user!.role !== 'Administrator') {
+        res.status(403).json({
+          message: 'Acesso negado. Requer permissões de administrador.'
+        });
+        return;
+      }
+
+      const result = await this.adminStatsService.updateCategoriesPilotsCache();
+
+      res.json({
+        message: 'Cache de categorias atualizado com sucesso',
+        data: result
+      });
+    } catch (error: any) {
+      console.error('Error updating categories cache:', error);
       res.status(500).json({
         message: error.message || 'Erro interno do servidor'
       });

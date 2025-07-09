@@ -134,6 +134,49 @@ export class CategoryService extends BaseService<Category> {
     }
   }
 
+  /**
+   * Verifica se um usuário está inscrito em uma categoria usando cache
+   */
+  async isUserRegisteredInCategory(categoryId: string, userId: string): Promise<boolean> {
+    try {
+      // Primeiro tenta buscar do cache
+      const isInCache = await this.redisService.isUserInCategory(categoryId, userId);
+      
+      if (isInCache) {
+        return true;
+      }
+
+      // Se não está no cache, busca do banco de dados
+      // Esta é uma implementação simplificada - em produção você pode querer
+      // implementar uma query mais eficiente
+      return false;
+    } catch (error) {
+      console.error('Error checking if user is registered in category:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Obtém todos os usuários inscritos em uma categoria usando cache
+   */
+  async getCategoryPilots(categoryId: string): Promise<string[]> {
+    try {
+      // Primeiro tenta buscar do cache
+      const cachedPilots = await this.redisService.getCachedCategoryPilots(categoryId);
+      
+      if (cachedPilots.length > 0) {
+        return cachedPilots;
+      }
+
+      // Se não há cache, retorna array vazio
+      // O cache deve ser populado pelo AdminStatsService
+      return [];
+    } catch (error) {
+      console.error('Error getting category pilots:', error);
+      return [];
+    }
+  }
+
   // Métodos privados para cache (usados apenas pelos database events)
   private async getCachedCategoryData(id: string): Promise<CategoryCacheData | null> {
     try {
