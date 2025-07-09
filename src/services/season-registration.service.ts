@@ -38,12 +38,7 @@ export interface CreateAdminRegistrationData {
   notes?: string;
 }
 
-export interface AddStagesToRegistrationData {
-  stageIds: string[];
-  paymentStatus: 'exempt' | 'direct_payment';
-  amount: number;
-  notes?: string;
-}
+
 
 export interface RegistrationPaymentData {
   id: string; // AsaasPayment ID
@@ -743,6 +738,17 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Lista inscrições de um usuário em uma temporada específica
+   */
+  async findByUserIdAndSeasonId(userId: string, seasonId: string): Promise<SeasonRegistration[]> {
+    return await this.registrationRepository.find({
+      where: { userId, seasonId },
+      relations: ['season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
+      order: { createdAt: 'DESC' }
+    });
+  }
+
+  /**
    * Conta pilotos inscritos por categoria (inclui todos os status exceto cancelados e expirados)
    */
   async countRegistrationsByCategory(categoryId: string): Promise<number> {
@@ -812,7 +818,10 @@ export class SeasonRegistrationService {
   /**
    * Cria uma inscrição administrativa (isento ou pagamento direto)
    */
-  async createAdminRegistration(data: CreateAdminRegistrationData): Promise<SeasonRegistration> {
+  async createAdminRegistration(data: CreateAdminRegistrationData): Promise<{
+    registration: SeasonRegistration;
+    isUpdate: boolean;
+  }> {
     // Verificar se o usuário existe
     const user = await this.userRepository.findOne({ where: { id: data.userId } });
     if (!user) {
@@ -831,7 +840,12 @@ export class SeasonRegistrationService {
     });
 
     if (existingRegistration) {
-      throw new BadRequestException('Usuário já possui inscrição nesta temporada');
+      // Se já existe inscrição, fazer update
+      const updatedRegistration = await this.updateAdminRegistration(existingRegistration.id, data);
+      return {
+        registration: updatedRegistration,
+        isUpdate: true
+      };
     }
 
     // Verificar se as categorias existem
@@ -907,6 +921,106 @@ export class SeasonRegistrationService {
 
     if (!completeRegistration) {
       throw new Error('Erro ao buscar inscrição criada');
+    }
+
+    return {
+      registration: completeRegistration,
+      isUpdate: false
+    };
+  }
+
+  /**
+   * Atualiza uma inscrição administrativa existente
+   */
+  async updateAdminRegistration(registrationId: string, data: CreateAdminRegistrationData): Promise<SeasonRegistration> {
+    // Verificar se a inscrição existe
+    const existingRegistration = await this.findById(registrationId);
+    if (!existingRegistration) {
+      throw new NotFoundException('Inscrição não encontrada');
+    }
+
+    // Verificar se as categorias existem
+    if (data.categoryIds && data.categoryIds.length > 0) {
+      const categories = await this.categoryRepository.find({
+        where: { id: In(data.categoryIds) }
+      });
+      
+      if (categories.length !== data.categoryIds.length) {
+        throw new BadRequestException('Uma ou mais categorias não foram encontradas');
+      }
+    }
+
+    // Verificar se as etapas existem
+    if (data.stageIds && data.stageIds.length > 0) {
+      const stages = await this.stageRepository.find({
+        where: { id: In(data.stageIds) }
+      });
+      
+      if (stages.length !== data.stageIds.length) {
+        throw new BadRequestException('Uma ou mais etapas não foram encontradas');
+      }
+    }
+
+    // Obter IDs das categorias antigas para atualizar o cache
+    const oldCategoryIds = existingRegistration.categories?.map(cat => cat.categoryId) || [];
+
+    // Atualizar dados da inscrição
+    existingRegistration.amount = data.amount;
+    existingRegistration.paymentStatus = data.paymentStatus as PaymentStatus;
+    existingRegistration.status = data.paymentStatus === 'exempt' ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
+    existingRegistration.paymentMethod = data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
+    
+    // Definir datas baseadas no status
+    if (data.paymentStatus === 'exempt') {
+      existingRegistration.confirmedAt = new Date();
+    }
+
+    const updatedRegistration = await this.registrationRepository.save(existingRegistration);
+
+    // Remover categorias e etapas antigas
+    await this.registrationCategoryRepository.delete({ registrationId });
+    await this.registrationStageRepository.delete({ registrationId });
+
+    // Remover usuário do cache das categorias antigas
+    if (oldCategoryIds.length > 0) {
+      await this.removeUserFromCategoryPilotsCache(existingRegistration.userId, oldCategoryIds);
+    }
+
+    // Criar novos registros de categorias
+    if (data.categoryIds && data.categoryIds.length > 0) {
+      const categoryRegistrations = data.categoryIds.map(categoryId => {
+        const categoryRegistration = new SeasonRegistrationCategory();
+        categoryRegistration.registrationId = updatedRegistration.id;
+        categoryRegistration.categoryId = categoryId;
+        return categoryRegistration;
+      });
+
+      await this.registrationCategoryRepository.save(categoryRegistrations);
+      
+      // Atualizar cache do Redis com os novos pilotos nas categorias
+      await this.updateCategoryPilotsCache(existingRegistration.userId, data.categoryIds);
+    }
+
+    // Criar novos registros de etapas
+    if (data.stageIds && data.stageIds.length > 0) {
+      const stageRegistrations = data.stageIds.map(stageId => {
+        const stageRegistration = new SeasonRegistrationStage();
+        stageRegistration.registrationId = updatedRegistration.id;
+        stageRegistration.stageId = stageId;
+        return stageRegistration;
+      });
+
+      await this.registrationStageRepository.save(stageRegistrations);
+    }
+
+    // Buscar a inscrição completa com relacionamentos
+    const completeRegistration = await this.registrationRepository.findOne({
+      where: { id: updatedRegistration.id },
+      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage']
+    });
+
+    if (!completeRegistration) {
+      throw new Error('Erro ao buscar inscrição atualizada');
     }
 
     return completeRegistration;
@@ -1459,115 +1573,7 @@ export class SeasonRegistrationService {
   /**
    * Adiciona etapas a uma inscrição existente com pagamento administrativo
    */
-  async addStagesToRegistration(registrationId: string, data: AddStagesToRegistrationData): Promise<SeasonRegistration> {
-    const registration = await this.findById(registrationId);
-    if (!registration) {
-      throw new NotFoundException('Inscrição não encontrada');
-    }
 
-    // Verificar se a inscrição pode ser alterada
-    if (registration.status === RegistrationStatus.CANCELLED || registration.status === RegistrationStatus.EXPIRED) {
-      throw new BadRequestException('Não é possível adicionar etapas a uma inscrição cancelada ou expirada');
-    }
-
-    // Verificar se a inscrição está confirmada ou é administrativa
-    if (registration.status !== RegistrationStatus.CONFIRMED && 
-        registration.paymentStatus !== PaymentStatus.EXEMPT && 
-        registration.paymentStatus !== PaymentStatus.DIRECT_PAYMENT) {
-      throw new BadRequestException('Apenas inscrições confirmadas ou administrativas podem ter etapas adicionadas');
-    }
-
-    // Buscar a temporada para verificar o tipo de inscrição
-    const season = await this.seasonRepository.findOne({ where: { id: registration.seasonId } });
-    if (!season) {
-      throw new NotFoundException('Temporada não encontrada');
-    }
-
-    // Verificar se a temporada permite inscrições por etapa
-    if (season.getInscriptionType() !== 'por_etapa') {
-      throw new BadRequestException('Apenas temporadas com inscrições por etapa permitem adição de etapas');
-    }
-
-    // Verificar se as etapas existem e pertencem à temporada
-    if (!data.stageIds || data.stageIds.length === 0) {
-      throw new BadRequestException('Pelo menos uma etapa deve ser selecionada');
-    }
-
-    const stages = await this.stageRepository.find({
-      where: { 
-        id: In(data.stageIds),
-        seasonId: registration.seasonId
-      }
-    });
-
-    if (stages.length !== data.stageIds.length) {
-      throw new BadRequestException('Uma ou mais etapas são inválidas ou não pertencem a esta temporada');
-    }
-
-    // Verificar se as etapas já estão vinculadas à inscrição
-    const existingStages = await this.registrationStageRepository.find({
-      where: { registrationId: registrationId }
-    });
-
-    const existingStageIds = existingStages.map(stage => stage.stageId);
-    const duplicateStageIds = data.stageIds.filter(stageId => existingStageIds.includes(stageId));
-
-    if (duplicateStageIds.length > 0) {
-      const duplicateStages = await this.stageRepository.find({
-        where: { id: In(duplicateStageIds) }
-      });
-      const stageNames = duplicateStages.map(stage => stage.name).join(', ');
-      throw new BadRequestException(`O piloto já está inscrito nas seguintes etapas: ${stageNames}`);
-    }
-
-    // Adicionar novas etapas
-    const registrationStages = stages.map(stage => 
-      this.registrationStageRepository.create({
-        registrationId: registrationId,
-        stageId: stage.id
-      })
-    );
-    
-    await this.registrationStageRepository.save(registrationStages);
-
-    // Atualizar o valor total da inscrição
-    if (data.amount > 0) {
-      registration.amount = Number(registration.amount) + data.amount;
-      await this.registrationRepository.save(registration);
-    }
-
-    // Criar pagamento administrativo para as novas etapas
-    if (data.amount > 0 || data.paymentStatus === 'exempt') {
-      const today = new Date();
-      const dueDateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      const paymentData = this.paymentRepository.create({
-        registrationId: registrationId,
-        asaasPaymentId: `admin_stage_${registrationId}_${Date.now()}`, // ID único para pagamentos administrativos
-        asaasCustomerId: 'admin_customer', // Customer genérico para pagamentos administrativos
-        billingType: AsaasBillingType.PIX, // Usado apenas como placeholder
-        value: data.amount,
-        dueDate: dueDateString,
-        status: AsaasPaymentStatus.RECEIVED, // Marcar como recebido para administrativo
-        description: data.notes || `Pagamento administrativo para etapas adicionais: ${stages.map(s => s.name).join(', ')}`,
-        paymentDate: today,
-        clientPaymentDate: today
-      });
-
-      await this.paymentRepository.save(paymentData);
-
-      // Atualizar status da inscrição baseado nos pagamentos
-      await this.updateSeasonRegistrationStatus(registrationId);
-    }
-
-    // Buscar a inscrição atualizada com as novas etapas
-    const updatedRegistration = await this.findById(registrationId);
-    if (!updatedRegistration) {
-      throw new NotFoundException('Erro ao atualizar inscrição');
-    }
-
-    return updatedRegistration;
-  }
 
   /**
    * Atualiza o status da SeasonRegistration baseado nos status dos pagamentos
