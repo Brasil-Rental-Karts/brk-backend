@@ -550,14 +550,9 @@ export class SeasonRegistrationService {
           // Usar ngrok URL se disponível, senão usar frontend URL
           let callbackUrl: string;
           let successUrl: string;
-          
-          if (process.env.NGROK_URL) {
-            callbackUrl = `${process.env.NGROK_URL}/api/asaas/webhook`;
-            successUrl = `${process.env.NGROK_URL}/api/season-registrations/${savedRegistration.id}/payment-callback`;
-          } else {
-            callbackUrl = `${process.env.BACKEND_URL || 'http://localhost:3000/api'}/api/asaas/webhook`;
-            successUrl = `${process.env.BACKEND_URL || 'http://localhost:3000/api'}/season-registrations/${savedRegistration.id}/payment-callback`;
-          }
+
+          callbackUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/webhook/asaas`;
+          successUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/season-registrations/${savedRegistration.id}/payment-callback`;
           
           paymentPayload.callback = {
             url: callbackUrl,
