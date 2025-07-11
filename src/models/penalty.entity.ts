@@ -10,7 +10,6 @@ export enum PenaltyType {
   DISQUALIFICATION = 'disqualification',
   TIME_PENALTY = 'time_penalty',
   POSITION_PENALTY = 'position_penalty',
-  SUSPENSION = 'suspension',
   WARNING = 'warning'
 }
 
@@ -43,12 +42,6 @@ export class Penalty extends BaseEntity {
 
   @Column({ type: 'int', nullable: true })
   positionPenalty: number;
-
-  @Column({ type: 'int', nullable: true })
-  suspensionStages: number;
-
-  @Column({ type: 'date', nullable: true })
-  suspensionUntil: Date;
 
   @Column({ type: 'int', nullable: true })
   batteryIndex: number;

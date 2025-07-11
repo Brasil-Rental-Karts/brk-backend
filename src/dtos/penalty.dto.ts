@@ -25,15 +25,6 @@ export class CreatePenaltyDto extends BaseDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(1)
-  suspensionStages?: number;
-
-  @IsOptional()
-  @IsDateString()
-  suspensionUntil?: string;
-
-  @IsOptional()
-  @IsNumber()
   @Min(0)
   batteryIndex?: number;
 
@@ -81,15 +72,6 @@ export class UpdatePenaltyDto extends BaseDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(1)
-  suspensionStages?: number;
-
-  @IsOptional()
-  @IsDateString()
-  suspensionUntil?: string;
-
-  @IsOptional()
-  @IsNumber()
   @Min(0)
   batteryIndex?: number;
 }
@@ -107,8 +89,6 @@ export class PenaltyResponseDto {
   description?: string;
   timePenaltySeconds?: number;
   positionPenalty?: number;
-  suspensionStages?: number;
-  suspensionUntil?: Date;
   batteryIndex?: number;
   userId: string;
   championshipId: string;

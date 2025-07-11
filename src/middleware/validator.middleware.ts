@@ -25,10 +25,6 @@ export function validationMiddleware<T extends BaseDto>(dtoClass: new () => T) {
         transformedBody.positionPenalty = Number(transformedBody.positionPenalty);
       }
       
-      if (transformedBody.suspensionStages !== undefined && transformedBody.suspensionStages !== null && transformedBody.suspensionStages !== '') {
-        transformedBody.suspensionStages = Number(transformedBody.suspensionStages);
-      }
-      
       const { dto, errors } = await BaseDto.validateDto(dtoClass, transformedBody);
       
       console.log('Validation middleware - Errors:', errors);

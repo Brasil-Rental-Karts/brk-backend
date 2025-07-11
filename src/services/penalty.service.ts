@@ -175,11 +175,6 @@ export class PenaltyService {
           throw new BadRequestException('Position penalty requires positive position penalty');
         }
         break;
-      case PenaltyType.SUSPENSION:
-        if (!data.suspensionStages && !data.suspensionUntil) {
-          throw new BadRequestException('Suspension requires either suspension stages or suspension until date');
-        }
-        break;
     }
   }
 
@@ -192,8 +187,6 @@ export class PenaltyService {
       description: penalty.description,
       timePenaltySeconds: penalty.timePenaltySeconds,
       positionPenalty: penalty.positionPenalty,
-      suspensionStages: penalty.suspensionStages,
-      suspensionUntil: penalty.suspensionUntil,
       batteryIndex: penalty.batteryIndex,
       userId: penalty.userId,
       championshipId: penalty.championshipId,
