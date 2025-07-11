@@ -194,6 +194,7 @@ export class PenaltyService {
       positionPenalty: penalty.positionPenalty,
       suspensionStages: penalty.suspensionStages,
       suspensionUntil: penalty.suspensionUntil,
+      batteryIndex: penalty.batteryIndex,
       userId: penalty.userId,
       championshipId: penalty.championshipId,
       seasonId: penalty.seasonId,

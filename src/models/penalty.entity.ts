@@ -50,6 +50,9 @@ export class Penalty extends BaseEntity {
   @Column({ type: 'date', nullable: true })
   suspensionUntil: Date;
 
+  @Column({ type: 'int', nullable: true })
+  batteryIndex: number;
+
   @Column({ type: 'uuid' })
   userId: string;
 
