@@ -40,8 +40,9 @@ export class PenaltyService {
       throw new NotFoundException('Penalty not found');
     }
 
-    if (penalty.status !== PenaltyStatus.PENDING) {
-      throw new BadRequestException('Penalty is not pending');
+    // Permitir aplicar apenas se estiver pendente ou cancelada
+    if (penalty.status !== PenaltyStatus.PENDING && penalty.status !== PenaltyStatus.CANCELLED) {
+      throw new BadRequestException('Penalty can only be applied if it is pending or cancelled');
     }
 
     const updatedPenalty = await this.penaltyRepository.update(id, {
