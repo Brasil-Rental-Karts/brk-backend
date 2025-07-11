@@ -18,4 +18,6 @@ export * from './stage-participation.entity';
 export * from './regulation.entity';
 export * from './race-track.entity';
 export * from './lap-times.entity';
-export * from './championship-classification.entity'; 
+export * from './championship-classification.entity';
+export * from './credit-card-fees.entity';
+export * from './penalty.entity'; 

@@ -27,6 +27,9 @@ import { LapTimesController } from './controllers/lap-times.controller';
 import { ChampionshipClassificationController } from './controllers/championship-classification.controller';
 import { CreditCardFeesController } from './controllers/credit-card-fees.controller';
 import { PaymentManagementController } from './controllers/payment-management.controller';
+import { PenaltyController } from './controllers/penalty.controller';
+import { PenaltyRepositoryImpl } from './repositories/penalty.repository.impl';
+import { PenaltyService } from './services/penalty.service';
 
 // Entities
 import { User } from './models/user.entity';
@@ -39,6 +42,7 @@ import { Category } from './models/category.entity';
 import { GridType } from './models/grid-type.entity';
 import { Regulation } from './models/regulation.entity';
 import { RaceTrack } from './models/race-track.entity';
+import { Penalty } from './models/penalty.entity';
 
 // Services
 import { AuthService } from './services/auth.service';
@@ -88,6 +92,7 @@ AppDataSource.initialize()
     const categoryRepository = new CategoryRepository(AppDataSource.getRepository(Category));
     const regulationRepository = new RegulationRepositoryImpl(AppDataSource.getRepository(Regulation));
     const raceTrackRepository = new RaceTrackRepository(AppDataSource.getRepository(RaceTrack));
+    const penaltyRepository = new PenaltyRepositoryImpl(AppDataSource.getRepository(Penalty));
     
     // Initialize services
     const emailService = new EmailService();
@@ -99,16 +104,17 @@ AppDataSource.initialize()
     const memberProfileService = new MemberProfileService(memberProfileRepository, userService);
     const seasonService = new SeasonService(seasonRepository);
     const vipPreregisterService = new VipPreregisterService(vipPreregisterRepository);
-    const categoryService = new CategoryService(categoryRepository, seasonService);
+    const stageService = new StageService();
+    const categoryService = new CategoryService(categoryRepository, seasonService, stageService);
     const scoringSystemService = new ScoringSystemService();
     const asaasService = new AsaasService();
     const seasonRegistrationService = new SeasonRegistrationService();
-    const stageService = new StageService();
     const stageParticipationService = new StageParticipationService();
     const userStatsService = new UserStatsService();
     const regulationService = new RegulationService(regulationRepository);
     const raceTrackService = new RaceTrackService(raceTrackRepository);
     const creditCardFeesService = new CreditCardFeesService();
+    const penaltyService = new PenaltyService(penaltyRepository);
     
     // Initialize controllers
     const controllers = [
@@ -134,7 +140,8 @@ AppDataSource.initialize()
       new LapTimesController(AppDataSource),
       new ChampionshipClassificationController(),
       new CreditCardFeesController(),
-      new PaymentManagementController(seasonRegistrationService)
+      new PaymentManagementController(seasonRegistrationService),
+      new PenaltyController(penaltyService)
     ];
 
     // Initialize the app

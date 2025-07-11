@@ -19,7 +19,8 @@ export class CategoryService extends BaseService<Category> {
 
   constructor(
     private categoryRepository: CategoryRepository,
-    private seasonService?: SeasonService
+    private seasonService?: SeasonService,
+    private stageService?: any
   ) {
     super(categoryRepository);
     this.redisService = RedisService.getInstance();
@@ -93,6 +94,23 @@ export class CategoryService extends BaseService<Category> {
     
     // Fallback to direct ID lookup
     return this.categoryRepository.findBySeasonId(seasonIdOrSlug);
+  }
+
+  async findByStageId(stageId: string): Promise<Category[]> {
+    // First, get the stage to find its categoryIds
+    if (!this.stageService) {
+      throw new Error('Stage service not available');
+    }
+    
+    const stage = await this.stageService.findById(stageId);
+    
+    if (!stage || !stage.categoryIds || stage.categoryIds.length === 0) {
+      return [];
+    }
+
+    // Get all categories that are in the stage's categoryIds
+    const categories = await this.categoryRepository.findByIds(stage.categoryIds);
+    return categories;
   }
 
   // Métodos para buscar dados do cache Redis (para API cache)

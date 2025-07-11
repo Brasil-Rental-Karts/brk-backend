@@ -241,6 +241,38 @@ export class CategoryController extends BaseController {
 
     /**
      * @swagger
+     * /categories/stage/{stageId}:
+     *   get:
+     *     summary: Buscar categorias por etapa
+     *     tags: [Categories]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: stageId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da etapa
+     *     responses:
+     *       200:
+     *         description: Categorias encontradas
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/Category'
+     *       401:
+     *         description: Token de acesso inválido
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.get('/stage/:stageId', authMiddleware, this.getCategoriesByStageId.bind(this));
+
+    /**
+     * @swagger
      * /categories:
      *   post:
      *     summary: Criar nova categoria
@@ -431,6 +463,17 @@ export class CategoryController extends BaseController {
       res.status(200).json(categories);
     } catch (error) {
       console.error('Erro ao buscar categorias por temporada:', error);
+      res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+  }
+
+  private async getCategoriesByStageId(req: Request, res: Response): Promise<void> {
+    try {
+      const { stageId } = req.params;
+      const categories = await this.categoryService.findByStageId(stageId);
+      res.status(200).json(categories);
+    } catch (error) {
+      console.error('Erro ao buscar categorias por etapa:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
