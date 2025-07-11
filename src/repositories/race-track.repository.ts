@@ -21,6 +21,13 @@ export class RaceTrackRepository implements IRaceTrackRepository {
     return await this.repository.findOne({ where: { id } });
   }
 
+  async findByIds(ids: string[]): Promise<RaceTrack[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+    return this.repository.findByIds(ids);
+  }
+
   async findAll(): Promise<RaceTrack[]> {
     return await this.repository.find({
       order: { name: 'ASC' }

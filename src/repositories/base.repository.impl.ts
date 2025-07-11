@@ -13,6 +13,13 @@ export class BaseRepositoryImpl<T extends BaseEntity> implements BaseRepository<
     return this.repository.findOneBy({ id } as FindOptionsWhere<T>);
   }
 
+  async findByIds(ids: string[]): Promise<T[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+    return this.repository.findByIds(ids);
+  }
+
   async create(item: DeepPartial<T>): Promise<T> {
     const newItem = this.repository.create(item);
     return this.repository.save(newItem);

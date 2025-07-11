@@ -26,6 +26,13 @@ export class CreditCardFeesRepositoryImpl implements CreditCardFeesRepository {
     return this.repository.findOne({ where: { id } });
   }
 
+  async findByIds(ids: string[]): Promise<CreditCardFees[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+    return this.repository.findByIds(ids);
+  }
+
   async create(data: Partial<CreditCardFees>): Promise<CreditCardFees> {
     const entity = this.repository.create(data);
     return this.repository.save(entity);
