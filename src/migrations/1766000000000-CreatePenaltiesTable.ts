@@ -16,11 +16,13 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
             name: 'type',
             type: 'enum',
             enum: ['disqualification', 'time_penalty', 'position_penalty', 'suspension', 'warning'],
+            enumName: 'penalties_type_enum',
           },
           {
             name: 'status',
             type: 'enum',
             enum: ['pending', 'applied', 'cancelled', 'appealed'],
+            enumName: 'penalties_status_enum',
             default: "'pending'",
           },
           {
@@ -110,7 +112,7 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
       new TableForeignKey({
         columnNames: ['userId'],
         referencedColumnNames: ['id'],
-        referencedTableName: 'users',
+        referencedTableName: 'Users',
         onDelete: 'CASCADE',
       })
     );
@@ -120,7 +122,7 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
       new TableForeignKey({
         columnNames: ['championshipId'],
         referencedColumnNames: ['id'],
-        referencedTableName: 'championships',
+        referencedTableName: 'Championships',
         onDelete: 'CASCADE',
       })
     );
@@ -130,7 +132,7 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
       new TableForeignKey({
         columnNames: ['seasonId'],
         referencedColumnNames: ['id'],
-        referencedTableName: 'seasons',
+        referencedTableName: 'Seasons',
         onDelete: 'CASCADE',
       })
     );
@@ -140,7 +142,7 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
       new TableForeignKey({
         columnNames: ['stageId'],
         referencedColumnNames: ['id'],
-        referencedTableName: 'stages',
+        referencedTableName: 'Stages',
         onDelete: 'CASCADE',
       })
     );
@@ -150,7 +152,7 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
       new TableForeignKey({
         columnNames: ['categoryId'],
         referencedColumnNames: ['id'],
-        referencedTableName: 'categories',
+        referencedTableName: 'Categories',
         onDelete: 'CASCADE',
       })
     );
@@ -160,7 +162,7 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
       new TableForeignKey({
         columnNames: ['appliedByUserId'],
         referencedColumnNames: ['id'],
-        referencedTableName: 'users',
+        referencedTableName: 'Users',
         onDelete: 'CASCADE',
       })
     );
@@ -170,7 +172,7 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
       new TableForeignKey({
         columnNames: ['appealedByUserId'],
         referencedColumnNames: ['id'],
-        referencedTableName: 'users',
+        referencedTableName: 'Users',
         onDelete: 'CASCADE',
       })
     );
