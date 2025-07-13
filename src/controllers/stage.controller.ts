@@ -788,6 +788,37 @@ export class StageController extends BaseController {
     try {
       const { id } = req.params;
       const results = req.body;
+      
+      // Verificar se o usuário está autenticado
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ message: 'Usuário não autenticado' });
+        return;
+      }
+
+      // Buscar a etapa existente para obter o seasonId
+      const existingStage = await this.stageService.findById(id);
+      if (!existingStage) {
+        res.status(404).json({ message: 'Etapa não encontrada' });
+        return;
+      }
+
+      // Buscar a season para obter o championshipId
+      const season = await this.seasonService.findById(existingStage.seasonId);
+      if (!season) {
+        res.status(404).json({ message: 'Temporada não encontrada' });
+        return;
+      }
+
+      // Verificar se o usuário tem permissão para editar resultados da etapa
+      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      if (!hasPermission) {
+        res.status(403).json({
+          message: 'Você não tem permissão para editar os resultados desta etapa'
+        });
+        return;
+      }
+
       const updatedStage = await this.stageService.updateStageResults(id, results);
       res.json({ success: true, data: updatedStage.stage_results });
     } catch (error) {
