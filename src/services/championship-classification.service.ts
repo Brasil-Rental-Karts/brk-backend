@@ -160,6 +160,50 @@ export class ChampionshipClassificationService {
 
       const categoryStageResults = stageResultsData[categoryId];
       
+      // Processar cada bateria individualmente para calcular pódios corretamente
+      const batteryResults: { batteryIndex: string, pilotId: string, data: any }[] = [];
+      
+      // Coletar todos os resultados de todas as baterias
+      for (const [pilotId, pilotData] of Object.entries(categoryStageResults)) {
+        for (const [batteryIndex, batteryData] of Object.entries(pilotData as any)) {
+          const data = batteryData as any;
+          
+          if (data.finishPosition !== undefined && data.finishPosition !== null) {
+            batteryResults.push({
+              batteryIndex,
+              pilotId,
+              data
+            });
+          }
+        }
+      }
+
+      // Agrupar resultados por bateria para calcular pódios por bateria
+      const batteriesByIndex = new Map<string, Array<{ pilotId: string, data: any }>>();
+      
+      for (const result of batteryResults) {
+        const { batteryIndex, pilotId, data } = result;
+        
+        if (!batteriesByIndex.has(batteryIndex)) {
+          batteriesByIndex.set(batteryIndex, []);
+        }
+        
+        batteriesByIndex.get(batteryIndex)!.push({ pilotId, data });
+      }
+
+      // Calcular pódios por bateria
+      const podiumsByBattery = new Map<string, Set<string>>();
+      
+      for (const [batteryIndex, batteryResults] of batteriesByIndex) {
+        // Ordenar pilotos desta bateria por posição de chegada
+        const sortedPilots = batteryResults.sort((a, b) => a.data.finishPosition - b.data.finishPosition);
+        
+        // Os 5 primeiros são pódio (1º, 2º, 3º, 4º, 5º)
+        const podiumPilots = sortedPilots.slice(0, 5);
+        const podiumPilotIds = new Set(podiumPilots.map(p => p.pilotId));
+        podiumsByBattery.set(batteryIndex, podiumPilotIds);
+      }
+
       // Processar o formato real dos dados: { pilotId: { batteryIndex: { data } } }
       const processedResults = await this.processStageResultsData(categoryId, categoryStageResults, scoringSystem);
       
@@ -184,8 +228,23 @@ export class ChampionshipClassificationService {
         userStats.totalPoints += result.points || 0;
         userStats.totalStages += 1;
         
-        if (result.position === 1) userStats.wins += 1;
-        if (result.position <= 5) userStats.podiums += 1;
+        // Calcular vitórias e pódios por bateria
+        let stageWins = 0;
+        let stagePodiums = 0;
+        
+        // Verificar cada bateria para este piloto
+        for (const [batteryIndex, podiumPilotIds] of podiumsByBattery) {
+          const pilotBatteryData = batteryResults.find(r => r.pilotId === userId && r.batteryIndex === batteryIndex);
+          if (pilotBatteryData) {
+            const position = pilotBatteryData.data.finishPosition;
+            if (position === 1) stageWins += 1;
+            if (podiumPilotIds.has(userId)) stagePodiums += 1;
+          }
+        }
+        
+        userStats.wins += stageWins;
+        userStats.podiums += stagePodiums;
+        
         if (result.polePosition) userStats.polePositions += 1;
         if (result.fastestLapCount) userStats.fastestLaps += result.fastestLapCount;
         
