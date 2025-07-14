@@ -4,6 +4,42 @@ import { BaseDto } from './base.dto';
 import { BatteriesConfig, validateBatteriesConfig } from '../types/category.types';
 
 /**
+ * DTO para resposta de categoria com contagem de inscritos
+ */
+export class CategoryResponseDto extends BaseDto {
+  @IsString()
+  name: string;
+
+  @IsInt()
+  ballast: number;
+
+  @IsInt()
+  maxPilots: number;
+
+  @IsArray()
+  batteriesConfig: BatteriesConfig;
+
+  @IsInt()
+  minimumAge: number;
+
+  @IsOptional()
+  allowDiscarding?: boolean;
+
+  @IsOptional()
+  discardingType?: 'bateria' | 'etapa';
+
+  @IsOptional()
+  discardingQuantity?: number;
+
+  @IsUUID('4')
+  seasonId: string;
+
+  @IsOptional()
+  @IsInt()
+  registrationCount?: number;
+}
+
+/**
  * DTO para configuração de bateria individual
  */
 export class BatteryConfigDto {
