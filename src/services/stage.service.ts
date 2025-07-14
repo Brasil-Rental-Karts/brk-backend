@@ -356,15 +356,42 @@ export class StageService {
     
     // AUTOMATICAMENTE recalcular toda a classificação da temporada
     try {
+      console.log(`🔄 [TRIGGER] Detecção de alteração em stage_results para etapa ${id}`);
+      
       // Recalcular classificação completa da temporada
       await this.classificationService.recalculateSeasonClassification(stage.seasonId);
       
+      // Persistir resultado no Redis usando o hash season:{seasonId}
+      await this.persistClassificationToRedis(stage.seasonId);
+      
+      console.log(`✅ [TRIGGER] Classificação da temporada ${stage.seasonId} recalculada e persistida no Redis`);
+      
     } catch (error) {
-      console.error('❌ [DEBUG] Erro ao recalcular classificação da temporada:', error);
+      console.error('❌ [TRIGGER] Erro ao recalcular classificação da temporada:', error);
       // Não bloquear o salvamento dos resultados se houver erro na classificação
     }
     
     return this.formatTimeFields(updatedStage);
+  }
+
+  /**
+   * Persistir classificação no Redis usando hash season:{seasonId}
+   */
+  private async persistClassificationToRedis(seasonId: string): Promise<void> {
+    try {
+      // Buscar classificação completa da temporada
+      const classificationData = await this.classificationService.getSeasonClassificationOptimized(seasonId);
+      
+      if (classificationData) {
+        // Persistir no Redis usando o método existente
+        await this.redisService.cacheSeasonClassification(seasonId, classificationData);
+        
+        console.log(`💾 [REDIS] Classificação da temporada ${seasonId} persistida no Redis`);
+      }
+    } catch (error) {
+      console.error('❌ [REDIS] Erro ao persistir classificação no Redis:', error);
+      throw error;
+    }
   }
 
   // Método removido - agora usa recalculateSeasonClassification() diretamente para evitar redundância

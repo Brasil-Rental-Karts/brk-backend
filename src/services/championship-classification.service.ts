@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { AppDataSource } from '../config/database.config';
 import { ChampionshipClassification } from '../models/championship-classification.entity';
 import { ScoringSystem } from '../models/scoring-system.entity';
@@ -7,7 +7,25 @@ import { Season } from '../models/season.entity';
 import { Category } from '../models/category.entity';
 import { User } from '../models/user.entity';
 import { Championship } from '../models/championship.entity';
+import { MemberProfile } from '../models/member-profile.entity';
 import { RedisService } from './redis.service';
+
+// Função para formatar nomes em CamelCase
+function formatName(name: string): string {
+  if (!name || typeof name !== 'string') {
+    return '';
+  }
+  
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(word => {
+      if (!word) return '';
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .filter(word => word.length > 0)
+    .join(' ');
+}
 
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
@@ -49,6 +67,7 @@ export class ChampionshipClassificationService {
   private categoryRepository: Repository<Category>;
   private userRepository: Repository<User>;
   private championshipRepository: Repository<Championship>;
+  private memberProfileRepository: Repository<MemberProfile>;
   private redisService: RedisService;
 
   constructor() {
@@ -59,6 +78,7 @@ export class ChampionshipClassificationService {
     this.categoryRepository = AppDataSource.getRepository(Category);
     this.userRepository = AppDataSource.getRepository(User);
     this.championshipRepository = AppDataSource.getRepository(Championship);
+    this.memberProfileRepository = AppDataSource.getRepository(MemberProfile);
     this.redisService = RedisService.getInstance();
   }
 
@@ -669,6 +689,8 @@ export class ChampionshipClassificationService {
    */
   async recalculateSeasonClassification(seasonId: string): Promise<void> {
     
+    console.log(`🔄 [RECALC] Iniciando recálculo da classificação da temporada ${seasonId}`);
+    
     const season = await this.seasonRepository.findOne({
       where: { id: seasonId },
       relations: ['championship', 'categories']
@@ -691,6 +713,8 @@ export class ChampionshipClassificationService {
       .andWhere('stage.stage_results IS NOT NULL')
       .andWhere('stage.stage_results != :emptyJson', { emptyJson: '{}' })
       .getMany();
+
+    console.log(`📊 [RECALC] Encontradas ${stages.length} etapas com resultados para processar`);
 
     // Processar cada etapa usando o método atualizado
     for (let i = 0; i < stages.length; i++) {
@@ -733,13 +757,16 @@ export class ChampionshipClassificationService {
 
     // Após recalcular tudo, buscar e cachear a classificação completa no Redis
     await this.cacheSeasonClassificationInRedis(seasonId);
+    
+    console.log(`✅ [RECALC] Classificação da temporada ${seasonId} recalculada e persistida no Redis`);
   }
 
   /**
    * Cachear classificação da temporada no Redis
    */
-  private async cacheSeasonClassificationInRedis(seasonId: string): Promise<void> {
+  async cacheSeasonClassificationInRedis(seasonId: string): Promise<void> {
     try {
+      console.log(`💾 [CACHE] Iniciando cache da classificação da temporada ${seasonId}`);
 
       // Buscar todas as classificações da temporada agrupadas por categoria
       const classifications = await this.classificationRepository.find({
@@ -754,23 +781,37 @@ export class ChampionshipClassificationService {
         }
       });
 
+      // Buscar MemberProfiles para todos os usuários
+      const userIds = classifications.map(c => c.userId);
+      const memberProfiles = await this.memberProfileRepository.find({
+        where: { id: In(userIds) }
+      });
+
+      // Criar mapa de MemberProfiles por userId
+      const memberProfilesMap = new Map<string, MemberProfile>();
+      memberProfiles.forEach(profile => {
+        memberProfilesMap.set(profile.id, profile);
+      });
+
       if (classifications.length === 0) {
+        console.log(`⚠️ [CACHE] Nenhuma classificação encontrada para temporada ${seasonId}`);
         return;
       }
 
+      console.log(`📊 [CACHE] Encontradas ${classifications.length} classificações para cache`);
+
       // Agrupar classificações por categoria
-      const classificationsByCategory: { [categoryId: string]: any[] } = {};
+      const classificationsByCategory: { [categoryId: string]: { pilots: any[] } } = {};
       
       for (const classification of classifications) {
         if (!classificationsByCategory[classification.categoryId]) {
-          classificationsByCategory[classification.categoryId] = [];
+          classificationsByCategory[classification.categoryId] = { pilots: [] };
         }
         
-        classificationsByCategory[classification.categoryId].push({
-          userId: classification.userId,
-          categoryId: classification.categoryId,
-          seasonId: classification.seasonId,
-          championshipId: classification.championshipId,
+        // Buscar MemberProfile do usuário
+        const memberProfile = memberProfilesMap.get(classification.userId);
+        
+        classificationsByCategory[classification.categoryId].pilots.push({
           totalPoints: classification.totalPoints,
           totalStages: classification.totalStages,
           wins: classification.wins,
@@ -781,14 +822,9 @@ export class ChampionshipClassificationService {
           averagePosition: classification.averagePosition,
           lastCalculatedAt: classification.lastCalculatedAt,
           user: {
-            id: classification.user?.id,
-            name: classification.user?.name,
-            email: classification.user?.email
-          },
-          category: {
-            id: classification.category?.id,
-            name: classification.category?.name,
-            ballast: classification.category?.ballast
+            id: classification.userId,
+            name: formatName(classification.user?.name || ''),
+            nickname: memberProfile?.nickName ? formatName(memberProfile.nickName) : null
           }
         });
       }
@@ -803,8 +839,11 @@ export class ChampionshipClassificationService {
 
       // Cachear no Redis
       await this.redisService.cacheSeasonClassification(seasonId, cacheData);
+      
+      console.log(`✅ [CACHE] Classificação da temporada ${seasonId} cacheada no Redis com ${Object.keys(classificationsByCategory).length} categorias e ${classifications.length} pilotos`);
     } catch (error) {
-      // Silently handle error
+      console.error('❌ [CACHE] Erro ao cachear classificação da temporada:', error);
+      throw error;
     }
   }
 
@@ -868,19 +907,22 @@ export class ChampionshipClassificationService {
    */
   async getSeasonClassificationOptimized(seasonId: string) {
     try {
+      console.log(`🔍 [CLASSIFICATION] Buscando classificação otimizada para temporada ${seasonId}`);
+      
       // Buscar dados do Redis de forma otimizada
       const cachedClassification = await this.redisService.getSeasonClassification(seasonId);
       
       if (cachedClassification) {
+        console.log(`✅ [CLASSIFICATION] Dados encontrados no Redis para temporada ${seasonId}`);
         
         // A estrutura do Redis é: classificationsByCategory[categoryId] = [classification1, classification2, ...]
         // Precisamos transformar para: classificationsByCategory[categoryId] = { category, pilots: [...] }
         
-        // Coletar todos os userIds para buscar dados dos usuários
+        // Coletar todos os user ids para buscar dados dos usuários
         const allClassifications = Object.values(cachedClassification.classificationsByCategory || {})
           .flat() as any[];
         
-        const userIds = allClassifications.map((classification: any) => classification.userId);
+        const userIds = allClassifications.map((classification: any) => classification.user.id);
         
         if (userIds.length > 0) {
           // Buscar dados dos usuários em lote do Redis
@@ -896,7 +938,7 @@ export class ChampionshipClassificationService {
               
               // Enriquecer cada classificação com dados do usuário
               const enrichedPilots = classifications.map((classification: any) => {
-                const userData = usersData.find(u => u.id === classification.userId);
+                const userData = usersData.find(u => u.id === classification.user.id);
                 return {
                   ...classification,
                   user: userData || classification.user
@@ -910,16 +952,22 @@ export class ChampionshipClassificationService {
             }
           });
           
-          return {
+          const result = {
             ...cachedClassification,
             classificationsByCategory: transformedClassificationsByCategory
           };
+          
+          console.log(`📊 [CLASSIFICATION] Retornando ${Object.keys(transformedClassificationsByCategory).length} categorias com ${allClassifications.length} pilotos`);
+          
+          return result;
         } else {
+          console.log(`⚠️ [CLASSIFICATION] Nenhum piloto encontrado para temporada ${seasonId}`);
           return cachedClassification;
         }
       }
       
       // Se não há dados no cache, retornar estrutura vazia
+      console.log(`⚠️ [CLASSIFICATION] Nenhum dado encontrado no Redis para temporada ${seasonId}`);
       return {
         lastUpdated: new Date().toISOString(),
         totalCategories: 0,
@@ -928,23 +976,8 @@ export class ChampionshipClassificationService {
       };
       
     } catch (error) {
+      console.error('❌ [CLASSIFICATION] Erro ao buscar classificação da temporada:', error);
       throw new Error('Erro ao buscar classificação da temporada');
     }
   }
 }
-
-/**
- * CACHE REDIS REMOVIDO - RESUMO DAS ALTERAÇÕES:
- * 
- * 1. Removidos todos os métodos de cache Redis para classificação
- * 2. Métodos de busca agora sempre consultam diretamente o banco de dados
- * 3. Eliminadas todas as operações de cache e invalidação
- * 4. Simplificada a lógica de atualização removendo operações de Redis
- * 
- * BENEFÍCIOS:
- * - Código mais simples e direto
- * - Menos complexidade de manutenção
- * - Sempre dados atualizados diretamente do banco
- * - Eliminação de possíveis inconsistências entre cache e banco
- * - Redução da dependência do Redis para classificações
- */

@@ -223,10 +223,37 @@ export class ChampionshipClassificationController extends BaseController {
 
     /**
      * @swagger
+     * /classification/season/{seasonId}/update-cache:
+     *   post:
+     *     summary: Atualizar cache da classificação de uma temporada
+     *     tags: [Classification]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: seasonId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da temporada
+     *     responses:
+     *       200:
+     *         description: Cache da classificação atualizado com sucesso
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Temporada não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/season/:seasonId/update-cache', authMiddleware, this.updateSeasonClassificationCache.bind(this));
+
+    /**
+     * @swagger
      * /classification/season/{seasonId}/optimized:
      *   get:
-     *     summary: Buscar classificação otimizada da temporada (cache Redis)
-     *     description: Retorna classificação da temporada usando dados em cache do Redis para máxima performance
+     *     summary: Buscar classificação otimizada da temporada (dados do Redis)
      *     tags: [Classification]
      *     security:
      *       - bearerAuth: []
@@ -282,6 +309,45 @@ export class ChampionshipClassificationController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.get('/season/:seasonId/optimized', authMiddleware, this.getSeasonClassificationOptimized.bind(this));
+
+    /**
+     * @swagger
+     * /classification/season/{seasonId}/redis:
+     *   get:
+     *     summary: Buscar classificação diretamente do Redis (alta performance)
+     *     tags: [Classification]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: seasonId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da temporada
+     *     responses:
+     *       200:
+     *         description: Classificação da temporada diretamente do Redis
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                   example: "Classificação da temporada recuperada do Redis"
+     *                 data:
+     *                   type: object
+     *                   description: Dados da classificação em formato raw do Redis
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Temporada não encontrada ou classificação não disponível
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.get('/season/:seasonId/redis', authMiddleware, this.getSeasonClassificationFromRedis.bind(this));
   }
 
   private async getClassificationBySeasonAndCategory(req: Request, res: Response): Promise<void> {
@@ -424,6 +490,65 @@ export class ChampionshipClassificationController extends BaseController {
         res.status(404).json({ message: error.message });
       } else {
         console.error('Error getting season classification optimized:', error);
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
+    }
+  }
+
+  private async getSeasonClassificationFromRedis(req: Request, res: Response): Promise<void> {
+    try {
+      const { seasonId } = req.params;
+
+      if (!seasonId) {
+        throw new BadRequestException('seasonId é obrigatório');
+      }
+
+      const classification = await this.classificationService.getSeasonClassificationFromCache(seasonId);
+
+      res.json({
+        message: 'Classificação da temporada recuperada do Redis',
+        data: classification
+      });
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
+        console.error('Error getting season classification from Redis:', error);
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
+    }
+  }
+
+  private async updateSeasonClassificationCache(req: Request, res: Response): Promise<void> {
+    try {
+      const { seasonId } = req.params;
+      const userId = req.user?.id;
+
+      if (!seasonId) {
+        throw new BadRequestException('seasonId é obrigatório');
+      }
+
+      if (!userId) {
+        throw new BadRequestException('Usuário não autenticado');
+      }
+
+      // TODO: Adicionar verificação de permissão (apenas admins/managers do campeonato)
+      // await this.validateChampionshipPermission(championshipId, userId);
+
+      await this.classificationService.cacheSeasonClassificationInRedis(seasonId);
+
+      res.json({
+        message: 'Cache da classificação da temporada atualizado com sucesso'
+      });
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
+        console.error('Error updating season classification cache:', error);
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }
