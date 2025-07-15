@@ -185,7 +185,7 @@ export class CreateCategoryDto extends BaseDto {
   @IsOptional()
   @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Quantidade de descarte deve ser um número inteiro' })
-  @Min(1, { message: 'Quantidade de descarte deve ser maior que 0' })
+  @Min(0, { message: 'Quantidade de descarte deve ser maior que 0' })
   discardingQuantity?: number;
 
   @IsUUID('4', { message: 'ID da temporada deve ser um UUID válido' })
@@ -304,7 +304,7 @@ export class UpdateCategoryDto extends BaseDto {
   @IsOptional()
   @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
   @IsInt({ message: 'Quantidade de descarte deve ser um número inteiro' })
-  @Min(1, { message: 'Quantidade de descarte deve ser maior que 0' })
+  @Min(0, { message: 'Quantidade de descarte deve ser maior que 0' })
   discardingQuantity?: number;
 
   @IsOptional()
