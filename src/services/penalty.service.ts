@@ -40,9 +40,9 @@ export class PenaltyService {
       throw new NotFoundException('Penalty not found');
     }
 
-    // Permitir aplicar apenas se estiver pendente ou cancelada
-    if (penalty.status !== PenaltyStatus.PENDING && penalty.status !== PenaltyStatus.CANCELLED) {
-      throw new BadRequestException('Penalty can only be applied if it is pending or cancelled');
+    // Permitir aplicar se estiver pendente, cancelada ou recorrida
+    if (penalty.status !== PenaltyStatus.PENDING && penalty.status !== PenaltyStatus.CANCELLED && penalty.status !== PenaltyStatus.APPEALED) {
+      throw new BadRequestException('Penalty can only be applied if it is pending, cancelled or appealed');
     }
 
     const updatedPenalty = await this.penaltyRepository.update(id, {

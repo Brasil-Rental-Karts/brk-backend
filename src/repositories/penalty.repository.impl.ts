@@ -8,6 +8,15 @@ export class PenaltyRepositoryImpl extends BaseRepositoryImpl<Penalty> implement
     super(repository);
   }
 
+  async create(item: Partial<Penalty>): Promise<Penalty> {
+    const newItem = this.repository.create(item);
+    const savedItem = await this.repository.save(newItem);
+    
+    // Retornar o item com todas as relações carregadas
+    const penaltyWithRelations = await this.findById(savedItem.id);
+    return penaltyWithRelations || savedItem;
+  }
+
   async findById(id: string): Promise<Penalty | null> {
     return this.repository.findOne({
       where: { id },
