@@ -214,9 +214,9 @@ export class ChampionshipClassificationService {
       // Calcular pódios por bateria
       const podiumsByBattery = new Map<string, Set<string>>();
       
-      for (const [batteryIndex, batteryResults] of batteriesByIndex) {
+      for (const [batteryIndex, batteryPilots] of batteriesByIndex) {
         // Ordenar pilotos desta bateria por posição de chegada
-        const sortedPilots = batteryResults.sort((a, b) => a.data.finishPosition - b.data.finishPosition);
+        const sortedPilots = batteryPilots.sort((a, b) => a.data.finishPosition - b.data.finishPosition);
         
         // Os 5 primeiros são pódio (1º, 2º, 3º, 4º, 5º)
         const podiumPilots = sortedPilots.slice(0, 5);
@@ -265,7 +265,27 @@ export class ChampionshipClassificationService {
         userStats.wins += stageWins;
         userStats.podiums += stagePodiums;
         
-        if (result.polePosition) userStats.polePositions += 1;
+        // Contar poles por bateria (assim como pódios)
+        let stagePoles = 0;
+        for (const [batteryIndex, podiumPilotIds] of podiumsByBattery) {
+          const pilotBatteryData = batteryResults.find(r => r.pilotId === userId && r.batteryIndex === batteryIndex);
+          if (pilotBatteryData) {
+            const startPosition = pilotBatteryData.data.startPosition;
+            if (startPosition !== undefined && startPosition !== null) {
+              // Verificar se esta bateria teve pole position (melhor largada da bateria)
+              const batteryBestStartPosition = Math.min(...batteryResults
+                .filter(r => r.batteryIndex === batteryIndex)
+                .map(r => r.data.startPosition)
+                .filter(pos => pos !== undefined && pos !== null)
+              );
+              if (startPosition === batteryBestStartPosition) {
+                stagePoles += 1;
+              }
+            }
+          }
+        }
+        userStats.polePositions += stagePoles;
+        
         if (result.fastestLapCount) userStats.fastestLaps += result.fastestLapCount;
         
         userStats.positions.push(result.position);
@@ -401,11 +421,11 @@ export class ChampionshipClassificationService {
     // Encontrar fastest lap de cada bateria
     const fastestLapByBattery = new Map<string, { pilotId: string, lapTimeMs: number }>();
     
-    for (const [batteryIndex, batteryResults] of batteriesByIndex) {
+    for (const [batteryIndex, batteryPilots] of batteriesByIndex) {
       let fastestLapMs = Infinity;
       let fastestLapPilot = '';
       
-      for (const { pilotId, data } of batteryResults) {
+      for (const { pilotId, data } of batteryPilots) {
         if (data.bestLap) {
           const lapTimeMs = this.convertLapTimeToMs(data.bestLap);
           if (lapTimeMs < fastestLapMs) {
