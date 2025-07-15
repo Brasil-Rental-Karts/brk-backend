@@ -747,7 +747,8 @@ export class RedisService {
         trackLayoutId: data.trackLayoutId || '',
         streamLink: data.streamLink || '',
         briefing: data.briefing || '',
-        seasonId: data.seasonId
+        seasonId: data.seasonId,
+        stageResults: data.stageResults ? JSON.stringify(data.stageResults) : ''
       };
 
       // Store stage data as Redis Hash
@@ -787,7 +788,7 @@ export class RedisService {
     }
 
       // Convert date string back to Date object
-      return {
+      const result: any = {
         id: data.id,
         name: data.name,
         date: new Date(data.date),
@@ -798,6 +799,18 @@ export class RedisService {
         briefing: data.briefing || '',
         seasonId: data.seasonId
       };
+
+      // Parse stageResults if it exists
+      if (data.stageResults) {
+        try {
+          result.stageResults = JSON.parse(data.stageResults);
+        } catch (error) {
+          // If parsing fails, set as empty object
+          result.stageResults = {};
+        }
+      }
+
+      return result;
     } catch (error) {
       // console.error('Error getting cached stage basic info:', error);
       return null;
@@ -836,17 +849,31 @@ export class RedisService {
       return results
         .map((result: any) => result[1]) // Get the actual data from pipeline result
         .filter((data: any) => data && Object.keys(data).length > 0)
-        .map((data: any) => ({
-          id: data.id,
-          name: data.name,
-          date: new Date(data.date),
-          time: data.time,
-          raceTrackId: data.raceTrackId,
-          trackLayoutId: data.trackLayoutId || '',
-          streamLink: data.streamLink || '',
-          briefing: data.briefing || '',
-          seasonId: data.seasonId
-        }));
+        .map((data: any) => {
+          const stageData: any = {
+            id: data.id,
+            name: data.name,
+            date: new Date(data.date),
+            time: data.time,
+            raceTrackId: data.raceTrackId,
+            trackLayoutId: data.trackLayoutId || '',
+            streamLink: data.streamLink || '',
+            briefing: data.briefing || '',
+            seasonId: data.seasonId
+          };
+
+          // Parse stageResults if it exists
+          if (data.stageResults) {
+            try {
+              stageData.stageResults = JSON.parse(data.stageResults);
+            } catch (error) {
+              // If parsing fails, set as empty object
+              stageData.stageResults = {};
+            }
+          }
+
+          return stageData;
+        });
     } catch (error) {
       // console.error('Error getting multiple stages from cache:', error);
       return [];

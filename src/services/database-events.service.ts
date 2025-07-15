@@ -3,6 +3,7 @@ import { RedisService } from './redis.service';
 import { redisConfig } from '../config/redis.config';
 import { AppDataSource } from '../config/database.config';
 import { Championship } from '../models/championship.entity';
+import { Stage } from '../models/stage.entity';
 import { ChampionshipClassificationService } from './championship-classification.service';
 import { UserRepository } from '../repositories/user.repository';
 import { MemberProfileRepository } from '../repositories/member-profile.repository';
@@ -226,8 +227,29 @@ export class DatabaseEventsService {
         switch (event.operation) {
           case 'INSERT':
           case 'UPDATE':
-            // Cache the stage info with season relationship
-            if (event.data && event.data.id) {
+            // Check if we received a large payload notification (only ID)
+            if (event.large_payload && event.data && event.data.id) {
+              // Fetch the full stage data from PostgreSQL
+              const stageRepo = AppDataSource.getRepository(Stage);
+              const fullStage = await stageRepo.findOneBy({ id: event.data.id });
+
+              if (fullStage) {
+                const stageInfo = {
+                  id: fullStage.id,
+                  name: fullStage.name,
+                  date: fullStage.date,
+                  time: fullStage.time,
+                  raceTrackId: fullStage.raceTrackId,
+                  trackLayoutId: fullStage.trackLayoutId,
+                  streamLink: fullStage.streamLink,
+                  briefing: fullStage.briefing,
+                  seasonId: fullStage.seasonId,
+                  stageResults: fullStage.stage_results
+                };
+                await this.redisService.cacheStageBasicInfo(fullStage.id, stageInfo);
+              }
+            } else if (event.data && event.data.id) {
+              // Cache the stage info with season relationship (normal payload)
               const stageInfo = {
                 id: event.data.id,
                 name: event.data.name,
@@ -237,7 +259,8 @@ export class DatabaseEventsService {
                 trackLayoutId: event.data.trackLayoutId,
                 streamLink: event.data.streamLink,
                 briefing: event.data.briefing,
-                seasonId: event.data.seasonId
+                seasonId: event.data.seasonId,
+                stageResults: event.data.stage_results
               };
               await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
             }
