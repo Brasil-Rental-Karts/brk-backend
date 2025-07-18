@@ -27,12 +27,13 @@ const LOCAL_CONFIG = {
 };
 
 // Ordem das tabelas para respeitar as constraints de chave estrangeira
-// Atualizada com as novas tabelas identificadas nas migrações recentes
+// Atualizada com todas as novas tabelas identificadas nas migrações recentes
 const TABLES_ORDER = [
   // Tabelas independentes (sem FK) - ordem alfabética
   'Championships',
   'GridTypes',
   'RaceTracks',
+  'Regulations',
   'ScoringSystem',
   'Users',
   'vip_preregister',
@@ -45,7 +46,6 @@ const TABLES_ORDER = [
   // Tabelas com dependências de segundo nível
   'Categories', // FK: seasonId
   'ChampionshipStaff', // FK: championshipId, userId
-  'Regulations', // FK: seasonId
   'Stages', // FK: seasonId
   
   // Tabelas com dependências de terceiro nível
@@ -59,7 +59,10 @@ const TABLES_ORDER = [
   // Tabelas de pagamento e resultados (dependem de registrations e stages)
   'AsaasPayments', // FK: seasonRegistrationId
   'lap_times', // FK: stageId, userId
-  'ChampionshipClassification', // FK: championshipId, userId
+  
+  // Tabelas de classificação e penalidades (dependem de múltiplas tabelas)
+  'ChampionshipClassification', // FK: championshipId, userId, seasonId, categoryId
+  'penalties', // FK: championshipId, userId, seasonId, stageId, categoryId, appliedByUserId, appealedByUserId
 ];
 
 async function createConnection(config: any): Promise<Client> {

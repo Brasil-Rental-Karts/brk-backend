@@ -139,7 +139,7 @@ export class StageParticipationService {
   }
 
   /**
-   * Confirmar participação do usuário em uma etapa
+   * Confirmar participação do usuário em uma etapa (com validações de pagamento)
    */
   async confirmParticipation(data: CreateParticipationData): Promise<StageParticipation> {
     const { userId, stageId, categoryId } = data;
@@ -172,6 +172,89 @@ export class StageParticipationService {
 
     // Validar status de pagamento para temporadas por_temporada e por_etapa
     await this.validatePaymentForParticipation(registration, season, stageId);
+
+    // Verificar se o usuário está inscrito na categoria específica
+    const hasCategory = registration.categories.some(regCategory => 
+      regCategory.categoryId === categoryId
+    );
+
+    if (!hasCategory) {
+      throw new BadRequestException('Usuário não está inscrito nesta categoria');
+    }
+
+    // Verificar se a categoria está disponível na etapa
+    // categoryIds pode ser string ou array, então vamos normalizar
+    const stageCategoryIds = Array.isArray(stage.categoryIds) 
+      ? stage.categoryIds 
+      : stage.categoryIds ? (stage.categoryIds as string).split(',').map(id => id.trim()) : [];
+    
+    if (!stageCategoryIds.includes(categoryId)) {
+      throw new BadRequestException('Esta categoria não está disponível nesta etapa');
+    }
+
+    // Verificar se já existe participação
+    const existingParticipation = await this.participationRepository.findOne({
+      where: { userId, stageId, categoryId }
+    });
+
+    if (existingParticipation) {
+      if (existingParticipation.status === ParticipationStatus.CONFIRMED) {
+        throw new BadRequestException('Participação já confirmada para esta etapa');
+      } else {
+        // Reativar participação cancelada
+        existingParticipation.status = ParticipationStatus.CONFIRMED;
+        existingParticipation.confirmedAt = new Date();
+        existingParticipation.cancelledAt = null;
+        existingParticipation.cancellationReason = null;
+        return await this.participationRepository.save(existingParticipation);
+      }
+    }
+
+    // Criar nova participação
+    const participation = this.participationRepository.create({
+      userId,
+      stageId,
+      categoryId,
+      status: ParticipationStatus.CONFIRMED,
+      confirmedAt: new Date()
+    });
+
+    return await this.participationRepository.save(participation);
+  }
+
+  /**
+   * Confirmar participação do usuário em uma etapa (sem validações de pagamento - para uso administrativo)
+   */
+  async confirmParticipationAdmin(data: CreateParticipationData): Promise<StageParticipation> {
+    const { userId, stageId, categoryId } = data;
+
+    // Verificar se a etapa existe
+    const stage = await this.stageRepository.findOne({ where: { id: stageId } });
+    if (!stage) {
+      throw new NotFoundException('Etapa não encontrada');
+    }
+
+    // Buscar informações da temporada
+    const season = await this.seasonRepository.findOne({ where: { id: stage.seasonId } });
+    if (!season) {
+      throw new NotFoundException('Temporada não encontrada');
+    }
+
+    // Verificar se o usuário está inscrito na temporada da etapa (sem validar pagamento)
+    const registration = await this.registrationRepository.findOne({
+      where: { 
+        userId, 
+        seasonId: stage.seasonId,
+        status: In([RegistrationStatus.CONFIRMED, RegistrationStatus.PAYMENT_PENDING])
+      },
+      relations: ['categories', 'categories.category']
+    });
+
+    if (!registration) {
+      throw new BadRequestException('Usuário não está inscrito nesta temporada');
+    }
+
+    // NÃO validar status de pagamento - permitir confirmação de qualquer piloto
 
     // Verificar se o usuário está inscrito na categoria específica
     const hasCategory = registration.categories.some(regCategory => 

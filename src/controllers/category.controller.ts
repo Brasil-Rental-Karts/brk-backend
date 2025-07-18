@@ -459,7 +459,7 @@ export class CategoryController extends BaseController {
   private async getCategoriesBySeasonId(req: Request, res: Response): Promise<void> {
     try {
       const { seasonId } = req.params;
-      const categories = await this.categoryService.findBySeasonId(seasonId);
+      const categories = await this.categoryService.findBySeasonIdWithRegistrationCount(seasonId);
       res.status(200).json(categories);
     } catch (error) {
       console.error('Erro ao buscar categorias por temporada:', error);

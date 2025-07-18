@@ -153,18 +153,12 @@ export class PenaltyController extends BaseController {
 
   async createPenalty(req: Request, res: Response): Promise<void> {
     try {
-      console.log('Creating penalty - Request body:', req.body);
-      console.log('Creating penalty - User:', req.user);
-      
       const data: CreatePenaltyDto = req.body;
       const appliedByUserId = req.user?.id;
 
       if (!appliedByUserId) {
         throw new BadRequestException('User not authenticated');
       }
-
-      console.log('Creating penalty - Data:', data);
-      console.log('Creating penalty - Applied by user ID:', appliedByUserId);
 
       const penalty = await this.penaltyService.createPenalty(data, appliedByUserId);
       res.status(201).json(penalty);

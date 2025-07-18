@@ -1,6 +1,6 @@
 import { BaseService } from './base.service';
 import { Category } from '../models/category.entity';
-import { CategoryRepository } from '../repositories/category.repository';
+import { CategoryRepository, CategoryWithRegistrationCount } from '../repositories/category.repository';
 import { validateBatteriesConfig } from '../types/category.types';
 import { RedisService } from './redis.service';
 import { SeasonService } from './season.service';
@@ -12,6 +12,7 @@ export interface CategoryCacheData {
   maxPilots: number;
   minimumAge: number;
   seasonId: string;
+  registrationCount?: number;
 }
 
 export class CategoryService extends BaseService<Category> {
@@ -96,6 +97,27 @@ export class CategoryService extends BaseService<Category> {
     return this.categoryRepository.findBySeasonId(seasonIdOrSlug);
   }
 
+  async findBySeasonIdWithRegistrationCount(seasonIdOrSlug: string): Promise<CategoryWithRegistrationCount[]> {
+    // Try to resolve season by slug or ID if season service is available
+    if (this.seasonService) {
+      try {
+        const season = await this.seasonService.findBySlugOrId(seasonIdOrSlug);
+        if (season) {
+          return this.categoryRepository.findBySeasonIdWithRegistrationCount(season.id);
+        }
+      } catch (error) {
+        console.error('Error resolving season by slug/ID:', error);
+      }
+    }
+    
+    // Fallback to direct ID lookup
+    return this.categoryRepository.findBySeasonIdWithRegistrationCount(seasonIdOrSlug);
+  }
+
+  async findByIdsWithRegistrationCount(categoryIds: string[]): Promise<CategoryWithRegistrationCount[]> {
+    return this.categoryRepository.findByIdsWithRegistrationCount(categoryIds);
+  }
+
   async findByStageId(stageId: string): Promise<Category[]> {
     // First, get the stage to find its categoryIds
     if (!this.stageService) {
@@ -110,6 +132,23 @@ export class CategoryService extends BaseService<Category> {
 
     // Get all categories that are in the stage's categoryIds
     const categories = await this.categoryRepository.findByIds(stage.categoryIds);
+    return categories;
+  }
+
+  async findByStageIdWithRegistrationCount(stageId: string): Promise<CategoryWithRegistrationCount[]> {
+    // First, get the stage to find its categoryIds
+    if (!this.stageService) {
+      throw new Error('Stage service not available');
+    }
+    
+    const stage = await this.stageService.findById(stageId);
+    
+    if (!stage || !stage.categoryIds || stage.categoryIds.length === 0) {
+      return [];
+    }
+
+    // Get all categories that are in the stage's categoryIds with registration count
+    const categories = await this.categoryRepository.findByIdsWithRegistrationCount(stage.categoryIds);
     return categories;
   }
 
@@ -209,56 +248,33 @@ export class CategoryService extends BaseService<Category> {
   async validateCategoryData(data: any, isUpdate: boolean = false): Promise<string[]> {
     const errors: string[] = [];
 
-    if (!isUpdate || data.name !== undefined) {
-      if (!data.name || typeof data.name !== 'string') {
-        errors.push('Nome da categoria é obrigatório e deve ser uma string');
-      } else if (data.name.length > 75) {
-        errors.push('Nome da categoria deve ter no máximo 75 caracteres');
-      }
+    // Validações básicas
+    if (!data.name || data.name.trim().length === 0) {
+      errors.push('Nome da categoria é obrigatório');
+    } else if (data.name.length > 75) {
+      errors.push('Nome da categoria deve ter no máximo 75 caracteres');
     }
 
-    if (!isUpdate || data.ballast !== undefined) {
-      if (typeof data.ballast !== 'number' || data.ballast < 0 || data.ballast > 999) {
-        errors.push('Lastro deve ser um número entre 0 e 999');
-      }
+    if (!data.ballast || isNaN(data.ballast) || data.ballast < 0) {
+      errors.push('Lastro deve ser um número positivo');
     }
 
-    if (!isUpdate || data.maxPilots !== undefined) {
-      if (!Number.isInteger(data.maxPilots) || data.maxPilots < 0 || data.maxPilots > 999) {
-        errors.push('Máximo de pilotos deve ser um número inteiro entre 0 e 999');
-      }
+    if (!data.maxPilots || isNaN(data.maxPilots) || data.maxPilots <= 0) {
+      errors.push('Máximo de pilotos deve ser um número positivo');
     }
 
-    if (!isUpdate || data.batteriesConfig !== undefined) {
-      if (!Array.isArray(data.batteriesConfig)) {
-        errors.push('Configuração de baterias deve ser um array');
-      } else {
-        const batteryErrors = validateBatteriesConfig(data.batteriesConfig);
-        errors.push(...batteryErrors);
-      }
+    if (!data.minimumAge || isNaN(data.minimumAge) || data.minimumAge < 0) {
+      errors.push('Idade mínima deve ser um número positivo');
     }
 
-    if (!isUpdate || data.minimumAge !== undefined) {
-      if (!Number.isInteger(data.minimumAge) || data.minimumAge < 0 || data.minimumAge > 999) {
-        errors.push('Idade mínima deve ser um número inteiro entre 0 e 999');
-      }
+    if (!data.seasonId) {
+      errors.push('Temporada é obrigatória');
     }
 
-    if (!isUpdate || data.seasonId !== undefined) {
-      if (!data.seasonId || typeof data.seasonId !== 'string') {
-        errors.push('ID da temporada é obrigatório e deve ser uma string');
-      }
-    }
-
-    // Validações para descarte
-    if (data.allowDiscarding !== undefined && data.allowDiscarding) {
-      if (!data.discardingType || (data.discardingType !== 'bateria' && data.discardingType !== 'etapa')) {
-        errors.push('Tipo de descarte deve ser "bateria" ou "etapa"');
-      }
-      
-      if (data.discardingQuantity === undefined || data.discardingQuantity < 1) {
-        errors.push('Quantidade de descarte deve ser maior que 0');
-      }
+    // Validação da configuração de baterias
+    if (data.batteriesConfig) {
+      const batteryErrors = validateBatteriesConfig(data.batteriesConfig);
+      errors.push(...batteryErrors);
     }
 
     return errors;

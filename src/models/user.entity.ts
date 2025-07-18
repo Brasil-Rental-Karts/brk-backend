@@ -1,5 +1,6 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, OneToOne } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { MemberProfile } from './member-profile.entity';
 
 export enum UserRole {
   MEMBER = 'Member',
@@ -54,4 +55,8 @@ export class User extends BaseEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   emailConfirmationExpires?: Date;
+
+  // Relations
+  @OneToOne(() => MemberProfile, memberProfile => memberProfile.user)
+  memberProfile?: MemberProfile;
 } 
