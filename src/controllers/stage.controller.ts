@@ -545,7 +545,9 @@ export class StageController extends BaseController {
   private async getStagesBySeasonId(req: Request, res: Response): Promise<void> {
     try {
       const { seasonId } = req.params;
+      
       const stages = await this.stageService.findBySeasonId(seasonId);
+      
       res.json(stages);
     } catch (error: any) {
       res.status(500).json({ message: error.message });

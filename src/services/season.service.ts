@@ -70,7 +70,6 @@ export class SeasonService extends BaseService<Season> {
       // Verifica se é um UUID
       const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
       
-      
       let season: Season | null = null;
       
       if (isUUID) {
@@ -85,7 +84,6 @@ export class SeasonService extends BaseService<Season> {
         if (!paymentMethods || paymentMethods.length === 0) {
           console.warn(`⚠️ [BACKEND] Temporada ${season.id} sem métodos de pagamento válidos, usando PIX como padrão`);
         }
-      } else {
       }
       
       return season;

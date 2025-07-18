@@ -61,6 +61,7 @@ export class StageService {
     const stages = await this.stageRepository.find({
       order: { date: 'ASC', time: 'ASC' }
     });
+    
     return stages.map(stage => this.formatTimeFields(stage));
   }
 
@@ -356,15 +357,12 @@ export class StageService {
     
     // AUTOMATICAMENTE recalcular toda a classificação da temporada
     try {
-      console.log(`🔄 [TRIGGER] Detecção de alteração em stage_results para etapa ${id}`);
       
       // Recalcular classificação completa da temporada
       await this.classificationService.recalculateSeasonClassification(stage.seasonId);
       
       // Persistir resultado no Redis usando o hash season:{seasonId}
       await this.persistClassificationToRedis(stage.seasonId);
-      
-      console.log(`✅ [TRIGGER] Classificação da temporada ${stage.seasonId} recalculada e persistida no Redis`);
       
     } catch (error) {
       console.error('❌ [TRIGGER] Erro ao recalcular classificação da temporada:', error);
@@ -386,7 +384,6 @@ export class StageService {
         // Persistir no Redis usando o método existente
         await this.redisService.cacheSeasonClassification(seasonId, classificationData);
         
-        console.log(`💾 [REDIS] Classificação da temporada ${seasonId} persistida no Redis`);
       }
     } catch (error) {
       console.error('❌ [REDIS] Erro ao persistir classificação no Redis:', error);
