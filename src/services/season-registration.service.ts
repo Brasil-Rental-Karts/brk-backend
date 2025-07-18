@@ -871,11 +871,11 @@ export class SeasonRegistrationService {
     registration.seasonId = data.seasonId;
     registration.amount = data.amount;
     registration.paymentStatus = data.paymentStatus as PaymentStatus;
-    registration.status = data.paymentStatus === 'exempt' ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
+    registration.status = (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
     registration.paymentMethod = data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
     
     // Definir datas baseadas no status
-    if (data.paymentStatus === 'exempt') {
+    if (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') {
       registration.confirmedAt = new Date();
     }
 
@@ -962,11 +962,11 @@ export class SeasonRegistrationService {
     // Atualizar dados da inscrição
     existingRegistration.amount = data.amount;
     existingRegistration.paymentStatus = data.paymentStatus as PaymentStatus;
-    existingRegistration.status = data.paymentStatus === 'exempt' ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
+    existingRegistration.status = (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
     existingRegistration.paymentMethod = data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
     
     // Definir datas baseadas no status
-    if (data.paymentStatus === 'exempt') {
+    if (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') {
       existingRegistration.confirmedAt = new Date();
     }
 
