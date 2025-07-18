@@ -238,12 +238,51 @@ export class UserService extends BaseService<User> {
   }
 
   async preloadAllUsersToCache(): Promise<void> {
-    // Get all users from database
-    const allUsers = await this.userRepository.findAll();
+    // Get all users with their MemberProfiles in a single optimized query
+    const allUsersWithProfiles = await this.userRepository.findAllWithMemberProfiles();
     
-    // Cache all users
-    for (const user of allUsers) {
-      await this.cacheUserBasicInfo(user.id);
+    if (allUsersWithProfiles.length === 0) {
+      return;
+    }
+
+    // Process users in batches of 100 to avoid memory issues
+    const batchSize = 100;
+    const batches: User[][] = [];
+    
+    for (let i = 0; i < allUsersWithProfiles.length; i += batchSize) {
+      batches.push(allUsersWithProfiles.slice(i, i + batchSize));
+    }
+
+    // Process each batch
+    for (const batch of batches) {
+      await this.cacheUsersBatch(batch);
+    }
+  }
+
+  private async cacheUsersBatch(users: User[]): Promise<void> {
+    try {
+      // Prepare user data for Redis pipeline
+      const userDataArray = users.map((user) => {
+        // Get nickname from MemberProfile if exists (already loaded in the query)
+        const nickname = (user as any).memberProfile?.nickName || '';
+
+        return {
+          userId: user.id,
+          userData: {
+            id: user.id,
+            name: user.name,
+            profilePicture: user.profilePicture || '',
+            active: user.active,
+            nickname: nickname
+          }
+        };
+      });
+
+      // Use Redis pipeline for batch operations
+      await this.redisService.cacheMultipleUsersBasicInfo(userDataArray);
+    } catch (error) {
+      console.error('Error caching users batch:', error);
+      // Continue with other batches even if one fails
     }
   }
 

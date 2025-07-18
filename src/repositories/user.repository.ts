@@ -22,4 +22,11 @@ export class UserRepository extends BaseRepositoryImpl<User> {
   async findByEmailConfirmationToken(token: string): Promise<User | null> {
     return this.repository.findOne({ where: { emailConfirmationToken: token } });
   }
+
+  async findAllWithMemberProfiles(): Promise<User[]> {
+    return this.repository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.memberProfile', 'memberProfile')
+      .getMany();
+  }
 } 

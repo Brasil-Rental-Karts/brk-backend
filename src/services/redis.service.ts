@@ -1427,6 +1427,49 @@ export class RedisService {
     }
   }
 
+  // Cache multiple users at once using Redis pipeline (ultra-fast)
+  async cacheMultipleUsersBasicInfo(userDataArray: Array<{userId: string, userData: any}>): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      if (userDataArray.length === 0) {
+        return true;
+      }
+
+      // Use Redis pipeline for batch operations
+      const pipeline = this.client.multi();
+      
+      userDataArray.forEach(({userId, userData}) => {
+        const userKey = `user:${userId}`;
+        const redisUserData = {
+          id: userData.id,
+          name: userData.name,
+          profilePicture: userData.profilePicture || '',
+          active: userData.active ? 'true' : 'false',
+          nickname: userData.nickname || ''
+        };
+
+        // Store user data as Redis Hash
+        pipeline.hSet(userKey, redisUserData);
+        
+        // Add to global users set for bulk operations
+        pipeline.sAdd('users:all', userId);
+      });
+
+      await pipeline.exec();
+      return true;
+    } catch (error) {
+      // console.error('Error caching multiple users:', error);
+      return false;
+    }
+  }
+
   // Get multiple users at once using Redis pipeline (ultra-fast)
   async getMultipleUsersBasicInfo(userIds: string[]): Promise<any[]> {
     try {
@@ -1512,6 +1555,42 @@ export class RedisService {
     } catch (error) {
       // console.error('Error getting all user IDs:', error);
       return [];
+    }
+  }
+
+  // Cache multiple categories at once using Redis pipeline (ultra-fast)
+  async cacheMultipleCategoriesPilots(categoryPilotsArray: Array<{categoryId: string, pilots: any[]}>): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      if (categoryPilotsArray.length === 0) {
+        return true;
+      }
+
+      // Use Redis pipeline for batch operations
+      const pipeline = this.client.multi();
+      
+      categoryPilotsArray.forEach(({categoryId, pilots}) => {
+        const categoryKey = `category:${categoryId}`;
+        
+        // Extract userIds from pilots
+        const userIds = pilots.map(pilot => pilot.userId);
+        
+        // Update category data with pilots
+        pipeline.hSet(categoryKey, 'pilots', JSON.stringify(userIds));
+      });
+
+      await pipeline.exec();
+      return true;
+    } catch (error) {
+      console.error('Error caching multiple categories pilots:', error);
+      return false;
     }
   }
 

@@ -251,29 +251,54 @@ export class AdminStatsService {
   async updateCategoriesPilotsCache(): Promise<PreloadCategoriesResult> {
     const startTime = Date.now();
     
-    // Buscar todas as categorias
+    // Buscar todas as categorias com suas temporadas em uma única consulta
     const categories = await this.categoryRepository.find({
-      relations: ['season']
+      relations: ['season', 'season.championship']
     });
 
-    let totalPilots = 0;
+    if (categories.length === 0) {
+      return {
+        totalCategories: 0,
+        totalPilots: 0,
+        duration: '0.0s'
+      };
+    }
 
-    // Para cada categoria, buscar os pilotos inscritos
+    // Agrupar categorias por campeonato para otimizar consultas
+    const categoriesByChampionship = new Map<string, any[]>();
     for (const category of categories) {
-      // Buscar todas as temporadas do campeonato da categoria
+      const championshipId = category.season.championshipId;
+      if (!categoriesByChampionship.has(championshipId)) {
+        categoriesByChampionship.set(championshipId, []);
+      }
+      categoriesByChampionship.get(championshipId)!.push(category);
+    }
+
+    let totalPilots = 0;
+    const categoryPilotsArray: Array<{categoryId: string, pilots: any[]}> = [];
+
+    // Processar cada campeonato de uma vez
+    for (const [championshipId, championshipCategories] of categoriesByChampionship) {
+      // Buscar todas as temporadas do campeonato de uma vez
       const seasons = await this.seasonRepository.find({
-        where: { championshipId: category.season.championshipId },
+        where: { championshipId },
         select: ['id']
       });
 
       if (seasons.length === 0) {
-        await this.redisService.cacheCategoryPilots(category.id, []);
+        // Adicionar categorias vazias para este campeonato
+        for (const category of championshipCategories) {
+          categoryPilotsArray.push({
+            categoryId: category.id,
+            pilots: []
+          });
+        }
         continue;
       }
 
       const seasonIds = seasons.map(s => s.id);
 
-      // Buscar todas as inscrições que incluem esta categoria
+      // Buscar todas as inscrições do campeonato com relações em uma única consulta
       const registrations = await this.registrationRepository.find({
         where: { 
           seasonId: In(seasonIds)
@@ -281,16 +306,25 @@ export class AdminStatsService {
         relations: ['user', 'categories', 'categories.category']
       });
 
-      // Filtrar inscrições que incluem esta categoria específica
-      const categoryPilots = registrations.filter(registration =>
-        registration.categories.some(rc => rc.category.id === category.id)
-      );
+      // Processar cada categoria do campeonato
+      for (const category of championshipCategories) {
+        // Filtrar inscrições que incluem esta categoria específica
+        const categoryPilots = registrations.filter(registration =>
+          registration.categories.some(rc => rc.category.id === category.id)
+        );
 
-      // Cachear os pilotos desta categoria
-      await this.redisService.cacheCategoryPilots(category.id, categoryPilots);
-      
-      totalPilots += categoryPilots.length;
+        // Adicionar à lista para cache em batch
+        categoryPilotsArray.push({
+          categoryId: category.id,
+          pilots: categoryPilots
+        });
+        
+        totalPilots += categoryPilots.length;
+      }
     }
+
+    // Cachear todas as categorias de uma vez usando Redis pipeline
+    await this.redisService.cacheMultipleCategoriesPilots(categoryPilotsArray);
 
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(1);
