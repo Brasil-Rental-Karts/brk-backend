@@ -1795,7 +1795,7 @@ export class SeasonRegistrationService {
    * Reativa uma fatura vencida atualizando a data de vencimento e gerando novo QR Code PIX
    */
   async reactivateOverduePayment(paymentId: string, newDueDate: string): Promise<RegistrationPaymentData> {
-    console.log('[DEBUG] Iniciando reativação de pagamento:', { paymentId, newDueDate });
+
     
     // Buscar o pagamento no banco
     const payment = await this.paymentRepository.findOne({
@@ -1804,41 +1804,36 @@ export class SeasonRegistrationService {
     });
 
     if (!payment) {
-      console.log('[DEBUG] Pagamento não encontrado:', paymentId);
+
       throw new BadRequestException('Pagamento não encontrado');
     }
 
-    console.log('[DEBUG] Pagamento encontrado:', {
-      id: payment.id,
-      status: payment.status,
-      billingType: payment.billingType,
-      asaasPaymentId: payment.asaasPaymentId
-    });
+
 
     if (payment.status !== AsaasPaymentStatus.OVERDUE) {
-      console.log('[DEBUG] Pagamento não está vencido:', payment.status);
+
       throw new BadRequestException('Apenas faturas vencidas podem ser reativadas');
     }
 
     if (payment.billingType !== AsaasBillingType.PIX) {
-      console.log('[DEBUG] Pagamento não é PIX:', payment.billingType);
+
       throw new BadRequestException('Apenas pagamentos PIX podem ser reativados');
     }
 
     try {
-      console.log('[DEBUG] Formatando data para Asaas:', newDueDate);
+
       const formattedDate = this.asaasService.formatDateForAsaas(new Date(newDueDate));
-      console.log('[DEBUG] Data formatada:', formattedDate);
+      
 
       // Primeiro, verificar se o pagamento ainda existe no Asaas
-      console.log('[DEBUG] Verificando se pagamento existe no Asaas:', payment.asaasPaymentId);
+      
       let asaasPayment;
       try {
         asaasPayment = await this.asaasService.getPayment(payment.asaasPaymentId);
-        console.log('[DEBUG] Pagamento encontrado no Asaas:', asaasPayment.status);
+        
       } catch (error: any) {
         if (error.message.includes('404')) {
-          console.log('[DEBUG] Pagamento não existe mais no Asaas. Marcando como cancelado.');
+          
           
           // Marcar como cancelado no banco local
           payment.status = AsaasPaymentStatus.REFUNDED;
@@ -1860,20 +1855,14 @@ export class SeasonRegistrationService {
       }
 
       // Reativar no Asaas
-      console.log('[DEBUG] Chamando Asaas para reativar pagamento:', {
-        asaasPaymentId: payment.asaasPaymentId,
-        newDueDate: formattedDate
-      });
+
       
       const result = await this.asaasService.reactivateOverduePayment(
         payment.asaasPaymentId,
         formattedDate
       );
 
-      console.log('[DEBUG] Resultado do Asaas:', {
-        paymentStatus: result.payment.status,
-        qrCodeGenerated: !!result.qrCode
-      });
+
 
       // Atualizar no banco local
       payment.dueDate = formattedDate;
@@ -1882,14 +1871,14 @@ export class SeasonRegistrationService {
       payment.pixCopyPaste = result.qrCode.payload;
       payment.rawResponse = result.payment;
 
-      console.log('[DEBUG] Salvando pagamento atualizado no banco');
+
       await this.paymentRepository.save(payment);
 
       // Atualizar o status da inscrição
-      console.log('[DEBUG] Atualizando status da inscrição');
+
       await this.updateSeasonRegistrationStatus(payment.registrationId);
 
-      console.log('[DEBUG] Reativação concluída com sucesso');
+
 
       return {
         id: payment.id,

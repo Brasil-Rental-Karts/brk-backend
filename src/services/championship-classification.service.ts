@@ -689,7 +689,7 @@ export class ChampionshipClassificationService {
    */
   async recalculateSeasonClassification(seasonId: string): Promise<void> {
     
-    console.log(`🔄 [RECALC] Iniciando recálculo da classificação da temporada ${seasonId}`);
+
     
     const season = await this.seasonRepository.findOne({
       where: { id: seasonId },
@@ -714,7 +714,7 @@ export class ChampionshipClassificationService {
       .andWhere('stage.stage_results != :emptyJson', { emptyJson: '{}' })
       .getMany();
 
-    console.log(`📊 [RECALC] Encontradas ${stages.length} etapas com resultados para processar`);
+
 
     // Processar cada etapa usando o método atualizado
     for (let i = 0; i < stages.length; i++) {
@@ -758,7 +758,7 @@ export class ChampionshipClassificationService {
     // Após recalcular tudo, buscar e cachear a classificação completa no Redis
     await this.cacheSeasonClassificationInRedis(seasonId);
     
-    console.log(`✅ [RECALC] Classificação da temporada ${seasonId} recalculada e persistida no Redis`);
+
   }
 
   /**
@@ -766,7 +766,7 @@ export class ChampionshipClassificationService {
    */
   async cacheSeasonClassificationInRedis(seasonId: string): Promise<void> {
     try {
-      console.log(`💾 [CACHE] Iniciando cache da classificação da temporada ${seasonId}`);
+  
 
       // Buscar todas as classificações da temporada agrupadas por categoria
       const classifications = await this.classificationRepository.find({
@@ -794,11 +794,11 @@ export class ChampionshipClassificationService {
       });
 
       if (classifications.length === 0) {
-        console.log(`⚠️ [CACHE] Nenhuma classificação encontrada para temporada ${seasonId}`);
+  
         return;
       }
 
-      console.log(`📊 [CACHE] Encontradas ${classifications.length} classificações para cache`);
+
 
       // Agrupar classificações por categoria
       const classificationsByCategory: { [categoryId: string]: { pilots: any[] } } = {};
@@ -840,7 +840,7 @@ export class ChampionshipClassificationService {
       // Cachear no Redis
       await this.redisService.cacheSeasonClassification(seasonId, cacheData);
       
-      console.log(`✅ [CACHE] Classificação da temporada ${seasonId} cacheada no Redis com ${Object.keys(classificationsByCategory).length} categorias e ${classifications.length} pilotos`);
+
     } catch (error) {
       console.error('❌ [CACHE] Erro ao cachear classificação da temporada:', error);
       throw error;
@@ -907,13 +907,13 @@ export class ChampionshipClassificationService {
    */
   async getSeasonClassificationOptimized(seasonId: string) {
     try {
-      console.log(`🔍 [CLASSIFICATION] Buscando classificação otimizada para temporada ${seasonId}`);
+  
       
       // Buscar dados do Redis de forma otimizada
       const cachedClassification = await this.redisService.getSeasonClassification(seasonId);
       
       if (cachedClassification) {
-        console.log(`✅ [CLASSIFICATION] Dados encontrados no Redis para temporada ${seasonId}`);
+
         
         // A estrutura do Redis é: classificationsByCategory[categoryId] = [classification1, classification2, ...]
         // Precisamos transformar para: classificationsByCategory[categoryId] = { category, pilots: [...] }
@@ -957,17 +957,17 @@ export class ChampionshipClassificationService {
             classificationsByCategory: transformedClassificationsByCategory
           };
           
-          console.log(`📊 [CLASSIFICATION] Retornando ${Object.keys(transformedClassificationsByCategory).length} categorias com ${allClassifications.length} pilotos`);
+  
           
           return result;
         } else {
-          console.log(`⚠️ [CLASSIFICATION] Nenhum piloto encontrado para temporada ${seasonId}`);
+  
           return cachedClassification;
         }
       }
       
       // Se não há dados no cache, retornar estrutura vazia
-      console.log(`⚠️ [CLASSIFICATION] Nenhum dado encontrado no Redis para temporada ${seasonId}`);
+      
       return {
         lastUpdated: new Date().toISOString(),
         totalCategories: 0,

@@ -5,8 +5,6 @@ import { HttpException } from '../exceptions/http.exception';
 export function validationMiddleware<T extends BaseDto>(dtoClass: new () => T) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      console.log('Validation middleware - Request body:', req.body);
-      console.log('Validation middleware - DTO class:', dtoClass.name);
       
       // Transformar valores numéricos antes da validação
       const transformedBody = { ...req.body };
@@ -27,15 +25,10 @@ export function validationMiddleware<T extends BaseDto>(dtoClass: new () => T) {
       
       const { dto, errors } = await BaseDto.validateDto(dtoClass, transformedBody);
       
-      console.log('Validation middleware - Errors:', errors);
-      
       if (errors.length > 0) {
-        console.log('Validation middleware - Validation failed:', errors.join(', '));
         next(new HttpException(400, errors.join(', ')));
         return;
       }
-      
-      console.log('Validation middleware - Validation passed');
       // Atualizar o req.body com os valores transformados
       req.body = transformedBody;
       next();

@@ -63,15 +63,18 @@ export class App {
   public app: Application;
 
   constructor(controllers: BaseController[]) {
+    console.log(`🏗️ [APP] Inicializando aplicação BRK Backend...`);
     this.app = express();
 
     this.initializeMiddlewares();
     this.initializeSwagger();
     this.initializeControllers(controllers);
     this.initializeErrorHandling();
+    console.log(`✅ [APP] Aplicação inicializada com sucesso`);
   }
 
   private initializeMiddlewares(): void {
+    console.log(`🔧 [MIDDLEWARE] Inicializando middlewares...`);
     this.app.use(helmet({
       contentSecurityPolicy: false, // Disable CSP for Swagger UI
     }));
@@ -109,9 +112,11 @@ export class App {
     this.app.use(cookieParser());
     this.app.use(morgan('dev'));
     this.app.use(loggerMiddleware);
+    console.log(`✅ [MIDDLEWARE] Middlewares configurados com sucesso`);
   }
 
   private initializeSwagger(): void {
+    console.log(`📚 [SWAGGER] Configurando documentação da API...`);
     // Só expõe Swagger se não for produção
     if (process.env.NODE_ENV !== 'production') {
       // Serve Swagger UI com opções customizadas
@@ -137,22 +142,34 @@ export class App {
         res.setHeader('Content-Type', 'application/json');
         res.send(swaggerSpec);
       });
+      console.log(`✅ [SWAGGER] Documentação configurada para ambiente de desenvolvimento`);
+    } else {
+      console.log(`⚠️ [SWAGGER] Documentação desabilitada em produção`);
     }
   }
 
   private initializeControllers(controllers: BaseController[]): void {
+    console.log(`🎮 [CONTROLLERS] Registrando ${controllers.length} controllers...`);
     controllers.forEach((controller) => {
+      console.log(`  📍 [CONTROLLER] ${controller.constructor.name} -> ${controller.path}`);
       this.app.use(controller.path, controller.router);
     });
+    console.log(`✅ [CONTROLLERS] Todos os controllers registrados com sucesso`);
   }
 
   private initializeErrorHandling(): void {
+    console.log(`🛡️ [ERROR] Configurando middleware de tratamento de erros...`);
     this.app.use(errorMiddleware);
+    console.log(`✅ [ERROR] Middleware de erro configurado`);
   }
 
   public listen(port: number): void {
     this.app.listen(port, () => {
-      // Server started successfully
+      console.log(`🚀 [SERVER] Servidor iniciado na porta ${port}`);
+      console.log(`📊 [SERVER] Ambiente: ${config.nodeEnv}`);
+      console.log(`🌐 [SERVER] URLs permitidas: ${config.frontendUrls.join(', ')}`);
+      console.log(`📚 [SERVER] Documentação disponível em: http://localhost:${port}/api-docs`);
+      console.log(`⏰ [SERVER] Data/Hora de inicialização: ${new Date().toISOString()}`);
     });
   }
 }

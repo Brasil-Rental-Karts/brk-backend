@@ -400,7 +400,7 @@ export class AsaasService {
    * Atualiza a data de vencimento de uma cobrança
    */
   async updatePaymentDueDate(paymentId: string, newDueDate: string): Promise<AsaasPaymentResponse> {
-    console.log('[ASAAS DEBUG] Atualizando data de vencimento:', { paymentId, newDueDate });
+
     
     try {
       const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.put(
@@ -408,11 +408,7 @@ export class AsaasService {
         { dueDate: newDueDate }
       );
       
-      console.log('[ASAAS DEBUG] Resposta da API:', {
-        status: response.status,
-        paymentStatus: response.data.status,
-        dueDate: response.data.dueDate
-      });
+
       
       return response.data;
     } catch (error: any) {
@@ -457,18 +453,18 @@ export class AsaasService {
     payment: AsaasPaymentResponse;
     qrCode: { encodedImage: string; payload: string; expirationDate: string };
   }> {
-    console.log('[ASAAS DEBUG] Iniciando reativação:', { paymentId, newDueDate });
+
     
     try {
       // 1. Atualizar a data de vencimento
-      console.log('[ASAAS DEBUG] Atualizando data de vencimento');
+
       const updatedPayment = await this.updatePaymentDueDate(paymentId, newDueDate);
-      console.log('[ASAAS DEBUG] Data atualizada com sucesso:', updatedPayment.status);
+      
       
       // 2. Gerar novo QR Code PIX
-      console.log('[ASAAS DEBUG] Gerando novo QR Code PIX');
+      
       const qrCode = await this.getPixQrCode(paymentId);
-      console.log('[ASAAS DEBUG] QR Code gerado com sucesso');
+      
       
       return {
         payment: updatedPayment,
