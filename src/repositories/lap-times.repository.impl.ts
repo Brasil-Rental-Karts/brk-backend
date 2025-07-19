@@ -82,4 +82,9 @@ export class LapTimesRepositoryImpl extends BaseRepositoryImpl<LapTimes> impleme
 
     await this.repository.delete(where);
   }
+
+  async deleteLapTimesByCategoryAndBattery(stageId: string, categoryId: string, batteryIndex: number): Promise<void> {
+    const where: any = { stageId, categoryId, batteryIndex };
+    await this.repository.delete(where);
+  }
 } 

@@ -119,6 +119,10 @@ export class LapTimesService {
     return this.lapTimesRepository.deleteLapTimes(userId, stageId, categoryId, batteryIndex);
   }
 
+  async deleteLapTimesByCategoryAndBattery(stageId: string, categoryId: string, batteryIndex: number): Promise<void> {
+    return this.lapTimesRepository.deleteLapTimesByCategoryAndBattery(stageId, categoryId, batteryIndex);
+  }
+
   private parseTimeToMs(timeString: string): number {
     try {
       // Formato esperado: MM:SS.sss ou HH:MM:SS.sss
