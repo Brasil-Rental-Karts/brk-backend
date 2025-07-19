@@ -981,8 +981,14 @@ export class ChampionshipClassificationService {
         });
       }
 
-      // Ordenar: primeiro por voltas (maior para menor), depois por tempo total + punição (menor para maior)
-      pilotResults.sort((a, b) => {
+      // Filtrar pilotos que terminaram a corrida (têm tempo total)
+      const finishedPilots = pilotResults.filter(pilot => {
+        const hasTotalTime = pilot.totalTime && pilot.totalTime !== '' && pilot.totalTime !== '0:00.000';
+        return hasTotalTime;
+      });
+
+      // Ordenar pilotos que terminaram: primeiro por voltas (maior para menor), depois por tempo total + punição (menor para maior)
+      finishedPilots.sort((a, b) => {
         // Se têm voltas diferentes, ordenar por voltas (maior para menor)
         if (a.totalLaps !== b.totalLaps) {
           return b.totalLaps - a.totalLaps;
@@ -992,14 +998,27 @@ export class ChampionshipClassificationService {
         return a.totalTimeWithPenalty - b.totalTimeWithPenalty;
       });
 
-      // Atualizar posições de chegada baseado na nova ordenação
-      for (let i = 0; i < pilotResults.length; i++) {
-        const pilot = pilotResults[i];
+      // Atualizar posições de chegada apenas para pilotos que terminaram
+      for (let i = 0; i < finishedPilots.length; i++) {
+        const pilot = finishedPilots[i];
         const newPosition = i + 1;
         
         // Atualizar posição no resultado da etapa
         if (stageResults[categoryId][pilot.userId]) {
           stageResults[categoryId][pilot.userId][batteryIndex].finishPosition = newPosition;
+        }
+      }
+
+      // Remover posição de pilotos que não terminaram (não têm tempo total)
+      const unfinishedPilots = pilotResults.filter(pilot => {
+        const hasTotalTime = pilot.totalTime && pilot.totalTime !== '' && pilot.totalTime !== '0:00.000';
+        return !hasTotalTime;
+      });
+
+      for (const pilot of unfinishedPilots) {
+        if (stageResults[categoryId][pilot.userId]) {
+          // Remover posição (definir como null ou undefined)
+          stageResults[categoryId][pilot.userId][batteryIndex].finishPosition = null;
         }
       }
 
@@ -1009,10 +1028,19 @@ export class ChampionshipClassificationService {
 
       console.log(`✅ [RECALCULATION] Posições recalculadas para etapa ${stageId}, categoria ${categoryId}, bateria ${batteryIndex}`);
       
-      // Log das novas posições
-      pilotResults.forEach((pilot, index) => {
-        console.log(`🏁 Posição ${index + 1}: Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime}, Punição: ${pilot.penaltyTime}s, Total: ${pilot.totalTimeWithPenalty}ms`);
+      // Log das novas posições para pilotos que terminaram
+      console.log(`🏁 [RECALCULATION] Pilotos que terminaram a corrida:`);
+      finishedPilots.forEach((pilot, index) => {
+        console.log(`   Posição ${index + 1}: Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime}, Punição: ${pilot.penaltyTime}s, Total: ${pilot.totalTimeWithPenalty}ms`);
       });
+
+      // Log de pilotos que não terminaram
+      if (unfinishedPilots.length > 0) {
+        console.log(`❌ [RECALCULATION] Pilotos que não terminaram a corrida (posição removida):`);
+        unfinishedPilots.forEach((pilot) => {
+          console.log(`   Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime || 'N/A'}`);
+        });
+      }
 
     } catch (error) {
       console.error('❌ [RECALCULATION] Erro ao recalcular posições:', error);
