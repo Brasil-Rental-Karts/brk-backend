@@ -955,6 +955,7 @@ export class ChampionshipClassificationService {
         bestLap: string;
         qualifyingBestLap: string;
         weight: boolean;
+        status?: string;
       }> = [];
 
       // Processar cada piloto
@@ -977,14 +978,16 @@ export class ChampionshipClassificationService {
           startPosition: batteryData.startPosition || 0,
           bestLap: batteryData.bestLap || '',
           qualifyingBestLap: batteryData.qualifyingBestLap || '',
-          weight: batteryData.weight || false
+          weight: batteryData.weight || false,
+          status: batteryData.status || undefined
         });
       }
 
-      // Filtrar pilotos que terminaram a corrida (têm tempo total)
+      // Filtrar pilotos que terminaram a corrida (têm tempo total e não são NC/DC/DQ)
       const finishedPilots = pilotResults.filter(pilot => {
         const hasTotalTime = pilot.totalTime && pilot.totalTime !== '' && pilot.totalTime !== '0:00.000';
-        return hasTotalTime;
+        const hasValidStatus = !pilot.status || pilot.status === 'completed';
+        return hasTotalTime && hasValidStatus;
       });
 
       // Ordenar pilotos que terminaram: primeiro por voltas (maior para menor), depois por tempo total + punição (menor para maior)
@@ -1009,10 +1012,11 @@ export class ChampionshipClassificationService {
         }
       }
 
-      // Remover posição de pilotos que não terminaram (não têm tempo total)
+      // Remover posição de pilotos que não terminaram (não têm tempo total ou têm status NC/DC/DQ)
       const unfinishedPilots = pilotResults.filter(pilot => {
         const hasTotalTime = pilot.totalTime && pilot.totalTime !== '' && pilot.totalTime !== '0:00.000';
-        return !hasTotalTime;
+        const hasInvalidStatus = pilot.status && ['nc', 'dc', 'dq'].includes(pilot.status.toLowerCase());
+        return !hasTotalTime || hasInvalidStatus;
       });
 
       for (const pilot of unfinishedPilots) {
@@ -1038,7 +1042,8 @@ export class ChampionshipClassificationService {
       if (unfinishedPilots.length > 0) {
         console.log(`❌ [RECALCULATION] Pilotos que não terminaram a corrida (posição removida):`);
         unfinishedPilots.forEach((pilot) => {
-          console.log(`   Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime || 'N/A'}`);
+          const statusInfo = pilot.status ? ` (${pilot.status.toUpperCase()})` : '';
+          console.log(`   Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime || 'N/A'}${statusInfo}`);
         });
       }
 

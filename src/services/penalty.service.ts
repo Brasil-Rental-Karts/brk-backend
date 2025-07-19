@@ -17,6 +17,54 @@ export class PenaltyService {
       status: data.status || PenaltyStatus.APPLIED,
     });
 
+    // Se for punição de desclassificação aplicada, adicionar o status DC ao resultado da etapa
+    if (penalty.type === PenaltyType.DISQUALIFICATION && 
+        penalty.status === PenaltyStatus.APPLIED &&
+        penalty.stageId && 
+        penalty.categoryId && 
+        penalty.userId && 
+        penalty.batteryIndex !== null) {
+      
+      try {
+        // Importar StageService dinamicamente para evitar dependência circular
+        const { StageService } = await import('./stage.service');
+        const stageService = new StageService();
+        
+        // Buscar resultados atuais da etapa
+        const stage = await stageService.findById(penalty.stageId);
+        if (stage && stage.stage_results) {
+          const results = { ...stage.stage_results };
+          const catResults = results[penalty.categoryId] || {};
+          const pilotResults = catResults[penalty.userId] || {};
+          const batteryResults = pilotResults[penalty.batteryIndex] || {};
+
+          // Adicionar o status DC
+          const updatedBatteryResults = { ...batteryResults, status: 'dc' };
+          const updatedPilotResults = { ...pilotResults, [penalty.batteryIndex]: updatedBatteryResults };
+          const updatedCatResults = { ...catResults, [penalty.userId]: updatedPilotResults };
+          const updatedResults = { ...results, [penalty.categoryId]: updatedCatResults };
+
+          // Salvar resultados atualizados
+          await stageService.updateStageResults(penalty.stageId, updatedResults);
+          
+          console.log(`✅ [PENALTY SERVICE] Status DC adicionado ao resultado da etapa ${penalty.stageId} (criação)`);
+
+          // Recalcular posições após adicionar o status DC
+          try {
+            const { ChampionshipClassificationService } = await import('./championship-classification.service');
+            const classificationService = new ChampionshipClassificationService();
+            await classificationService.recalculateStagePositions(penalty.stageId, penalty.categoryId, penalty.batteryIndex);
+            console.log(`✅ [PENALTY SERVICE] Posições recalculadas após adição do status DC`);
+          } catch (recalcError) {
+            console.error('❌ [PENALTY SERVICE] Erro ao recalcular posições após adição do status DC:', recalcError);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [PENALTY SERVICE] Erro ao adicionar status DC ao resultado:', error);
+        // Não falhar a operação se não conseguir adicionar o status
+      }
+    }
+
     return this.mapToResponseDto(penalty);
   }
 
@@ -95,6 +143,53 @@ export class PenaltyService {
       }
     }
 
+    // Se for punição de desclassificação, adicionar o status DC ao resultado da etapa
+    if (penalty.type === PenaltyType.DISQUALIFICATION && 
+        penalty.stageId && 
+        penalty.categoryId && 
+        penalty.userId && 
+        penalty.batteryIndex !== null) {
+      
+      try {
+        // Importar StageService dinamicamente para evitar dependência circular
+        const { StageService } = await import('./stage.service');
+        const stageService = new StageService();
+        
+        // Buscar resultados atuais da etapa
+        const stage = await stageService.findById(penalty.stageId);
+        if (stage && stage.stage_results) {
+          const results = { ...stage.stage_results };
+          const catResults = results[penalty.categoryId] || {};
+          const pilotResults = catResults[penalty.userId] || {};
+          const batteryResults = pilotResults[penalty.batteryIndex] || {};
+
+          // Adicionar o status DC
+          const updatedBatteryResults = { ...batteryResults, status: 'dc' };
+          const updatedPilotResults = { ...pilotResults, [penalty.batteryIndex]: updatedBatteryResults };
+          const updatedCatResults = { ...catResults, [penalty.userId]: updatedPilotResults };
+          const updatedResults = { ...results, [penalty.categoryId]: updatedCatResults };
+
+          // Salvar resultados atualizados
+          await stageService.updateStageResults(penalty.stageId, updatedResults);
+          
+          console.log(`✅ [PENALTY SERVICE] Status DC adicionado ao resultado da etapa ${penalty.stageId} (aplicação)`);
+
+          // Recalcular posições após adicionar o status DC
+          try {
+            const { ChampionshipClassificationService } = await import('./championship-classification.service');
+            const classificationService = new ChampionshipClassificationService();
+            await classificationService.recalculateStagePositions(penalty.stageId, penalty.categoryId, penalty.batteryIndex);
+            console.log(`✅ [PENALTY SERVICE] Posições recalculadas após adição do status DC`);
+          } catch (recalcError) {
+            console.error('❌ [PENALTY SERVICE] Erro ao recalcular posições após adição do status DC:', recalcError);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [PENALTY SERVICE] Erro ao adicionar status DC ao resultado:', error);
+        // Não falhar a operação se não conseguir adicionar o status
+      }
+    }
+
     return this.mapToResponseDto(updatedPenalty);
   }
 
@@ -156,6 +251,54 @@ export class PenaltyService {
       } catch (error) {
         console.error('❌ [PENALTY SERVICE] Erro ao remover tempo de punição do resultado:', error);
         // Não falhar a operação se não conseguir remover o tempo
+      }
+    }
+
+    // Se for punição de desclassificação e estiver aplicada, remover o status DC do resultado da etapa
+    if (penalty.type === PenaltyType.DISQUALIFICATION && 
+        penalty.status === PenaltyStatus.APPLIED &&
+        penalty.stageId && 
+        penalty.categoryId && 
+        penalty.userId && 
+        penalty.batteryIndex !== null) {
+      
+      try {
+        // Importar StageService dinamicamente para evitar dependência circular
+        const { StageService } = await import('./stage.service');
+        const stageService = new StageService();
+        
+        // Buscar resultados atuais da etapa
+        const stage = await stageService.findById(penalty.stageId);
+        if (stage && stage.stage_results) {
+          const results = { ...stage.stage_results };
+          const catResults = results[penalty.categoryId] || {};
+          const pilotResults = catResults[penalty.userId] || {};
+          const batteryResults = pilotResults[penalty.batteryIndex] || {};
+
+          // Remover o status DC se existir
+          const { status, ...updatedBatteryResults } = batteryResults;
+          const updatedPilotResults = { ...pilotResults, [penalty.batteryIndex]: updatedBatteryResults };
+          const updatedCatResults = { ...catResults, [penalty.userId]: updatedPilotResults };
+          const updatedResults = { ...results, [penalty.categoryId]: updatedCatResults };
+
+          // Salvar resultados atualizados
+          await stageService.updateStageResults(penalty.stageId, updatedResults);
+          
+          console.log(`✅ [PENALTY SERVICE] Status DC removido do resultado da etapa ${penalty.stageId} (cancelamento)`);
+
+          // Recalcular posições após remover o status DC
+          try {
+            const { ChampionshipClassificationService } = await import('./championship-classification.service');
+            const classificationService = new ChampionshipClassificationService();
+            await classificationService.recalculateStagePositions(penalty.stageId, penalty.categoryId, penalty.batteryIndex);
+            console.log(`✅ [PENALTY SERVICE] Posições recalculadas após remoção do status DC`);
+          } catch (recalcError) {
+            console.error('❌ [PENALTY SERVICE] Erro ao recalcular posições após remoção do status DC:', recalcError);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [PENALTY SERVICE] Erro ao remover status DC do resultado:', error);
+        // Não falhar a operação se não conseguir remover o status
       }
     }
 
@@ -286,6 +429,54 @@ export class PenaltyService {
       } catch (error) {
         console.error('❌ [PENALTY SERVICE] Erro ao remover tempo de punição do resultado:', error);
         // Não falhar a operação se não conseguir remover o tempo
+      }
+    }
+
+    // Se for punição de desclassificação e estiver aplicada, remover o status DC do resultado da etapa
+    if (penalty.type === PenaltyType.DISQUALIFICATION && 
+        penalty.status === PenaltyStatus.APPLIED &&
+        penalty.stageId && 
+        penalty.categoryId && 
+        penalty.userId && 
+        penalty.batteryIndex !== null) {
+      
+      try {
+        // Importar StageService dinamicamente para evitar dependência circular
+        const { StageService } = await import('./stage.service');
+        const stageService = new StageService();
+        
+        // Buscar resultados atuais da etapa
+        const stage = await stageService.findById(penalty.stageId);
+        if (stage && stage.stage_results) {
+          const results = { ...stage.stage_results };
+          const catResults = results[penalty.categoryId] || {};
+          const pilotResults = catResults[penalty.userId] || {};
+          const batteryResults = pilotResults[penalty.batteryIndex] || {};
+
+          // Remover o status DC se existir
+          const { status, ...updatedBatteryResults } = batteryResults;
+          const updatedPilotResults = { ...pilotResults, [penalty.batteryIndex]: updatedBatteryResults };
+          const updatedCatResults = { ...catResults, [penalty.userId]: updatedPilotResults };
+          const updatedResults = { ...results, [penalty.categoryId]: updatedCatResults };
+
+          // Salvar resultados atualizados
+          await stageService.updateStageResults(penalty.stageId, updatedResults);
+          
+          console.log(`✅ [PENALTY SERVICE] Status DC removido do resultado da etapa ${penalty.stageId} (exclusão)`);
+
+          // Recalcular posições após remover o status DC
+          try {
+            const { ChampionshipClassificationService } = await import('./championship-classification.service');
+            const classificationService = new ChampionshipClassificationService();
+            await classificationService.recalculateStagePositions(penalty.stageId, penalty.categoryId, penalty.batteryIndex);
+            console.log(`✅ [PENALTY SERVICE] Posições recalculadas após remoção do status DC`);
+          } catch (recalcError) {
+            console.error('❌ [PENALTY SERVICE] Erro ao recalcular posições após remoção do status DC:', recalcError);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [PENALTY SERVICE] Erro ao remover status DC do resultado:', error);
+        // Não falhar a operação se não conseguir remover o status
       }
     }
 
