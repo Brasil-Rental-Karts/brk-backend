@@ -49,6 +49,9 @@ export class CreatePenaltyDto extends BaseDto {
   @IsOptional()
   @IsEnum(PenaltyStatus)
   status?: PenaltyStatus;
+
+  @IsOptional()
+  isImported?: boolean;
 }
 
 export class UpdatePenaltyDto extends BaseDto {
@@ -119,6 +122,7 @@ export class PenaltyResponseDto {
     name: string;
     email: string;
   };
+  isImported: boolean;
   championship?: {
     id: string;
     name: string;

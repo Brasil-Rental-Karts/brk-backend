@@ -93,6 +93,9 @@ export class Penalty extends BaseEntity {
   @Column({ type: 'uuid', nullable: true })
   appealedByUserId: string;
 
+  @Column({ type: 'boolean', default: false })
+  isImported: boolean;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'appealedByUserId' })
   appealedByUser: User;

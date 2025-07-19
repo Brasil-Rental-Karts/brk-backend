@@ -197,6 +197,7 @@ export class PenaltyService {
       appliedByUserId: penalty.appliedByUserId,
       appealReason: penalty.appealReason,
       appealedByUserId: penalty.appealedByUserId,
+      isImported: penalty.isImported,
       createdAt: penalty.createdAt,
       updatedAt: penalty.updatedAt,
       user: penalty.user ? {
