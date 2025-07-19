@@ -383,6 +383,20 @@ export class PenaltyService {
     return penalties.map(penalty => this.mapToResponseDto(penalty));
   }
 
+  async getPositionPenaltiesByStage(stageId: string, categoryId: string, batteryIndex: number): Promise<PenaltyResponseDto[]> {
+    const penalties = await this.penaltyRepository.findByStageId(stageId);
+    
+    // Filtrar por tipo, categoria e bateria, e apenas penalidades aplicadas
+    const filteredPenalties = penalties.filter(penalty => 
+      penalty.type === PenaltyType.POSITION_PENALTY &&
+      penalty.categoryId === categoryId && 
+      penalty.batteryIndex === batteryIndex &&
+      penalty.status === PenaltyStatus.APPLIED
+    );
+    
+    return filteredPenalties.map(penalty => this.mapToResponseDto(penalty));
+  }
+
   async deletePenalty(id: string): Promise<boolean> {
     const penalty = await this.penaltyRepository.findById(id);
     if (!penalty) {

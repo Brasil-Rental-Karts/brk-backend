@@ -943,6 +943,14 @@ export class ChampionshipClassificationService {
         throw new Error('Categoria não encontrada nos resultados');
       }
 
+      // Buscar penalidades de posição aplicadas para esta etapa, categoria e bateria
+      const { PenaltyService } = await import('./penalty.service');
+      const { PenaltyRepositoryImpl } = await import('../repositories/penalty.repository.impl');
+      const { Penalty } = await import('../models/penalty.entity');
+      const penaltyRepository = new PenaltyRepositoryImpl(AppDataSource.getRepository(Penalty));
+      const penaltyService = new PenaltyService(penaltyRepository);
+      const positionPenalties = await penaltyService.getPositionPenaltiesByStage(stageId, categoryId, batteryIndex);
+
       const categoryResults = stageResults[categoryId];
       const pilotResults: Array<{
         userId: string;
@@ -956,6 +964,7 @@ export class ChampionshipClassificationService {
         qualifyingBestLap: string;
         weight: boolean;
         status?: string;
+        positionPenalty: number; // Nova propriedade para penalidades de posição
       }> = [];
 
       // Processar cada piloto
@@ -968,6 +977,10 @@ export class ChampionshipClassificationService {
         const penaltyTimeMs = batteryData.penaltyTime ? parseInt(batteryData.penaltyTime) * 1000 : 0;
         const totalTimeWithPenaltyMs = totalTimeMs + penaltyTimeMs;
 
+        // Calcular penalidade de posição total para este piloto
+        const pilotPositionPenalties = positionPenalties.filter(penalty => penalty.userId === pilotId);
+        const totalPositionPenalty = pilotPositionPenalties.reduce((sum, penalty) => sum + (penalty.positionPenalty || 0), 0);
+
         pilotResults.push({
           userId: pilotId,
           totalLaps: batteryData.totalLaps || 0,
@@ -979,7 +992,8 @@ export class ChampionshipClassificationService {
           bestLap: batteryData.bestLap || '',
           qualifyingBestLap: batteryData.qualifyingBestLap || '',
           weight: batteryData.weight || false,
-          status: batteryData.status || undefined
+          status: batteryData.status || undefined,
+          positionPenalty: totalPositionPenalty
         });
       }
 
@@ -1000,6 +1014,27 @@ export class ChampionshipClassificationService {
         // Se têm as mesmas voltas, ordenar por tempo total + punição (menor para maior)
         return a.totalTimeWithPenalty - b.totalTimeWithPenalty;
       });
+
+      // Aplicar penalidades de posição após ordenação inicial
+      const pilotsWithPositionPenalty = finishedPilots.filter(pilot => pilot.positionPenalty > 0);
+      
+      if (pilotsWithPositionPenalty.length > 0) {
+        console.log(`📋 [RECALCULATION] Aplicando penalidades de posição:`);
+        
+        for (const pilot of pilotsWithPositionPenalty) {
+          const originalPosition = finishedPilots.findIndex(p => p.userId === pilot.userId) + 1;
+          const newPosition = Math.min(originalPosition + pilot.positionPenalty, finishedPilots.length);
+          
+          console.log(`   Piloto ${pilot.userId}: Posição ${originalPosition} → ${newPosition} (penalidade: ${pilot.positionPenalty} posições)`);
+          
+          // Reordenar a lista considerando a penalidade de posição
+          const pilotIndex = finishedPilots.findIndex(p => p.userId === pilot.userId);
+          if (pilotIndex !== -1) {
+            const pilotToMove = finishedPilots.splice(pilotIndex, 1)[0];
+            finishedPilots.splice(newPosition - 1, 0, pilotToMove);
+          }
+        }
+      }
 
       // Atualizar posições de chegada apenas para pilotos que terminaram
       for (let i = 0; i < finishedPilots.length; i++) {
@@ -1035,7 +1070,8 @@ export class ChampionshipClassificationService {
       // Log das novas posições para pilotos que terminaram
       console.log(`🏁 [RECALCULATION] Pilotos que terminaram a corrida:`);
       finishedPilots.forEach((pilot, index) => {
-        console.log(`   Posição ${index + 1}: Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime}, Punição: ${pilot.penaltyTime}s, Total: ${pilot.totalTimeWithPenalty}ms`);
+        const positionPenaltyInfo = pilot.positionPenalty > 0 ? `, Penalidade Posição: ${pilot.positionPenalty}` : '';
+        console.log(`   Posição ${index + 1}: Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime}, Punição: ${pilot.penaltyTime}s, Total: ${pilot.totalTimeWithPenalty}ms${positionPenaltyInfo}`);
       });
 
       // Log de pilotos que não terminaram
