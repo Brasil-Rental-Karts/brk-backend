@@ -923,6 +923,104 @@ export class ChampionshipClassificationService {
   }
 
   /**
+   * Recalcular posições de uma etapa baseado em voltas e tempo total + punições
+   */
+  async recalculateStagePositions(stageId: string, categoryId: string, batteryIndex: number): Promise<void> {
+    try {
+      // Buscar a etapa
+      const stage = await this.stageRepository.findOne({
+        where: { id: stageId }
+      });
+
+      if (!stage || !stage.stage_results) {
+        throw new Error('Etapa não encontrada ou sem resultados');
+      }
+
+      const stageResults = stage.stage_results;
+      
+      // Verificar se a categoria existe nos resultados
+      if (!stageResults[categoryId]) {
+        throw new Error('Categoria não encontrada nos resultados');
+      }
+
+      const categoryResults = stageResults[categoryId];
+      const pilotResults: Array<{
+        userId: string;
+        totalLaps: number;
+        totalTime: string;
+        penaltyTime: number;
+        totalTimeWithPenalty: number;
+        finishPosition: number;
+        startPosition: number;
+        bestLap: string;
+        qualifyingBestLap: string;
+        weight: boolean;
+      }> = [];
+
+      // Processar cada piloto
+      for (const [pilotId, pilotData] of Object.entries(categoryResults)) {
+        const batteryData = (pilotData as any)[batteryIndex];
+        if (!batteryData) continue;
+
+        // Converter tempo total para milissegundos
+        const totalTimeMs = batteryData.totalTime ? this.convertLapTimeToMs(batteryData.totalTime) : Infinity;
+        const penaltyTimeMs = batteryData.penaltyTime ? parseInt(batteryData.penaltyTime) * 1000 : 0;
+        const totalTimeWithPenaltyMs = totalTimeMs + penaltyTimeMs;
+
+        pilotResults.push({
+          userId: pilotId,
+          totalLaps: batteryData.totalLaps || 0,
+          totalTime: batteryData.totalTime || '',
+          penaltyTime: batteryData.penaltyTime ? parseInt(batteryData.penaltyTime) : 0,
+          totalTimeWithPenalty: totalTimeWithPenaltyMs,
+          finishPosition: batteryData.finishPosition || 0,
+          startPosition: batteryData.startPosition || 0,
+          bestLap: batteryData.bestLap || '',
+          qualifyingBestLap: batteryData.qualifyingBestLap || '',
+          weight: batteryData.weight || false
+        });
+      }
+
+      // Ordenar: primeiro por voltas (maior para menor), depois por tempo total + punição (menor para maior)
+      pilotResults.sort((a, b) => {
+        // Se têm voltas diferentes, ordenar por voltas (maior para menor)
+        if (a.totalLaps !== b.totalLaps) {
+          return b.totalLaps - a.totalLaps;
+        }
+        
+        // Se têm as mesmas voltas, ordenar por tempo total + punição (menor para maior)
+        return a.totalTimeWithPenalty - b.totalTimeWithPenalty;
+      });
+
+      // Atualizar posições de chegada baseado na nova ordenação
+      for (let i = 0; i < pilotResults.length; i++) {
+        const pilot = pilotResults[i];
+        const newPosition = i + 1;
+        
+        // Atualizar posição no resultado da etapa
+        if (stageResults[categoryId][pilot.userId]) {
+          stageResults[categoryId][pilot.userId][batteryIndex].finishPosition = newPosition;
+        }
+      }
+
+      // Salvar resultados atualizados
+      stage.stage_results = stageResults;
+      await this.stageRepository.save(stage);
+
+      console.log(`✅ [RECALCULATION] Posições recalculadas para etapa ${stageId}, categoria ${categoryId}, bateria ${batteryIndex}`);
+      
+      // Log das novas posições
+      pilotResults.forEach((pilot, index) => {
+        console.log(`🏁 Posição ${index + 1}: Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime}, Punição: ${pilot.penaltyTime}s, Total: ${pilot.totalTimeWithPenalty}ms`);
+      });
+
+    } catch (error) {
+      console.error('❌ [RECALCULATION] Erro ao recalcular posições:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Buscar classificação otimizada da temporada usando dados do Redis
    */
   async getSeasonClassificationOptimized(seasonId: string) {
@@ -942,7 +1040,9 @@ export class ChampionshipClassificationService {
         const allClassifications = Object.values(cachedClassification.classificationsByCategory || {})
           .flat() as any[];
         
-        const userIds = allClassifications.map((classification: any) => classification.user.id);
+        const userIds = allClassifications
+          .filter((classification: any) => classification.user && classification.user.id)
+          .map((classification: any) => classification.user.id);
         
         if (userIds.length > 0) {
           // Buscar dados dos usuários em lote do Redis
@@ -954,11 +1054,13 @@ export class ChampionshipClassificationService {
           Object.entries(cachedClassification.classificationsByCategory).forEach(([categoryId, classifications]: [string, any]) => {
             if (Array.isArray(classifications) && classifications.length > 0) {
               // Pegar a categoria do primeiro item (todos têm a mesma categoria)
-              const categoryData = classifications[0].category;
+              const categoryData = classifications[0]?.category;
               
               // Enriquecer cada classificação com dados do usuário
               const enrichedPilots = classifications.map((classification: any) => {
-                const userData = usersData.find(u => u.id === classification.user.id);
+                const userData = classification.user && classification.user.id 
+                  ? usersData.find(u => u.id === classification.user.id)
+                  : null;
                 return {
                   ...classification,
                   user: userData || classification.user
