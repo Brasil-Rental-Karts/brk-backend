@@ -45,6 +45,10 @@ export class CreatePenaltyDto extends BaseDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  @IsOptional()
+  @IsEnum(PenaltyStatus)
+  status?: PenaltyStatus;
 }
 
 export class UpdatePenaltyDto extends BaseDto {

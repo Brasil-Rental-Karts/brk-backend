@@ -14,7 +14,7 @@ export class PenaltyService {
     const penalty = await this.penaltyRepository.create({
       ...data,
       appliedByUserId,
-      status: PenaltyStatus.PENDING,
+      status: data.status || PenaltyStatus.PENDING,
     });
 
     return this.mapToResponseDto(penalty);
