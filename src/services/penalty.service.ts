@@ -14,7 +14,7 @@ export class PenaltyService {
     const penalty = await this.penaltyRepository.create({
       ...data,
       appliedByUserId,
-      status: data.status || PenaltyStatus.PENDING,
+      status: data.status || PenaltyStatus.APPLIED,
     });
 
     return this.mapToResponseDto(penalty);
@@ -40,9 +40,9 @@ export class PenaltyService {
       throw new NotFoundException('Penalty not found');
     }
 
-    // Permitir aplicar se estiver pendente, cancelada ou recorrida
-    if (penalty.status !== PenaltyStatus.PENDING && penalty.status !== PenaltyStatus.CANCELLED && penalty.status !== PenaltyStatus.APPEALED) {
-      throw new BadRequestException('Penalty can only be applied if it is pending, cancelled or appealed');
+    // Permitir aplicar se estiver não aplicada ou recorrida
+    if (penalty.status !== PenaltyStatus.NOT_APPLIED && penalty.status !== PenaltyStatus.APPEALED) {
+      throw new BadRequestException('Penalty can only be applied if it is not applied or appealed');
     }
 
     const updatedPenalty = await this.penaltyRepository.update(id, {
@@ -62,12 +62,12 @@ export class PenaltyService {
       throw new NotFoundException('Penalty not found');
     }
 
-    if (penalty.status === PenaltyStatus.CANCELLED) {
-      throw new BadRequestException('Penalty is already cancelled');
+    if (penalty.status === PenaltyStatus.NOT_APPLIED) {
+      throw new BadRequestException('Penalty is already not applied');
     }
 
     const updatedPenalty = await this.penaltyRepository.update(id, {
-      status: PenaltyStatus.CANCELLED,
+      status: PenaltyStatus.NOT_APPLIED,
     });
 
     if (!updatedPenalty) {
@@ -83,8 +83,9 @@ export class PenaltyService {
       throw new NotFoundException('Penalty not found');
     }
 
-    if (penalty.status !== PenaltyStatus.APPLIED) {
-      throw new BadRequestException('Only applied penalties can be appealed');
+    // Permitir recorrer se estiver aplicada ou não aplicada
+    if (penalty.status !== PenaltyStatus.APPLIED && penalty.status !== PenaltyStatus.NOT_APPLIED) {
+      throw new BadRequestException('Only applied or not applied penalties can be appealed');
     }
 
     const updatedPenalty = await this.penaltyRepository.update(id, {

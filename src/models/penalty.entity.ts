@@ -14,9 +14,8 @@ export enum PenaltyType {
 }
 
 export enum PenaltyStatus {
-  PENDING = 'pending',
   APPLIED = 'applied',
-  CANCELLED = 'cancelled',
+  NOT_APPLIED = 'not_applied',
   APPEALED = 'appealed'
 }
 
@@ -28,7 +27,7 @@ export class Penalty extends BaseEntity {
   @Column({ type: 'enum', enum: PenaltyType })
   type: PenaltyType;
 
-  @Column({ type: 'enum', enum: PenaltyStatus, default: PenaltyStatus.PENDING })
+  @Column({ type: 'enum', enum: PenaltyStatus, default: PenaltyStatus.APPLIED })
   status: PenaltyStatus;
 
   @Column({ type: 'text' })

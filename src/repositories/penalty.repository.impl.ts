@@ -78,7 +78,7 @@ export class PenaltyRepositoryImpl extends BaseRepositoryImpl<Penalty> implement
 
   async findPendingPenalties(): Promise<Penalty[]> {
     return this.repository.find({
-      where: { status: PenaltyStatus.PENDING },
+      where: { status: PenaltyStatus.NOT_APPLIED },
       relations: ['user', 'championship', 'season', 'stage', 'category', 'appliedByUser', 'appealedByUser'],
       order: { createdAt: 'DESC' },
     });
