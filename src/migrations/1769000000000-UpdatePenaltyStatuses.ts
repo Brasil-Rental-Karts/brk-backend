@@ -25,6 +25,10 @@ export class UpdatePenaltyStatuses1769000000000 implements MigrationInterface {
       console.log('✅ Adicionado valor "not_applied" ao enum');
     }
     
+    // Commit da transação para permitir uso do novo valor
+    await queryRunner.commitTransaction();
+    await queryRunner.startTransaction();
+    
     // Atualizar dados existentes
     if (hasPending) {
       await queryRunner.query(`UPDATE "penalties" SET "status" = 'applied' WHERE "status" = 'pending'`);
