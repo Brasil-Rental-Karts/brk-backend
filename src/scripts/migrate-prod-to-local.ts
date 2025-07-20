@@ -125,6 +125,18 @@ async function copyTableData(prodClient: Client, localClient: Client, tableName:
           // Para arrays simples (números, strings), mantém como array PostgreSQL
           return value;
         }
+        // Trata campos booleanos especiais
+        if (typeof value === 'boolean') {
+          return value;
+        }
+        // Trata campos de data
+        if (value instanceof Date) {
+          return value;
+        }
+        // Trata campos null
+        if (value === null) {
+          return null;
+        }
         return value;
       });
       
@@ -141,6 +153,7 @@ async function copyTableData(prodClient: Client, localClient: Client, tableName:
       } catch (error) {
         console.error(`❌ Erro ao inserir registro em ${tableName}:`, error);
         console.error('Dados:', processedRow);
+        // Continua com o próximo registro em vez de parar a migração
       }
     }
     

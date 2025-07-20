@@ -30,6 +30,9 @@ export class LapTimesController extends BaseController {
     
     // DELETE /lap-times/stage/:stageId/category/:categoryId/user/:userId
     this.router.delete('/stage/:stageId/category/:categoryId/user/:userId', this.deleteLapTimes.bind(this));
+    
+    // DELETE /lap-times/stage/:stageId/category/:categoryId/battery/:batteryIndex
+    this.router.delete('/stage/:stageId/category/:categoryId/battery/:batteryIndex', this.deleteLapTimesByCategoryAndBattery.bind(this));
   }
 
   private async getLapTimesByStage(req: Request, res: Response): Promise<void> {
@@ -133,6 +136,23 @@ export class LapTimesController extends BaseController {
       res.status(200).json({ message: 'Tempos volta a volta deletados com sucesso' });
     } catch (error) {
       console.error('Erro ao deletar tempos volta a volta:', error);
+      res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+  }
+
+  private async deleteLapTimesByCategoryAndBattery(req: Request, res: Response): Promise<void> {
+    try {
+      const { stageId, categoryId, batteryIndex } = req.params;
+      
+      await this.lapTimesService.deleteLapTimesByCategoryAndBattery(
+        stageId,
+        categoryId,
+        Number(batteryIndex)
+      );
+      
+      res.status(200).json({ message: 'Tempos volta a volta deletados com sucesso' });
+    } catch (error) {
+      console.error('Erro ao deletar tempos volta a volta por categoria e bateria:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }

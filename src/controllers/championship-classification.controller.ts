@@ -348,6 +348,64 @@ export class ChampionshipClassificationController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.get('/season/:seasonId/redis', authMiddleware, this.getSeasonClassificationFromRedis.bind(this));
+
+    /**
+     * @swagger
+     * /classification/stages/{stageId}/recalculate-positions:
+     *   post:
+     *     summary: Recalcular posições da etapa baseado em voltas e tempo + punições
+     *     tags: [Classification]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: stageId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da etapa
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               categoryId:
+     *                 type: string
+     *                 format: uuid
+     *                 description: ID da categoria
+     *               batteryIndex:
+     *                 type: integer
+     *                 description: Índice da bateria
+     *             required:
+     *               - categoryId
+     *               - batteryIndex
+     *     responses:
+     *       200:
+     *         description: Posições recalculadas com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 message:
+     *                   type: string
+     *                   example: "Posições recalculadas com sucesso"
+     *       401:
+     *         description: Token de acesso inválido
+     *       400:
+     *         description: Parâmetros inválidos
+     *       404:
+     *         description: Etapa não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/stages/:stageId/recalculate-positions', authMiddleware, this.recalculateStagePositions.bind(this));
   }
 
   private async getClassificationBySeasonAndCategory(req: Request, res: Response): Promise<void> {
@@ -549,6 +607,50 @@ export class ChampionshipClassificationController extends BaseController {
         res.status(404).json({ message: error.message });
       } else {
         console.error('Error updating season classification cache:', error);
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
+    }
+  }
+
+  private async recalculateStagePositions(req: Request, res: Response): Promise<void> {
+    try {
+      const { stageId } = req.params;
+      const { categoryId, batteryIndex } = req.body;
+
+      // Verificar se o usuário está autenticado
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ message: 'Usuário não autenticado' });
+        return;
+      }
+
+      // Validar parâmetros obrigatórios
+      if (!categoryId || batteryIndex === undefined) {
+        res.status(400).json({ 
+          message: 'Parâmetros obrigatórios: categoryId e batteryIndex' 
+        });
+        return;
+      }
+
+      // Recalcular posições
+      await this.classificationService.recalculateStagePositions(
+        stageId,
+        categoryId,
+        batteryIndex
+      );
+
+      res.json({ 
+        success: true, 
+        message: 'Posições recalculadas com sucesso' 
+      });
+
+    } catch (error: any) {
+      console.error('❌ [CONTROLLER] Erro ao recalcular posições:', error);
+      if (error instanceof BadRequestException) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }

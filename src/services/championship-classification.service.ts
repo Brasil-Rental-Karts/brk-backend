@@ -923,6 +923,173 @@ export class ChampionshipClassificationService {
   }
 
   /**
+   * Recalcular posições de uma etapa baseado em voltas e tempo total + punições
+   */
+  async recalculateStagePositions(stageId: string, categoryId: string, batteryIndex: number): Promise<void> {
+    try {
+      // Buscar a etapa
+      const stage = await this.stageRepository.findOne({
+        where: { id: stageId }
+      });
+
+      if (!stage || !stage.stage_results) {
+        throw new Error('Etapa não encontrada ou sem resultados');
+      }
+
+      const stageResults = stage.stage_results;
+      
+      // Verificar se a categoria existe nos resultados
+      if (!stageResults[categoryId]) {
+        throw new Error('Categoria não encontrada nos resultados');
+      }
+
+      // Buscar penalidades de posição aplicadas para esta etapa, categoria e bateria
+      const { PenaltyService } = await import('./penalty.service');
+      const { PenaltyRepositoryImpl } = await import('../repositories/penalty.repository.impl');
+      const { Penalty } = await import('../models/penalty.entity');
+      const penaltyRepository = new PenaltyRepositoryImpl(AppDataSource.getRepository(Penalty));
+      const penaltyService = new PenaltyService(penaltyRepository);
+      const positionPenalties = await penaltyService.getPositionPenaltiesByStage(stageId, categoryId, batteryIndex);
+
+      const categoryResults = stageResults[categoryId];
+      const pilotResults: Array<{
+        userId: string;
+        totalLaps: number;
+        totalTime: string;
+        penaltyTime: number;
+        totalTimeWithPenalty: number;
+        finishPosition: number;
+        startPosition: number;
+        bestLap: string;
+        qualifyingBestLap: string;
+        weight: boolean;
+        status?: string;
+        positionPenalty: number; // Nova propriedade para penalidades de posição
+      }> = [];
+
+      // Processar cada piloto
+      for (const [pilotId, pilotData] of Object.entries(categoryResults)) {
+        const batteryData = (pilotData as any)[batteryIndex];
+        if (!batteryData) continue;
+
+        // Converter tempo total para milissegundos
+        const totalTimeMs = batteryData.totalTime ? this.convertLapTimeToMs(batteryData.totalTime) : Infinity;
+        const penaltyTimeMs = batteryData.penaltyTime ? parseInt(batteryData.penaltyTime) * 1000 : 0;
+        const totalTimeWithPenaltyMs = totalTimeMs + penaltyTimeMs;
+
+        // Calcular penalidade de posição total para este piloto
+        const pilotPositionPenalties = positionPenalties.filter(penalty => penalty.userId === pilotId);
+        const totalPositionPenalty = pilotPositionPenalties.reduce((sum, penalty) => sum + (penalty.positionPenalty || 0), 0);
+
+        pilotResults.push({
+          userId: pilotId,
+          totalLaps: batteryData.totalLaps || 0,
+          totalTime: batteryData.totalTime || '',
+          penaltyTime: batteryData.penaltyTime ? parseInt(batteryData.penaltyTime) : 0,
+          totalTimeWithPenalty: totalTimeWithPenaltyMs,
+          finishPosition: batteryData.finishPosition || 0,
+          startPosition: batteryData.startPosition || 0,
+          bestLap: batteryData.bestLap || '',
+          qualifyingBestLap: batteryData.qualifyingBestLap || '',
+          weight: batteryData.weight || false,
+          status: batteryData.status || undefined,
+          positionPenalty: totalPositionPenalty
+        });
+      }
+
+      // Filtrar pilotos que terminaram a corrida (têm tempo total e não são NC/DC/DQ)
+      const finishedPilots = pilotResults.filter(pilot => {
+        const hasTotalTime = pilot.totalTime && pilot.totalTime !== '' && pilot.totalTime !== '0:00.000';
+        const hasValidStatus = !pilot.status || pilot.status === 'completed';
+        return hasTotalTime && hasValidStatus;
+      });
+
+      // Ordenar pilotos que terminaram: primeiro por voltas (maior para menor), depois por tempo total + punição (menor para maior)
+      finishedPilots.sort((a, b) => {
+        // Se têm voltas diferentes, ordenar por voltas (maior para menor)
+        if (a.totalLaps !== b.totalLaps) {
+          return b.totalLaps - a.totalLaps;
+        }
+        
+        // Se têm as mesmas voltas, ordenar por tempo total + punição (menor para maior)
+        return a.totalTimeWithPenalty - b.totalTimeWithPenalty;
+      });
+
+      // Aplicar penalidades de posição após ordenação inicial
+      const pilotsWithPositionPenalty = finishedPilots.filter(pilot => pilot.positionPenalty > 0);
+      
+      if (pilotsWithPositionPenalty.length > 0) {
+        console.log(`📋 [RECALCULATION] Aplicando penalidades de posição:`);
+        
+        for (const pilot of pilotsWithPositionPenalty) {
+          const originalPosition = finishedPilots.findIndex(p => p.userId === pilot.userId) + 1;
+          const newPosition = Math.min(originalPosition + pilot.positionPenalty, finishedPilots.length);
+          
+          console.log(`   Piloto ${pilot.userId}: Posição ${originalPosition} → ${newPosition} (penalidade: ${pilot.positionPenalty} posições)`);
+          
+          // Reordenar a lista considerando a penalidade de posição
+          const pilotIndex = finishedPilots.findIndex(p => p.userId === pilot.userId);
+          if (pilotIndex !== -1) {
+            const pilotToMove = finishedPilots.splice(pilotIndex, 1)[0];
+            finishedPilots.splice(newPosition - 1, 0, pilotToMove);
+          }
+        }
+      }
+
+      // Atualizar posições de chegada apenas para pilotos que terminaram
+      for (let i = 0; i < finishedPilots.length; i++) {
+        const pilot = finishedPilots[i];
+        const newPosition = i + 1;
+        
+        // Atualizar posição no resultado da etapa
+        if (stageResults[categoryId][pilot.userId]) {
+          stageResults[categoryId][pilot.userId][batteryIndex].finishPosition = newPosition;
+        }
+      }
+
+      // Remover posição de pilotos que não terminaram (não têm tempo total ou têm status NC/DC/DQ)
+      const unfinishedPilots = pilotResults.filter(pilot => {
+        const hasTotalTime = pilot.totalTime && pilot.totalTime !== '' && pilot.totalTime !== '0:00.000';
+        const hasInvalidStatus = pilot.status && ['nc', 'dc', 'dq'].includes(pilot.status.toLowerCase());
+        return !hasTotalTime || hasInvalidStatus;
+      });
+
+      for (const pilot of unfinishedPilots) {
+        if (stageResults[categoryId][pilot.userId]) {
+          // Remover posição (definir como null ou undefined)
+          stageResults[categoryId][pilot.userId][batteryIndex].finishPosition = null;
+        }
+      }
+
+      // Salvar resultados atualizados
+      stage.stage_results = stageResults;
+      await this.stageRepository.save(stage);
+
+      console.log(`✅ [RECALCULATION] Posições recalculadas para etapa ${stageId}, categoria ${categoryId}, bateria ${batteryIndex}`);
+      
+      // Log das novas posições para pilotos que terminaram
+      console.log(`🏁 [RECALCULATION] Pilotos que terminaram a corrida:`);
+      finishedPilots.forEach((pilot, index) => {
+        const positionPenaltyInfo = pilot.positionPenalty > 0 ? `, Penalidade Posição: ${pilot.positionPenalty}` : '';
+        console.log(`   Posição ${index + 1}: Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime}, Punição: ${pilot.penaltyTime}s, Total: ${pilot.totalTimeWithPenalty}ms${positionPenaltyInfo}`);
+      });
+
+      // Log de pilotos que não terminaram
+      if (unfinishedPilots.length > 0) {
+        console.log(`❌ [RECALCULATION] Pilotos que não terminaram a corrida (posição removida):`);
+        unfinishedPilots.forEach((pilot) => {
+          const statusInfo = pilot.status ? ` (${pilot.status.toUpperCase()})` : '';
+          console.log(`   Piloto ${pilot.userId} - Voltas: ${pilot.totalLaps}, Tempo: ${pilot.totalTime || 'N/A'}${statusInfo}`);
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ [RECALCULATION] Erro ao recalcular posições:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Buscar classificação otimizada da temporada usando dados do Redis
    */
   async getSeasonClassificationOptimized(seasonId: string) {
@@ -942,7 +1109,9 @@ export class ChampionshipClassificationService {
         const allClassifications = Object.values(cachedClassification.classificationsByCategory || {})
           .flat() as any[];
         
-        const userIds = allClassifications.map((classification: any) => classification.user.id);
+        const userIds = allClassifications
+          .filter((classification: any) => classification.user && classification.user.id)
+          .map((classification: any) => classification.user.id);
         
         if (userIds.length > 0) {
           // Buscar dados dos usuários em lote do Redis
@@ -954,11 +1123,13 @@ export class ChampionshipClassificationService {
           Object.entries(cachedClassification.classificationsByCategory).forEach(([categoryId, classifications]: [string, any]) => {
             if (Array.isArray(classifications) && classifications.length > 0) {
               // Pegar a categoria do primeiro item (todos têm a mesma categoria)
-              const categoryData = classifications[0].category;
+              const categoryData = classifications[0]?.category;
               
               // Enriquecer cada classificação com dados do usuário
               const enrichedPilots = classifications.map((classification: any) => {
-                const userData = usersData.find(u => u.id === classification.user.id);
+                const userData = classification.user && classification.user.id 
+                  ? usersData.find(u => u.id === classification.user.id)
+                  : null;
                 return {
                   ...classification,
                   user: userData || classification.user
