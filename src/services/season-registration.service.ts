@@ -724,11 +724,42 @@ export class SeasonRegistrationService {
   /**
    * Lista inscrições de um campeonato
    */
-  async findByChampionshipId(championshipId: string): Promise<SeasonRegistration[]> {
-    return await this.registrationRepository.find({
+  async findByChampionshipId(championshipId: string): Promise<any[]> {
+    // Busca as inscrições com os relacionamentos necessários
+    const registrations = await this.registrationRepository.find({
       where: { season: { championshipId } },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
-      order: { createdAt: 'DESC' }
+      relations: [
+        'user',
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+        'payments',
+      ],
+      order: { createdAt: 'DESC' },
+    });
+
+    // Buscar todos os perfis dos usuários dessas inscrições
+    const userIds = registrations.map(reg => reg.userId);
+    const profiles = await this.userRepository.manager.getRepository('MemberProfile').find({
+      where: { id: In(userIds) },
+    });
+    const profileMap = new Map(profiles.map((profile: any) => [profile.id, profile]));
+
+    // Montar o retorno incluindo nickname e state
+    return registrations.map(reg => {
+      const user = reg.user;
+      const profile = profileMap.get(reg.userId);
+      return {
+        ...reg,
+        user: {
+          ...user,
+          nickname: profile?.nickName || null,
+        },
+        profile: profile ? { state: profile.state } : null,
+      };
     });
   }
 
