@@ -458,6 +458,55 @@ export class StageParticipationController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.get('/available-categories/:stageId', authMiddleware, this.getAvailableCategories.bind(this));
+
+    /**
+     * @swagger
+     * /stage-participations/auto-confirm:
+     *   post:
+     *     summary: Confirmar participação do usuário logado em uma etapa e categoria via body
+     *     tags: [Stage Participations]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - stageId
+     *               - categoryId
+     *             properties:
+     *               stageId:
+     *                 type: string
+     *                 format: uuid
+     *                 description: ID da etapa
+     *               categoryId:
+     *                 type: string
+     *                 format: uuid
+     *                 description: ID da categoria
+     *     responses:
+     *       200:
+     *         description: Participação confirmada com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   $ref: '#/components/schemas/StageParticipation'
+     *       400:
+     *         description: Dados inválidos
+     *       401:
+     *         description: Token de acesso inválido
+     *       404:
+     *         description: Etapa ou categoria não encontrada
+     *       500:
+     *         description: Erro interno do servidor
+     */
+    this.router.post('/auto-confirm', authMiddleware, this.autoConfirmParticipation.bind(this));
   }
 
   private async confirmParticipation(req: Request, res: Response): Promise<void> {
@@ -700,6 +749,37 @@ export class StageParticipationController extends BaseController {
         res.status(404).json({ message: error.message });
       } else {
         console.error('Error getting available categories:', error);
+        res.status(500).json({ message: 'Erro interno do servidor' });
+      }
+    }
+  }
+
+  private async autoConfirmParticipation(req: Request, res: Response): Promise<void> {
+    console.log('autoConfirmParticipation');
+    try {
+      const userId = req.user!.id;
+      const { stageId, categoryId } = req.body;
+      if (!stageId || !categoryId) {
+        throw new BadRequestException('stageId e categoryId são obrigatórios');
+      }
+      const data: CreateParticipationData = {
+        userId,
+        stageId: String(stageId),
+        categoryId: String(categoryId)
+      };
+
+      const participation = await this.stageParticipationService.confirmParticipation(data);
+
+      res.json({
+        message: 'Participação confirmada com sucesso',
+        data: participation
+      });
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof NotFoundException) {
+        res.status(404).json({ message: error.message });
+      } else {
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }
