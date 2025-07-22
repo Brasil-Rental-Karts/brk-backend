@@ -510,10 +510,17 @@ export class ChampionshipClassificationController extends BaseController {
       // TODO: Adicionar verificação de permissão (apenas admins/managers do campeonato)
       // await this.validateChampionshipPermission(championshipId, userId);
 
-      await this.classificationService.recalculateSeasonClassification(seasonId);
+      // Executar o recálculo de forma assíncrona
+      this.classificationService.recalculateSeasonClassification(seasonId)
+        .then(() => {
+          console.log(`[ASYNC] Classificação da temporada ${seasonId} recalculada em background.`);
+        })
+        .catch((err) => {
+          console.error(`[ASYNC] Erro ao recalcular classificação da temporada ${seasonId}:`, err);
+        });
 
       res.json({
-        message: 'Classificação da temporada recalculada com sucesso'
+        message: 'Recalculo da classificação da temporada iniciado em background'
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -632,16 +639,22 @@ export class ChampionshipClassificationController extends BaseController {
         return;
       }
 
-      // Recalcular posições
-      await this.classificationService.recalculateStagePositions(
+      // Executar o recálculo de forma assíncrona
+      this.classificationService.recalculateStagePositions(
         stageId,
         categoryId,
         batteryIndex
-      );
+      )
+        .then(() => {
+          console.log(`[ASYNC] Posições da etapa ${stageId} recalculadas em background.`);
+        })
+        .catch((err) => {
+          console.error(`[ASYNC] Erro ao recalcular posições da etapa ${stageId}:`, err);
+        });
 
       res.json({ 
         success: true, 
-        message: 'Posições recalculadas com sucesso' 
+        message: 'Recalculo das posições da etapa iniciado em background' 
       });
 
     } catch (error: any) {

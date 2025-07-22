@@ -1083,6 +1083,16 @@ export class ChampionshipClassificationService {
         });
       }
 
+      // Após recalcular posições, sempre recalcular a classificação da temporada
+      if (stage.seasonId) {
+        this.recalculateSeasonClassification(stage.seasonId)
+          .then(() => {
+            console.log(`[ASYNC] Classificação da temporada ${stage.seasonId} recalculada após recálculo de posições.`);
+          })
+          .catch((err) => {
+            console.error(`[ASYNC] Erro ao recalcular classificação da temporada ${stage.seasonId}:`, err);
+          });
+      }
     } catch (error) {
       console.error('❌ [RECALCULATION] Erro ao recalcular posições:', error);
       throw error;
