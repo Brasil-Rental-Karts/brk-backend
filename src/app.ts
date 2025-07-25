@@ -8,7 +8,6 @@ import { errorMiddleware } from './middleware/error.middleware';
 import { loggerMiddleware } from './middleware/logger.middleware';
 import { BaseController } from './controllers/base.controller';
 import path from 'path';
-import fs from 'fs';
 import config from './config/config';
 import cookieParser from 'cookie-parser';
 

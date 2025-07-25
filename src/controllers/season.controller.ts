@@ -3,7 +3,7 @@ import { BaseController } from './base.controller';
 import { SeasonService } from '../services/season.service';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { ChampionshipService } from '../services/championship.service';
-import { Season, SeasonStatus, InscriptionType, PaymentMethod, PaymentCondition } from '../models/season.entity';
+import { Season, SeasonStatus, PaymentMethod, PaymentCondition } from '../models/season.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { authMiddleware } from '../middleware/auth.middleware';

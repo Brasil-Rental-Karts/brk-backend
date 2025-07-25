@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsUUID, ValidateNested, IsArray } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsUUID } from 'class-validator';
+;
 
 export class RegulationOrderDto {
   @IsUUID()

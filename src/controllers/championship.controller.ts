@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { BaseController } from './base.controller';
 import { ChampionshipService } from '../services/championship.service';
 import { ChampionshipStaffService } from '../services/championship-staff.service';

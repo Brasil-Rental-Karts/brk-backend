@@ -38,8 +38,6 @@ export interface CreateAdminRegistrationData {
   notes?: string;
 }
 
-
-
 export interface RegistrationPaymentData {
   id: string; // AsaasPayment ID
   registrationId: string;
@@ -293,9 +291,7 @@ export class SeasonRegistrationService {
 
     // Buscar etapas se for inscrição por etapa
     let stages: Stage[] = [];
-    
 
-    
     if (inscriptionType === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
       stages = await this.stageRepository.find({
         where: { 
@@ -311,9 +307,7 @@ export class SeasonRegistrationService {
 
     // Calcular o valor total baseado no tipo de inscrição
     let totalAmount: number;
-    
 
-    
     // Se o frontend forneceu o valor total (incluindo taxas), usar ele
     if (data.totalAmount && data.totalAmount > 0) {
       totalAmount = data.totalAmount;
@@ -1600,7 +1594,6 @@ export class SeasonRegistrationService {
    * Adiciona etapas a uma inscrição existente com pagamento administrativo
    */
 
-
   /**
    * Atualiza o status da SeasonRegistration baseado nos status dos pagamentos
    * Este método é chamado sempre que um pagamento é criado ou atualizado
@@ -1827,7 +1820,6 @@ export class SeasonRegistrationService {
    */
   async reactivateOverduePayment(paymentId: string, newDueDate: string): Promise<RegistrationPaymentData> {
 
-    
     // Buscar o pagamento no banco
     const payment = await this.paymentRepository.findOne({
       where: { id: paymentId },
@@ -1838,8 +1830,6 @@ export class SeasonRegistrationService {
 
       throw new BadRequestException('Pagamento não encontrado');
     }
-
-
 
     if (payment.status !== AsaasPaymentStatus.OVERDUE) {
 
@@ -1854,7 +1844,6 @@ export class SeasonRegistrationService {
     try {
 
       const formattedDate = this.asaasService.formatDateForAsaas(new Date(newDueDate));
-      
 
       // Primeiro, verificar se o pagamento ainda existe no Asaas
       
@@ -1864,8 +1853,7 @@ export class SeasonRegistrationService {
         
       } catch (error: any) {
         if (error.message.includes('404')) {
-          
-          
+
           // Marcar como cancelado no banco local
           payment.status = AsaasPaymentStatus.REFUNDED;
           payment.rawResponse = {
@@ -1887,13 +1875,10 @@ export class SeasonRegistrationService {
 
       // Reativar no Asaas
 
-      
       const result = await this.asaasService.reactivateOverduePayment(
         payment.asaasPaymentId,
         formattedDate
       );
-
-
 
       // Atualizar no banco local
       payment.dueDate = formattedDate;
@@ -1902,14 +1887,11 @@ export class SeasonRegistrationService {
       payment.pixCopyPaste = result.qrCode.payload;
       payment.rawResponse = result.payment;
 
-
       await this.paymentRepository.save(payment);
 
       // Atualizar o status da inscrição
 
       await this.updateSeasonRegistrationStatus(payment.registrationId);
-
-
 
       return {
         id: payment.id,

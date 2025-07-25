@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { CreditCardFeesService, CreateCreditCardFeesData, UpdateCreditCardFeesData } from '../services/credit-card-fees.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';

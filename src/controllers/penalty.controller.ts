@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { PenaltyService } from '../services/penalty.service';
-import { PenaltyRepositoryImpl } from '../repositories/penalty.repository.impl';
 import { CreatePenaltyDto, UpdatePenaltyDto, AppealPenaltyDto } from '../dtos/penalty.dto';
 import { PenaltyType, PenaltyStatus } from '../models/penalty.entity';
 import { BaseController } from './base.controller';

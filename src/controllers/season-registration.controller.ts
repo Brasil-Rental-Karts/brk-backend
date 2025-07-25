@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { SeasonRegistrationService, CreateRegistrationData } from '../services/season-registration.service';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
@@ -7,8 +7,7 @@ import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { SeasonService } from '../services/season.service';
-import { getDocumentType, removeDocumentMask } from '../utils/document.util';
-
+import { getDocumentType } from '../utils/document.util';
 /**
  * @swagger
  * components:
@@ -1098,6 +1097,5 @@ export class SeasonRegistrationController extends BaseController {
       });
     }
   }
-
 
 } 

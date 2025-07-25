@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsArray, IsUUID, IsDateString, Matches, IsDate } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsArray, IsUUID, Matches, IsDate } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { BaseDto } from './base.dto';
 

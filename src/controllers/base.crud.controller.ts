@@ -6,7 +6,6 @@ import { validationMiddleware } from '../middleware/validator.middleware';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { UserRole } from '../models/user.entity';
 
-
 export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto extends BaseDto> extends BaseController {
   protected abstract service: BaseService<T>;
   protected abstract createDtoClass: new () => CreateDto;
@@ -66,7 +65,6 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     );
   }
 
-  
   protected async create(req: Request, res: Response): Promise<void> {
     try {
       const result = await this.service.create(req.body);
@@ -77,7 +75,6 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async getAll(req: Request, res: Response): Promise<void> {
     try {
       const items = await this.service.findAll();
@@ -88,7 +85,6 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async getById(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;
@@ -106,7 +102,6 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async update(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;
@@ -124,7 +119,6 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async delete(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;

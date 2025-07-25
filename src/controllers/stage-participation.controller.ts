@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { StageParticipationService, CreateParticipationData } from '../services/stage-participation.service';
 import { authMiddleware } from '../middleware/auth.middleware';

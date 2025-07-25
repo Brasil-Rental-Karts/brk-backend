@@ -1,12 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { BaseController } from './base.controller';
 import { CategoryService } from '../services/category.service';
-import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dtos/category.dto';
-import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
-import { NotFoundException } from '../exceptions/not-found.exception';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { SeasonService } from '../services/season.service';
 

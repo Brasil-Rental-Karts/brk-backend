@@ -5,7 +5,7 @@ import { SeasonRegistration, RegistrationStatus } from '../models/season-registr
 import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
 import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
 import { Stage } from '../models/stage.entity';
-import { Season, InscriptionType } from '../models/season.entity';
+import { Season } from '../models/season.entity';
 import { AsaasPayment, AsaasPaymentStatus } from '../models/asaas-payment.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';

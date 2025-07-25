@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+;
 import { Penalty, PenaltyType, PenaltyStatus } from '../models/penalty.entity';
 
 export interface IPenaltyRepository {

@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsOptional, IsNumber, IsUUID, IsDateString, Min, Max } from 'class-validator';
+import { IsEnum, IsString, IsOptional, IsNumber, IsUUID, Min } from 'class-validator';
 import { PenaltyType, PenaltyStatus } from '../models/penalty.entity';
 import { BaseDto } from './base.dto';
 

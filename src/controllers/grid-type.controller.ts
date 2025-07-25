@@ -1,10 +1,9 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { GridTypeService } from '../services/grid-type.service';
-import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
 import { CreateGridTypeDto, UpdateGridTypeDto } from '../dtos/grid-type.dto';
-import { UserRole } from '../models/user.entity';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 
 export class GridTypeController extends BaseController {

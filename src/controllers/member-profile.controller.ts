@@ -4,7 +4,6 @@ import { MemberProfileService } from '../services/member-profile.service';
 import { UpsertMemberProfileDto } from '../dtos/member-profile.dto';
 import { validationMiddleware } from '../middleware/validator.middleware';
 import { authMiddleware, requireMember } from '../middleware/auth.middleware';
-import { UserRole } from '../models/user.entity';
 import { MemberProfile } from '../models/member-profile.entity';
 import { 
   Gender, 

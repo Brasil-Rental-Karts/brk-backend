@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { ChampionshipStaffService, AddStaffMemberRequest } from '../services/championship-staff.service';
 import { authMiddleware, requireMember } from '../middleware/auth.middleware';
@@ -262,8 +262,6 @@ export class ChampionshipStaffController extends BaseController {
       const championshipId = req.params.championshipId;
       const userId = (req as any).user.id;
       const request: AddStaffMemberRequest = req.body;
-      
-
 
       const staffMember = await this.championshipStaffService.addStaffMember(championshipId, request, userId);
       

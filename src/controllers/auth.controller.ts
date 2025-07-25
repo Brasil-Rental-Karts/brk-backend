@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { AuthService } from '../services/auth.service';
-import { RegisterUserDto, LoginUserDto, RefreshTokenDto, ForgotPasswordDto, ResetPasswordDto, GoogleAuthDto, ConfirmEmailDto } from '../dtos/auth.dto';
+import { RegisterUserDto, LoginUserDto, ForgotPasswordDto, ResetPasswordDto, GoogleAuthDto, ConfirmEmailDto } from '../dtos/auth.dto';
 import { authMiddleware } from '../middleware/auth.middleware';
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
@@ -335,7 +335,6 @@ export class AuthController extends BaseController {
     this.router.post('/refresh-token', this.refreshToken.bind(this));
   }
 
-  
   private async register(req: Request, res: Response): Promise<void> {
     try {
       const registerUserDto: RegisterUserDto = req.body;
@@ -359,7 +358,6 @@ export class AuthController extends BaseController {
     }
   }
 
-  
   private async login(req: Request, res: Response): Promise<void> {
     try {
       const loginUserDto: LoginUserDto = req.body;
@@ -399,7 +397,6 @@ export class AuthController extends BaseController {
     }
   }
 
-  
   private async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
       const forgotPasswordDto: ForgotPasswordDto = req.body;
@@ -438,7 +435,6 @@ export class AuthController extends BaseController {
     }
   }
 
-  
   private async logout(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user || !req.user.id) {

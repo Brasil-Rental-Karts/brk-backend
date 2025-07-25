@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsBoolean, IsArray, Length, IsISO8601, IsUUID, IsNumber, IsInt, Min, Max, ArrayMinSize, ArrayMaxSize } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, Length, IsISO8601, IsUUID, IsInt, Min, Max } from 'class-validator';
 import { BaseDto } from './base.dto';
-import { Type, Transform } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { 
   Gender, 
   KartExperienceYears, 

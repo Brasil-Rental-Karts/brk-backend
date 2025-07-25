@@ -1,6 +1,5 @@
 import { OAuth2Client } from 'google-auth-library';
 import { User, UserRole } from '../models/user.entity';
-import { MemberProfile } from '../models/member-profile.entity';
 import { UserRepository } from '../repositories/user.repository';
 import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import config from '../config/config';

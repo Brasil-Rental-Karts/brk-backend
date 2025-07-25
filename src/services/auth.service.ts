@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User, UserRole } from '../models/user.entity';
-import { MemberProfile } from '../models/member-profile.entity';
 import { RegisterUserDto, LoginUserDto, TokenDto, ForgotPasswordDto, ResetPasswordDto } from '../dtos/auth.dto';
 import { UserRepository } from '../repositories/user.repository';
 import { MemberProfileRepository } from '../repositories/member-profile.repository';

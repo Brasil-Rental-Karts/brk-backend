@@ -7,7 +7,7 @@ import { BadRequestException } from '../exceptions/bad-request.exception';
 import { RedisService } from './redis.service';
 import { AppDataSource } from '../config/database.config';
 import { ConflictException } from '../exceptions/conflict.exception';
-import { ChampionshipClassificationService, StageResultData } from './championship-classification.service';
+import { ChampionshipClassificationService } from './championship-classification.service';
 import { ScoringSystemService } from './scoring-system.service';
 
 export interface StageWithParticipants extends Stage {

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { ScoringSystemService, CreateScoringSystemDto, UpdateScoringSystemDto } from '../services/scoring-system.service';
 import { ChampionshipService } from '../services/championship.service';

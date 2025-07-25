@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsEnum, IsInt, Min, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsEnum, IsInt, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { BaseDto } from './base.dto';
 import { GridTypeEnum } from '../models/grid-type.entity';
