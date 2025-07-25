@@ -3,6 +3,8 @@ import 'reflect-metadata';
 import { App } from './app';
 import config from './config/config';
 import { AppDataSource } from './config/database.config';
+import { initSentry } from './config/sentry.config';
+import { setupSentryErrorHandlers } from './utils/sentry.util';
 import { AdminStatsController } from './controllers/admin-stats.controller';
 import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
 import { AuthController } from './controllers/auth.controller';
@@ -73,6 +75,12 @@ import { StageParticipationService } from './services/stage-participation.servic
 import { UserService } from './services/user.service';
 import { UserStatsService } from './services/user-stats.service';
 import { VipPreregisterService } from './services/vip-preregister.service';
+
+// Initialize Sentry
+initSentry();
+
+// Setup Sentry error handlers
+setupSentryErrorHandlers();
 
 // Initialize database connection
 AppDataSource.initialize()
