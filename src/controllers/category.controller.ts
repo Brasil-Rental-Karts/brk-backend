@@ -1,14 +1,13 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { BaseController } from './base.controller';
-import { CategoryService } from '../services/category.service';
-import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
-import { validationMiddleware } from '../middleware/validator.middleware';
+import { NextFunction, Request, Response } from 'express';
+
 import { CreateCategoryDto, UpdateCategoryDto } from '../dtos/category.dto';
-import { UserRole } from '../models/user.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
-import { NotFoundException } from '../exceptions/not-found.exception';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { validationMiddleware } from '../middleware/validator.middleware';
+import { CategoryService } from '../services/category.service';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { SeasonService } from '../services/season.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -174,7 +173,11 @@ export class CategoryController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/name/:name', authMiddleware, this.getCategoryByName.bind(this));
+    this.router.get(
+      '/name/:name',
+      authMiddleware,
+      this.getCategoryByName.bind(this)
+    );
 
     /**
      * @swagger
@@ -205,7 +208,11 @@ export class CategoryController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/ballast/:ballast', authMiddleware, this.getCategoriesByBallast.bind(this));
+    this.router.get(
+      '/ballast/:ballast',
+      authMiddleware,
+      this.getCategoriesByBallast.bind(this)
+    );
 
     /**
      * @swagger
@@ -237,7 +244,11 @@ export class CategoryController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId', authMiddleware, this.getCategoriesBySeasonId.bind(this));
+    this.router.get(
+      '/season/:seasonId',
+      authMiddleware,
+      this.getCategoriesBySeasonId.bind(this)
+    );
 
     /**
      * @swagger
@@ -269,7 +280,11 @@ export class CategoryController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/stage/:stageId', authMiddleware, this.getCategoriesByStageId.bind(this));
+    this.router.get(
+      '/stage/:stageId',
+      authMiddleware,
+      this.getCategoriesByStageId.bind(this)
+    );
 
     /**
      * @swagger
@@ -383,11 +398,7 @@ export class CategoryController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.delete(
-      '/:id',
-      authMiddleware,
-      this.deleteCategory.bind(this)
-    );
+    this.router.delete('/:id', authMiddleware, this.deleteCategory.bind(this));
   }
 
   private async getAllCategories(req: Request, res: Response): Promise<void> {
@@ -424,7 +435,10 @@ export class CategoryController extends BaseController {
 
       if (seasonId) {
         // Se seasonId for fornecido, buscar categoria específica da temporada
-        const category = await this.categoryService.findByNameAndSeason(name, seasonId as string);
+        const category = await this.categoryService.findByNameAndSeason(
+          name,
+          seasonId as string
+        );
         if (!category) {
           res.status(404).json({ message: 'Categoria não encontrada' });
           return;
@@ -445,21 +459,30 @@ export class CategoryController extends BaseController {
     }
   }
 
-  private async getCategoriesByBallast(req: Request, res: Response): Promise<void> {
+  private async getCategoriesByBallast(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     const ballast = parseInt(req.params.ballast, 10);
 
     if (isNaN(ballast)) {
       throw new BadRequestException('O lastro deve ser um número.');
     }
-    
+
     const categories = await this.categoryService.findByBallast(ballast);
     res.status(200).json(categories);
   }
 
-  private async getCategoriesBySeasonId(req: Request, res: Response): Promise<void> {
+  private async getCategoriesBySeasonId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
-      const categories = await this.categoryService.findBySeasonIdWithRegistrationCount(seasonId);
+      const categories =
+        await this.categoryService.findBySeasonIdWithRegistrationCount(
+          seasonId
+        );
       res.status(200).json(categories);
     } catch (error) {
       console.error('Erro ao buscar categorias por temporada:', error);
@@ -467,7 +490,10 @@ export class CategoryController extends BaseController {
     }
   }
 
-  private async getCategoriesByStageId(req: Request, res: Response): Promise<void> {
+  private async getCategoriesByStageId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { stageId } = req.params;
       const categories = await this.categoryService.findByStageId(stageId);
@@ -478,7 +504,11 @@ export class CategoryController extends BaseController {
     }
   }
 
-  private async createCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async createCategory(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const userId = req.user!.id;
       const seasonId = req.body.seasonId;
@@ -491,29 +521,39 @@ export class CategoryController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para criar categorias neste campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para criar categorias neste campeonato'
+          message:
+            'Você não tem permissão para criar categorias neste campeonato',
         });
         return;
       }
 
-      const validationErrors = await this.categoryService.validateCategoryData(req.body);
-      
+      const validationErrors = await this.categoryService.validateCategoryData(
+        req.body
+      );
+
       if (validationErrors.length > 0) {
-        res.status(400).json({ 
-          message: 'Dados inválidos', 
-          errors: validationErrors 
+        res.status(400).json({
+          message: 'Dados inválidos',
+          errors: validationErrors,
         });
         return;
       }
 
       // Verificar se já existe uma categoria com o mesmo nome na mesma temporada
-      const existingCategory = await this.categoryService.findByNameAndSeason(req.body.name, req.body.seasonId);
+      const existingCategory = await this.categoryService.findByNameAndSeason(
+        req.body.name,
+        req.body.seasonId
+      );
       if (existingCategory) {
-        res.status(400).json({ 
-          message: 'Já existe uma categoria com este nome nesta temporada' 
+        res.status(400).json({
+          message: 'Já existe uma categoria com este nome nesta temporada',
         });
         return;
       }
@@ -530,7 +570,7 @@ export class CategoryController extends BaseController {
     try {
       const { id } = req.params;
       const userId = req.user!.id;
-      
+
       // Verificar se a categoria existe
       const existingCategory = await this.categoryService.findById(id);
       if (!existingCategory) {
@@ -539,27 +579,36 @@ export class CategoryController extends BaseController {
       }
 
       // Buscar a season para obter o championshipId
-      const season = await this.seasonService.findById(existingCategory.seasonId);
+      const season = await this.seasonService.findById(
+        existingCategory.seasonId
+      );
       if (!season) {
         res.status(404).json({ message: 'Temporada não encontrada' });
         return;
       }
 
       // Verificar se o usuário tem permissão para editar categorias neste campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para editar esta categoria'
+          message: 'Você não tem permissão para editar esta categoria',
         });
         return;
       }
-      
-      const validationErrors = await this.categoryService.validateCategoryData(req.body, true);
-      
+
+      const validationErrors = await this.categoryService.validateCategoryData(
+        req.body,
+        true
+      );
+
       if (validationErrors.length > 0) {
-        res.status(400).json({ 
-          message: 'Dados inválidos', 
-          errors: validationErrors 
+        res.status(400).json({
+          message: 'Dados inválidos',
+          errors: validationErrors,
         });
         return;
       }
@@ -567,10 +616,14 @@ export class CategoryController extends BaseController {
       // Verificar se já existe outra categoria com o mesmo nome na mesma temporada (se o nome foi alterado)
       if (req.body.name && req.body.name !== existingCategory.name) {
         const seasonId = req.body.seasonId || existingCategory.seasonId;
-        const categoryWithSameName = await this.categoryService.findByNameAndSeason(req.body.name, seasonId);
+        const categoryWithSameName =
+          await this.categoryService.findByNameAndSeason(
+            req.body.name,
+            seasonId
+          );
         if (categoryWithSameName) {
-          res.status(400).json({ 
-            message: 'Já existe uma categoria com este nome nesta temporada' 
+          res.status(400).json({
+            message: 'Já existe uma categoria com este nome nesta temporada',
           });
           return;
         }
@@ -588,7 +641,7 @@ export class CategoryController extends BaseController {
     try {
       const { id } = req.params;
       const userId = req.user!.id;
-      
+
       const category = await this.categoryService.findById(id);
       if (!category) {
         res.status(404).json({ message: 'Categoria não encontrada' });
@@ -603,16 +656,20 @@ export class CategoryController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para deletar categorias neste campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para deletar esta categoria'
+          message: 'Você não tem permissão para deletar esta categoria',
         });
         return;
       }
 
       const success = await this.categoryService.delete(id);
-      
+
       if (success) {
         res.status(204).send();
       } else {
@@ -623,4 +680,4 @@ export class CategoryController extends BaseController {
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
-} 
+}

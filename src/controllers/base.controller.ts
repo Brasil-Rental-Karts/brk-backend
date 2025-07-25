@@ -10,4 +10,4 @@ export abstract class BaseController {
   }
 
   abstract initializeRoutes(): void;
-} 
+}

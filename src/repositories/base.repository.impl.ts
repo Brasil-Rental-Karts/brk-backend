@@ -1,8 +1,11 @@
-import { Repository, DeepPartial, FindOptionsWhere } from 'typeorm';
-import { BaseRepository } from './base.repository';
-import { BaseEntity } from '../models/base.entity';
+import { DeepPartial, FindOptionsWhere, Repository } from 'typeorm';
 
-export class BaseRepositoryImpl<T extends BaseEntity> implements BaseRepository<T> {
+import { BaseEntity } from '../models/base.entity';
+import { BaseRepository } from './base.repository';
+
+export class BaseRepositoryImpl<T extends BaseEntity>
+  implements BaseRepository<T>
+{
   constructor(protected repository: Repository<T>) {}
 
   async findAll(): Promise<T[]> {
@@ -27,11 +30,11 @@ export class BaseRepositoryImpl<T extends BaseEntity> implements BaseRepository<
 
   async update(id: string, item: DeepPartial<T>): Promise<T | null> {
     const existingItem = await this.findById(id);
-    
+
     if (!existingItem) {
       return null;
     }
-    
+
     const updatedItem = this.repository.merge(existingItem, item);
     return this.repository.save(updatedItem);
   }
@@ -40,4 +43,4 @@ export class BaseRepositoryImpl<T extends BaseEntity> implements BaseRepository<
     const result = await this.repository.delete(id);
     return !!result.affected && result.affected > 0;
   }
-} 
+}

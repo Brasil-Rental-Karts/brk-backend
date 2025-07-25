@@ -1,11 +1,21 @@
-import { RaceTrack } from '../models/race-track.entity';
-import { RaceTrackRepository, IRaceTrackRepository } from '../repositories/race-track.repository';
-import { BaseService } from './base.service';
-import { CreateRaceTrackDto, UpdateRaceTrackDto, RaceTrackResponseDto } from '../dtos/race-track.dto';
+import {
+  CreateRaceTrackDto,
+  RaceTrackResponseDto,
+  UpdateRaceTrackDto,
+} from '../dtos/race-track.dto';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { RaceTrack } from '../models/race-track.entity';
+import {
+  IRaceTrackRepository,
+  RaceTrackRepository,
+} from '../repositories/race-track.repository';
+import {
+  validateDefaultFleets,
+  validateTrackLayouts,
+} from '../types/race-track.types';
+import { BaseService } from './base.service';
 import { RedisService } from './redis.service';
-import { validateTrackLayouts, validateDefaultFleets } from '../types/race-track.types';
 
 export class RaceTrackService extends BaseService<RaceTrack> {
   private readonly raceTrackRepository: IRaceTrackRepository;
@@ -42,7 +52,9 @@ export class RaceTrackService extends BaseService<RaceTrack> {
     }
 
     // Verificar se já existe um kartódromo com o mesmo nome
-    const existingRaceTrack = await this.raceTrackRepository.findByName(createDto.name);
+    const existingRaceTrack = await this.raceTrackRepository.findByName(
+      createDto.name
+    );
     if (existingRaceTrack) {
       throw new BadRequestException('Já existe um kartódromo com este nome');
     }
@@ -86,7 +98,10 @@ export class RaceTrackService extends BaseService<RaceTrack> {
     return raceTracks.map(raceTrack => this.mapToResponseDto(raceTrack));
   }
 
-  async update(id: string, updateDto: UpdateRaceTrackDto): Promise<RaceTrackResponseDto> {
+  async update(
+    id: string,
+    updateDto: UpdateRaceTrackDto
+  ): Promise<RaceTrackResponseDto> {
     // Verificar se o kartódromo existe
     const existingRaceTrack = await this.raceTrackRepository.findById(id);
     if (!existingRaceTrack) {
@@ -124,19 +139,27 @@ export class RaceTrackService extends BaseService<RaceTrack> {
 
     // Verificar se já existe outro kartódromo com o mesmo nome (exceto o atual)
     if (updateDto.name && updateDto.name !== existingRaceTrack.name) {
-      const raceTrackWithSameName = await this.raceTrackRepository.findByName(updateDto.name);
+      const raceTrackWithSameName = await this.raceTrackRepository.findByName(
+        updateDto.name
+      );
       if (raceTrackWithSameName && raceTrackWithSameName.id !== id) {
         throw new BadRequestException('Já existe um kartódromo com este nome');
       }
     }
 
-    const updatedRaceTrack = await this.raceTrackRepository.update(id, updateDto);
+    const updatedRaceTrack = await this.raceTrackRepository.update(
+      id,
+      updateDto
+    );
     if (!updatedRaceTrack) {
       throw new NotFoundException('Kartódromo não encontrado');
     }
 
     // Atualizar cache no Redis
-    await this.redisService.cacheRaceTrackBasicInfo(updatedRaceTrack.id, updatedRaceTrack);
+    await this.redisService.cacheRaceTrackBasicInfo(
+      updatedRaceTrack.id,
+      updatedRaceTrack
+    );
     return this.mapToResponseDto(updatedRaceTrack);
   }
 
@@ -151,7 +174,7 @@ export class RaceTrackService extends BaseService<RaceTrack> {
     if (!deleted) {
       throw new BadRequestException('Erro ao excluir kartódromo');
     }
-    
+
     // Remover do cache do Redis
     await this.redisService.invalidateRaceTrackCache(id);
     return deleted;
@@ -164,7 +187,7 @@ export class RaceTrackService extends BaseService<RaceTrack> {
     }
 
     const updatedRaceTrack = await this.raceTrackRepository.update(id, {
-      isActive: !raceTrack.isActive
+      isActive: !raceTrack.isActive,
     });
 
     if (!updatedRaceTrack) {
@@ -186,7 +209,7 @@ export class RaceTrackService extends BaseService<RaceTrack> {
       generalInfo: raceTrack.generalInfo,
       isActive: raceTrack.isActive,
       createdAt: raceTrack.createdAt,
-      updatedAt: raceTrack.updatedAt
+      updatedAt: raceTrack.updatedAt,
     };
   }
-} 
+}

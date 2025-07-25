@@ -1,17 +1,25 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index, OneToMany } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+} from 'typeorm';
+
+import { AsaasPayment } from './asaas-payment.entity';
 import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
 import { Season } from './season.entity';
 import { SeasonRegistrationCategory } from './season-registration-category.entity';
 import { SeasonRegistrationStage } from './season-registration-stage.entity';
-import { AsaasPayment } from './asaas-payment.entity';
+import { User } from './user.entity';
 
 export enum RegistrationStatus {
   PENDING = 'pending',
   PAYMENT_PENDING = 'payment_pending',
   CONFIRMED = 'confirmed',
   CANCELLED = 'cancelled',
-  EXPIRED = 'expired'
+  EXPIRED = 'expired',
 }
 
 export enum PaymentStatus {
@@ -22,7 +30,7 @@ export enum PaymentStatus {
   CANCELLED = 'cancelled',
   REFUNDED = 'refunded',
   EXEMPT = 'exempt',
-  DIRECT_PAYMENT = 'direct_payment'
+  DIRECT_PAYMENT = 'direct_payment',
 }
 
 @Entity('SeasonRegistrations')
@@ -34,17 +42,17 @@ export class SeasonRegistration extends BaseEntity {
   @Column({ nullable: false })
   seasonId: string;
 
-  @Column({ 
-    type: 'enum', 
-    enum: RegistrationStatus, 
-    default: RegistrationStatus.PENDING 
+  @Column({
+    type: 'enum',
+    enum: RegistrationStatus,
+    default: RegistrationStatus.PENDING,
   })
   status: RegistrationStatus;
 
-  @Column({ 
-    type: 'enum', 
-    enum: PaymentStatus, 
-    default: PaymentStatus.PENDING 
+  @Column({
+    type: 'enum',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
   })
   paymentStatus: PaymentStatus;
 
@@ -75,7 +83,10 @@ export class SeasonRegistration extends BaseEntity {
   @JoinColumn({ name: 'seasonId' })
   season: Season;
 
-  @OneToMany(() => SeasonRegistrationCategory, regCategory => regCategory.registration)
+  @OneToMany(
+    () => SeasonRegistrationCategory,
+    regCategory => regCategory.registration
+  )
   categories: SeasonRegistrationCategory[];
 
   @OneToMany(() => SeasonRegistrationStage, regStage => regStage.registration)
@@ -83,4 +94,4 @@ export class SeasonRegistration extends BaseEntity {
 
   @OneToMany(() => AsaasPayment, payment => payment.registration)
   payments: AsaasPayment[];
-} 
+}

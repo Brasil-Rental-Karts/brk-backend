@@ -1,6 +1,7 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsObject } from 'class-validator';
-import { BaseDto } from './base.dto';
+import { IsEmail, IsNotEmpty, IsObject, IsOptional } from 'class-validator';
+
 import { StaffPermissions } from '../models/championship-staff.entity';
+import { BaseDto } from './base.dto';
 
 /**
  * @swagger
@@ -84,4 +85,4 @@ export class UpdateStaffMemberDto extends BaseDto {
   @IsOptional()
   @IsObject()
   permissions?: StaffPermissions;
-} 
+}

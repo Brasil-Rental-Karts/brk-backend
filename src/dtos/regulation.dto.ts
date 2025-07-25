@@ -1,11 +1,16 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsUUID, ValidateNested, IsArray } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class RegulationOrderDto {
   @IsUUID()
   @IsNotEmpty()
   id: string;
-  
+
   @IsNumber()
   @IsNotEmpty()
   order: number;
@@ -61,4 +66,4 @@ export class RegulationResponseDto {
   seasonId: string;
   createdAt: string;
   updatedAt: string;
-} 
+}

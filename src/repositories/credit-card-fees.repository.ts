@@ -1,12 +1,19 @@
 import { Repository } from 'typeorm';
+
 import { AppDataSource } from '../config/database.config';
 import { CreditCardFees } from '../models/credit-card-fees.entity';
 import { BaseRepository } from './base.repository';
 
-export interface CreditCardFeesRepository extends BaseRepository<CreditCardFees> {
+export interface CreditCardFeesRepository
+  extends BaseRepository<CreditCardFees> {
   findByChampionshipId(championshipId: string): Promise<CreditCardFees[]>;
-  findByChampionshipIdAndActive(championshipId: string): Promise<CreditCardFees[]>;
-  getRateForInstallments(championshipId: string, installments: number): Promise<{ percentageRate: number; fixedFee: number } | null>;
+  findByChampionshipIdAndActive(
+    championshipId: string
+  ): Promise<CreditCardFees[]>;
+  getRateForInstallments(
+    championshipId: string,
+    installments: number
+  ): Promise<{ percentageRate: number; fixedFee: number } | null>;
 }
 
 export class CreditCardFeesRepositoryImpl implements CreditCardFeesRepository {
@@ -18,7 +25,7 @@ export class CreditCardFeesRepositoryImpl implements CreditCardFeesRepository {
 
   async findAll(): Promise<CreditCardFees[]> {
     return this.repository.find({
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
   }
 
@@ -38,7 +45,10 @@ export class CreditCardFeesRepositoryImpl implements CreditCardFeesRepository {
     return this.repository.save(entity);
   }
 
-  async update(id: string, data: Partial<CreditCardFees>): Promise<CreditCardFees | null> {
+  async update(
+    id: string,
+    data: Partial<CreditCardFees>
+  ): Promise<CreditCardFees | null> {
     await this.repository.update(id, data);
     return this.findById(id);
   }
@@ -48,41 +58,48 @@ export class CreditCardFeesRepositoryImpl implements CreditCardFeesRepository {
     return result.affected !== 0;
   }
 
-  async findByChampionshipId(championshipId: string): Promise<CreditCardFees[]> {
+  async findByChampionshipId(
+    championshipId: string
+  ): Promise<CreditCardFees[]> {
     return this.repository.find({
       where: { championshipId },
-      order: { 
+      order: {
         installmentRange: 'ASC',
-        createdAt: 'DESC' 
-      }
-    });
-  }
-
-  async findByChampionshipIdAndActive(championshipId: string): Promise<CreditCardFees[]> {
-    return this.repository.find({
-      where: { 
-        championshipId,
-        isActive: true 
+        createdAt: 'DESC',
       },
-      order: { 
-        installmentRange: 'ASC',
-        createdAt: 'DESC' 
-      }
     });
   }
 
-  async getRateForInstallments(championshipId: string, installments: number): Promise<{ percentageRate: number; fixedFee: number } | null> {
+  async findByChampionshipIdAndActive(
+    championshipId: string
+  ): Promise<CreditCardFees[]> {
+    return this.repository.find({
+      where: {
+        championshipId,
+        isActive: true,
+      },
+      order: {
+        installmentRange: 'ASC',
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  async getRateForInstallments(
+    championshipId: string,
+    installments: number
+  ): Promise<{ percentageRate: number; fixedFee: number } | null> {
     const fees = await this.findByChampionshipIdAndActive(championshipId);
-    
+
     for (const fee of fees) {
       if (this.isInstallmentInRange(installments, fee.installmentRange)) {
         return {
           percentageRate: Number(fee.percentageRate),
-          fixedFee: Number(fee.fixedFee)
+          fixedFee: Number(fee.fixedFee),
         };
       }
     }
-    
+
     return null;
   }
 
@@ -90,14 +107,14 @@ export class CreditCardFeesRepositoryImpl implements CreditCardFeesRepository {
     if (range === '1') {
       return installments === 1;
     }
-    
+
     const parts = range.split('-');
     if (parts.length === 2) {
       const min = parseInt(parts[0], 10);
       const max = parseInt(parts[1], 10);
       return installments >= min && installments <= max;
     }
-    
+
     return false;
   }
-} 
+}

@@ -1,4 +1,5 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty, IsBoolean } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+
 import { BaseDto } from './base.dto';
 
 /**
@@ -206,4 +207,4 @@ export class ConfirmEmailDto extends BaseDto {
   @IsString()
   @IsNotEmpty({ message: 'Token is required' })
   token!: string;
-} 
+}

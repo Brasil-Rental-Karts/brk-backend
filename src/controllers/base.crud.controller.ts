@@ -1,13 +1,17 @@
 import { Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { BaseService } from '../services/base.service';
+
 import { BaseDto } from '../dtos/base.dto';
-import { validationMiddleware } from '../middleware/validator.middleware';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
+import { validationMiddleware } from '../middleware/validator.middleware';
 import { UserRole } from '../models/user.entity';
+import { BaseService } from '../services/base.service';
+import { BaseController } from './base.controller';
 
-
-export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto extends BaseDto> extends BaseController {
+export abstract class BaseCrudController<
+  T,
+  CreateDto extends BaseDto,
+  UpdateDto extends BaseDto,
+> extends BaseController {
   protected abstract service: BaseService<T>;
   protected abstract createDtoClass: new () => CreateDto;
   protected abstract updateDtoClass: new () => UpdateDto;
@@ -66,7 +70,6 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     );
   }
 
-  
   protected async create(req: Request, res: Response): Promise<void> {
     try {
       const result = await this.service.create(req.body);
@@ -77,7 +80,6 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async getAll(req: Request, res: Response): Promise<void> {
     try {
       const items = await this.service.findAll();
@@ -88,17 +90,16 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async getById(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;
       const item = await this.service.findById(id);
-      
+
       if (!item) {
         res.status(404).json({ message: 'Resource not found' });
         return;
       }
-      
+
       res.status(200).json(item);
     } catch (error) {
       console.error(`Error retrieving resource: ${error}`);
@@ -106,17 +107,16 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async update(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;
       const updatedItem = await this.service.update(id, req.body);
-      
+
       if (!updatedItem) {
         res.status(404).json({ message: 'Resource not found' });
         return;
       }
-      
+
       res.status(200).json(updatedItem);
     } catch (error) {
       console.error(`Error updating resource: ${error}`);
@@ -124,21 +124,20 @@ export abstract class BaseCrudController<T, CreateDto extends BaseDto, UpdateDto
     }
   }
 
-  
   protected async delete(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;
       const success = await this.service.delete(id);
-      
+
       if (!success) {
         res.status(404).json({ message: 'Resource not found' });
         return;
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error(`Error deleting resource: ${error}`);
       res.status(500).json({ message: 'Failed to delete resource' });
     }
   }
-} 
+}

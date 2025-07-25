@@ -1,5 +1,13 @@
-import { IsEnum, IsString, IsOptional, IsNumber, IsUUID, IsDateString, Min, Max } from 'class-validator';
-import { PenaltyType, PenaltyStatus } from '../models/penalty.entity';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
+
+import { PenaltyStatus, PenaltyType } from '../models/penalty.entity';
 import { BaseDto } from './base.dto';
 
 export class CreatePenaltyDto extends BaseDto {
@@ -139,4 +147,4 @@ export class PenaltyResponseDto {
     id: string;
     name: string;
   };
-} 
+}

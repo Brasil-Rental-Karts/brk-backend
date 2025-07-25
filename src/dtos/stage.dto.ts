@@ -1,5 +1,16 @@
-import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsArray, IsUUID, IsDateString, Matches, IsDate } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsDate,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+} from 'class-validator';
+
 import { BaseDto } from './base.dto';
 
 /**
@@ -66,7 +77,9 @@ import { BaseDto } from './base.dto';
 export class CreateStageDto extends BaseDto {
   @IsString()
   @IsNotEmpty({ message: 'Nome da etapa é obrigatório' })
-  @MaxLength(255, { message: 'Nome da etapa deve ter no máximo 255 caracteres' })
+  @MaxLength(255, {
+    message: 'Nome da etapa deve ter no máximo 255 caracteres',
+  })
   name: string;
 
   @Type(() => Date)
@@ -76,29 +89,38 @@ export class CreateStageDto extends BaseDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Horário é obrigatório' })
-  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário deve estar no formato HH:MM' })
+  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Horário deve estar no formato HH:MM',
+  })
   time: string;
 
   @IsUUID(4, { message: 'ID do kartódromo deve ser um UUID válido' })
   raceTrackId: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === '' ? undefined : value)
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
-  @MaxLength(255, { message: 'ID do traçado deve ter no máximo 255 caracteres' })
+  @MaxLength(255, {
+    message: 'ID do traçado deve ter no máximo 255 caracteres',
+  })
   trackLayoutId?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === '' ? undefined : value)
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
-  @MaxLength(500, { message: 'Link de transmissão deve ter no máximo 500 caracteres' })
+  @MaxLength(500, {
+    message: 'Link de transmissão deve ter no máximo 500 caracteres',
+  })
   streamLink?: string;
 
   @IsUUID(4, { message: 'ID da temporada deve ser um UUID válido' })
   seasonId: string;
 
   @IsArray({ message: 'IDs das categorias deve ser um array' })
-  @IsUUID(4, { each: true, message: 'Cada ID de categoria deve ser um UUID válido' })
+  @IsUUID(4, {
+    each: true,
+    message: 'Cada ID de categoria deve ser um UUID válido',
+  })
   categoryIds: string[];
 
   @IsOptional()
@@ -111,9 +133,11 @@ export class CreateStageDto extends BaseDto {
   briefing?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === '' ? undefined : value)
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
-  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário do briefing deve estar no formato HH:MM' })
+  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Horário do briefing deve estar no formato HH:MM',
+  })
   briefingTime?: string;
 }
 
@@ -169,7 +193,9 @@ export class CreateStageDto extends BaseDto {
 export class UpdateStageDto extends BaseDto {
   @IsOptional()
   @IsString()
-  @MaxLength(255, { message: 'Nome da etapa deve ter no máximo 255 caracteres' })
+  @MaxLength(255, {
+    message: 'Nome da etapa deve ter no máximo 255 caracteres',
+  })
   name?: string;
 
   @IsOptional()
@@ -180,7 +206,9 @@ export class UpdateStageDto extends BaseDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário deve estar no formato HH:MM' })
+  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Horário deve estar no formato HH:MM',
+  })
   time?: string;
 
   @IsOptional()
@@ -188,20 +216,27 @@ export class UpdateStageDto extends BaseDto {
   raceTrackId?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === '' ? undefined : value)
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
-  @MaxLength(255, { message: 'ID do traçado deve ter no máximo 255 caracteres' })
+  @MaxLength(255, {
+    message: 'ID do traçado deve ter no máximo 255 caracteres',
+  })
   trackLayoutId?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === '' ? undefined : value)
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
-  @MaxLength(500, { message: 'Link de transmissão deve ter no máximo 500 caracteres' })
+  @MaxLength(500, {
+    message: 'Link de transmissão deve ter no máximo 500 caracteres',
+  })
   streamLink?: string;
 
   @IsOptional()
   @IsArray({ message: 'IDs das categorias deve ser um array' })
-  @IsUUID(4, { each: true, message: 'Cada ID de categoria deve ser um UUID válido' })
+  @IsUUID(4, {
+    each: true,
+    message: 'Cada ID de categoria deve ser um UUID válido',
+  })
   categoryIds?: string[];
 
   @IsOptional()
@@ -214,13 +249,15 @@ export class UpdateStageDto extends BaseDto {
   briefing?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === '' ? undefined : value)
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
-  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Horário do briefing deve estar no formato HH:MM' })
+  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Horário do briefing deve estar no formato HH:MM',
+  })
   briefingTime?: string;
 
   @IsOptional()
   @Transform(({ value }) => value)
   // @IsArray({ message: 'Frotas deve ser um array' })
   fleets?: any[];
-} 
+}

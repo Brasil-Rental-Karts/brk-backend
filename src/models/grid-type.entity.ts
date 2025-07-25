@@ -1,11 +1,12 @@
-import { Entity, Column } from 'typeorm';
+import { Column, Entity } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 
 export enum GridTypeEnum {
   SUPER_POLE = 'super_pole',
   INVERTED = 'inverted',
   INVERTED_PARTIAL = 'inverted_partial',
-  QUALIFYING_SESSION = 'qualifying_session'
+  QUALIFYING_SESSION = 'qualifying_session',
 }
 
 /**
@@ -74,10 +75,10 @@ export class GridType extends BaseEntity {
   @Column({ type: 'text', nullable: false })
   description: string;
 
-  @Column({ 
-    type: 'enum', 
-    enum: GridTypeEnum, 
-    nullable: false 
+  @Column({
+    type: 'enum',
+    enum: GridTypeEnum,
+    nullable: false,
   })
   type: GridTypeEnum;
 
@@ -96,4 +97,4 @@ export class GridType extends BaseEntity {
   // Relacionamento com o campeonato
   @Column({ nullable: false })
   championshipId: string;
-} 
+}

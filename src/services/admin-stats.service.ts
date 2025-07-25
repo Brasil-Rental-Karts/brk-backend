@@ -1,11 +1,18 @@
-import { Repository, In } from 'typeorm';
+import { In, Repository } from 'typeorm';
+
 import { AppDataSource } from '../config/database.config';
-import { User } from '../models/user.entity';
-import { SeasonRegistration, RegistrationStatus } from '../models/season-registration.entity';
+import {
+  AsaasPayment,
+  AsaasPaymentStatus,
+} from '../models/asaas-payment.entity';
+import { Category } from '../models/category.entity';
 import { Championship } from '../models/championship.entity';
 import { Season } from '../models/season.entity';
-import { AsaasPayment, AsaasPaymentStatus } from '../models/asaas-payment.entity';
-import { Category } from '../models/category.entity';
+import {
+  RegistrationStatus,
+  SeasonRegistration,
+} from '../models/season-registration.entity';
+import { User } from '../models/user.entity';
 import { RedisService } from './redis.service';
 
 export interface AdminStats {
@@ -47,7 +54,8 @@ export class AdminStatsService {
 
   constructor() {
     this.userRepository = AppDataSource.getRepository(User);
-    this.registrationRepository = AppDataSource.getRepository(SeasonRegistration);
+    this.registrationRepository =
+      AppDataSource.getRepository(SeasonRegistration);
     this.championshipRepository = AppDataSource.getRepository(Championship);
     this.seasonRepository = AppDataSource.getRepository(Season);
     this.paymentRepository = AppDataSource.getRepository(AsaasPayment);
@@ -61,7 +69,7 @@ export class AdminStatsService {
   async getAdminStats(): Promise<AdminStats> {
     // Total de usuários
     const totalUsers = await this.userRepository.count({
-      where: { active: true }
+      where: { active: true },
     });
 
     // Estatísticas por campeonato
@@ -72,30 +80,35 @@ export class AdminStatsService {
     for (const championship of championshipsStats) {
       // Buscar todos os usuários que se inscreveram neste campeonato
       const registrations = await this.registrationRepository.find({
-        where: { 
+        where: {
           seasonId: In(
-            await this.seasonRepository.find({
-              where: { championshipId: championship.id },
-              select: ['id']
-            }).then(seasons => seasons.map(s => s.id))
-          )
+            await this.seasonRepository
+              .find({
+                where: { championshipId: championship.id },
+                select: ['id'],
+              })
+              .then(seasons => seasons.map(s => s.id))
+          ),
         },
-        select: ['userId']
+        select: ['userId'],
       });
-      
-      registrations.forEach(reg => uniqueUsersWithRegistrations.add(reg.userId));
+
+      registrations.forEach(reg =>
+        uniqueUsersWithRegistrations.add(reg.userId)
+      );
     }
 
     // Calcular total de pilotos confirmados (soma de todos os campeonatos)
-    const totalConfirmedPilots = championshipsStats.reduce((sum, championship) => 
-      sum + championship.pilotsConfirmed, 0
+    const totalConfirmedPilots = championshipsStats.reduce(
+      (sum, championship) => sum + championship.pilotsConfirmed,
+      0
     );
 
     return {
       totalUsers,
       totalUsersWithRegistrations: uniqueUsersWithRegistrations.size,
       totalConfirmedRegistrations: totalConfirmedPilots,
-      championshipsStats
+      championshipsStats,
     };
   }
 
@@ -104,7 +117,7 @@ export class AdminStatsService {
    */
   private async getChampionshipsStats(): Promise<ChampionshipStats[]> {
     const championships = await this.championshipRepository.find({
-      order: { name: 'ASC' }
+      order: { name: 'ASC' },
     });
 
     const stats: ChampionshipStats[] = [];
@@ -113,7 +126,7 @@ export class AdminStatsService {
       // Buscar todas as temporadas do campeonato
       const seasons = await this.seasonRepository.find({
         where: { championshipId: championship.id },
-        select: ['id']
+        select: ['id'],
       });
 
       if (seasons.length === 0) {
@@ -129,7 +142,7 @@ export class AdminStatsService {
           pilotsEnrolled: 0,
           pilotsConfirmed: 0,
           pilotsPending: 0,
-          pilotsOverdue: 0
+          pilotsOverdue: 0,
         });
         continue;
       }
@@ -138,31 +151,31 @@ export class AdminStatsService {
 
       // Total de inscrições no campeonato
       const totalRegistrations = await this.registrationRepository.count({
-        where: { seasonId: In(seasonIds) }
+        where: { seasonId: In(seasonIds) },
       });
 
       // Inscrições confirmadas
       const confirmedRegistrations = await this.registrationRepository.count({
-        where: { 
+        where: {
           seasonId: In(seasonIds),
-          status: RegistrationStatus.CONFIRMED
-        }
+          status: RegistrationStatus.CONFIRMED,
+        },
       });
 
       // Inscrições pendentes
       const pendingRegistrations = await this.registrationRepository.count({
-        where: { 
+        where: {
           seasonId: In(seasonIds),
-          status: RegistrationStatus.PENDING
-        }
+          status: RegistrationStatus.PENDING,
+        },
       });
 
       // Inscrições canceladas
       const cancelledRegistrations = await this.registrationRepository.count({
-        where: { 
+        where: {
           seasonId: In(seasonIds),
-          status: RegistrationStatus.CANCELLED
-        }
+          status: RegistrationStatus.CANCELLED,
+        },
       });
 
       // Total de usuários únicos no campeonato
@@ -177,13 +190,15 @@ export class AdminStatsService {
         .createQueryBuilder('reg')
         .select('COUNT(DISTINCT reg.userId)', 'count')
         .where('reg.seasonId IN (:...seasonIds)', { seasonIds })
-        .andWhere('reg.status = :status', { status: RegistrationStatus.CONFIRMED })
+        .andWhere('reg.status = :status', {
+          status: RegistrationStatus.CONFIRMED,
+        })
         .getRawOne();
 
       // Buscar registrations para calcular estatísticas de pilotos
       const registrations = await this.registrationRepository.find({
         where: { seasonId: In(seasonIds) },
-        relations: ['payments']
+        relations: ['payments'],
       });
 
       // Calcular estatísticas de pilotos
@@ -197,19 +212,25 @@ export class AdminStatsService {
         pilotsEnrolled.add(userId);
 
         // Verificar se é isento ou pagamento direto
-        const isExemptOrDirectPayment = registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment';
+        const isExemptOrDirectPayment =
+          registration.paymentStatus === 'exempt' ||
+          registration.paymentStatus === 'direct_payment';
 
         const payments = registration.payments || [];
-        const hasOverduePayments = payments.some(payment => 
-          payment.status === AsaasPaymentStatus.OVERDUE
-        );
-        
-        const hasPaidPayments = payments.some(payment => 
-          [AsaasPaymentStatus.RECEIVED, AsaasPaymentStatus.CONFIRMED, AsaasPaymentStatus.RECEIVED_IN_CASH].includes(payment.status)
+        const hasOverduePayments = payments.some(
+          payment => payment.status === AsaasPaymentStatus.OVERDUE
         );
 
-        const hasPendingPayments = payments.some(payment => 
-          payment.status === AsaasPaymentStatus.PENDING
+        const hasPaidPayments = payments.some(payment =>
+          [
+            AsaasPaymentStatus.RECEIVED,
+            AsaasPaymentStatus.CONFIRMED,
+            AsaasPaymentStatus.RECEIVED_IN_CASH,
+          ].includes(payment.status)
+        );
+
+        const hasPendingPayments = payments.some(
+          payment => payment.status === AsaasPaymentStatus.PENDING
         );
 
         // Se tem parcelas vencidas, é atrasado
@@ -238,7 +259,7 @@ export class AdminStatsService {
         pilotsEnrolled: pilotsEnrolled.size,
         pilotsConfirmed: pilotsConfirmed.size,
         pilotsPending: pilotsPending.size,
-        pilotsOverdue: pilotsOverdue.size
+        pilotsOverdue: pilotsOverdue.size,
       });
     }
 
@@ -250,17 +271,17 @@ export class AdminStatsService {
    */
   async updateCategoriesPilotsCache(): Promise<PreloadCategoriesResult> {
     const startTime = Date.now();
-    
+
     // Buscar todas as categorias com suas temporadas em uma única consulta
     const categories = await this.categoryRepository.find({
-      relations: ['season', 'season.championship']
+      relations: ['season', 'season.championship'],
     });
 
     if (categories.length === 0) {
       return {
         totalCategories: 0,
         totalPilots: 0,
-        duration: '0.0s'
+        duration: '0.0s',
       };
     }
 
@@ -275,14 +296,18 @@ export class AdminStatsService {
     }
 
     let totalPilots = 0;
-    const categoryPilotsArray: Array<{categoryId: string, pilots: any[]}> = [];
+    const categoryPilotsArray: Array<{ categoryId: string; pilots: any[] }> =
+      [];
 
     // Processar cada campeonato de uma vez
-    for (const [championshipId, championshipCategories] of categoriesByChampionship) {
+    for (const [
+      championshipId,
+      championshipCategories,
+    ] of categoriesByChampionship) {
       // Buscar todas as temporadas do campeonato de uma vez
       const seasons = await this.seasonRepository.find({
         where: { championshipId },
-        select: ['id']
+        select: ['id'],
       });
 
       if (seasons.length === 0) {
@@ -290,7 +315,7 @@ export class AdminStatsService {
         for (const category of championshipCategories) {
           categoryPilotsArray.push({
             categoryId: category.id,
-            pilots: []
+            pilots: [],
           });
         }
         continue;
@@ -300,10 +325,10 @@ export class AdminStatsService {
 
       // Buscar todas as inscrições do campeonato com relações em uma única consulta
       const registrations = await this.registrationRepository.find({
-        where: { 
-          seasonId: In(seasonIds)
+        where: {
+          seasonId: In(seasonIds),
         },
-        relations: ['user', 'categories', 'categories.category']
+        relations: ['user', 'categories', 'categories.category'],
       });
 
       // Processar cada categoria do campeonato
@@ -316,9 +341,9 @@ export class AdminStatsService {
         // Adicionar à lista para cache em batch
         categoryPilotsArray.push({
           categoryId: category.id,
-          pilots: categoryPilots
+          pilots: categoryPilots,
         });
-        
+
         totalPilots += categoryPilots.length;
       }
     }
@@ -332,7 +357,7 @@ export class AdminStatsService {
     return {
       totalCategories: categories.length,
       totalPilots,
-      duration: `${duration}s`
+      duration: `${duration}s`,
     };
   }
-} 
+}

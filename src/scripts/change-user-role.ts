@@ -1,11 +1,13 @@
 import 'reflect-metadata';
-import { DataSource } from 'typeorm';
-import { User, UserRole } from '../models/user.entity';
-import { UserService } from '../services/user.service';
-import { UserRepository } from '../repositories/user.repository';
-import { MemberProfile } from '../models/member-profile.entity';
-import { MemberProfileRepository } from '../repositories/member-profile.repository';
+
 import * as path from 'path';
+import { DataSource } from 'typeorm';
+
+import { MemberProfile } from '../models/member-profile.entity';
+import { User, UserRole } from '../models/user.entity';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { UserRepository } from '../repositories/user.repository';
+import { UserService } from '../services/user.service';
 
 // Função para validar email
 const isValidEmail = (email: string): boolean => {
@@ -53,14 +55,21 @@ async function changeUserRole() {
   try {
     // Initialize datasource
     await AppDataSource.initialize();
-    
+
     // Get user repository
-    const userRepository = new UserRepository(AppDataSource.getRepository(User));
-    const memberProfileRepository = new MemberProfileRepository(AppDataSource.getRepository(MemberProfile));
-    
+    const userRepository = new UserRepository(
+      AppDataSource.getRepository(User)
+    );
+    const memberProfileRepository = new MemberProfileRepository(
+      AppDataSource.getRepository(MemberProfile)
+    );
+
     // Create user service
-    const userService = new UserService(userRepository, memberProfileRepository);
-    
+    const userService = new UserService(
+      userRepository,
+      memberProfileRepository
+    );
+
     // Find user by email
     const user = await userRepository.findByEmail(email);
     if (!user) {
@@ -74,11 +83,10 @@ async function changeUserRole() {
 
     // Use the UserService method to update the role safely
     await userService.changeUserRole(user.id, newRole);
-    
+
     // Buscar o usuário atualizado para mostrar as informações corretas
     const refreshedUser = await userService.findById(user.id);
     process.exit(0);
-
   } catch (error) {
     process.exit(1);
   } finally {
@@ -90,4 +98,4 @@ async function changeUserRole() {
 }
 
 // Executar o script
-changeUserRole(); 
+changeUserRole();

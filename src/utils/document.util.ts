@@ -25,12 +25,12 @@ export function isValidDocumentLength(document: string): boolean {
  */
 export function getDocumentType(document: string): 'CPF' | 'CNPJ' | 'INVALID' {
   const cleanDocument = removeDocumentMask(document);
-  
+
   if (cleanDocument.length === 11) {
     return 'CPF';
   } else if (cleanDocument.length === 14) {
     return 'CNPJ';
   }
-  
+
   return 'INVALID';
-} 
+}

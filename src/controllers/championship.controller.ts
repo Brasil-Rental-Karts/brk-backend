@@ -1,17 +1,18 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { BaseController } from './base.controller';
-import { ChampionshipService } from '../services/championship.service';
-import { ChampionshipStaffService } from '../services/championship-staff.service';
-import { SeasonRegistrationService } from '../services/season-registration.service';
-import { UserService } from '../services/user.service';
-import { AuthService } from '../services/auth.service';
-import { MemberProfileService } from '../services/member-profile.service';
+import { NextFunction, Request, Response } from 'express';
+
+import { BadRequestException } from '../exceptions/bad-request.exception';
+import { ForbiddenException } from '../exceptions/forbidden.exception';
+import { NotFoundException } from '../exceptions/not-found.exception';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { Championship, PersonType } from '../models/championship.entity';
 import { UserRole } from '../models/user.entity';
-import { BadRequestException } from '../exceptions/bad-request.exception';
-import { NotFoundException } from '../exceptions/not-found.exception';
-import { ForbiddenException } from '../exceptions/forbidden.exception';
+import { AuthService } from '../services/auth.service';
+import { ChampionshipService } from '../services/championship.service';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
+import { MemberProfileService } from '../services/member-profile.service';
+import { SeasonRegistrationService } from '../services/season-registration.service';
+import { UserService } from '../services/user.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -240,7 +241,11 @@ export class ChampionshipController extends BaseController {
      *       404:
      *         description: Campeonato não encontrado
      */
-    this.router.get('/public/:slugOrId', authMiddleware, this.getChampionshipPublic.bind(this));
+    this.router.get(
+      '/public/:slugOrId',
+      authMiddleware,
+      this.getChampionshipPublic.bind(this)
+    );
 
     /**
      * @swagger
@@ -267,7 +272,11 @@ export class ChampionshipController extends BaseController {
      *       404:
      *         description: Campeonato não encontrado
      */
-    this.router.get('/:id', authMiddleware, this.getChampionshipById.bind(this));
+    this.router.get(
+      '/:id',
+      authMiddleware,
+      this.getChampionshipById.bind(this)
+    );
 
     /**
      * @swagger
@@ -294,7 +303,11 @@ export class ChampionshipController extends BaseController {
      *       404:
      *         description: Campeonato não encontrado
      */
-    this.router.get('/:id/basic', authMiddleware, this.getChampionshipBasicInfo.bind(this));
+    this.router.get(
+      '/:id/basic',
+      authMiddleware,
+      this.getChampionshipBasicInfo.bind(this)
+    );
 
     /**
      * @swagger
@@ -331,44 +344,49 @@ export class ChampionshipController extends BaseController {
      *                 type: integer
      *                 enum: [0, 1]
      *               document:
- *                 type: string
- *                 maxLength: 18
- *               socialReason:
- *                 type: string
- *                 maxLength: 255
- *               cep:
- *                 type: string
- *                 maxLength: 9
- *               state:
- *                 type: string
- *                 maxLength: 2
- *               city:
- *                 type: string
- *                 maxLength: 100
- *               fullAddress:
- *                 type: string
- *               number:
- *                 type: string
- *                 maxLength: 10
- *               isResponsible:
- *                 type: boolean
- *               responsibleName:
- *                 type: string
- *                 maxLength: 100
- *               responsiblePhone:
- *                 type: string
- *                 maxLength: 15
- *     responses:
- *       201:
- *         description: Campeonato criado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Championship'
- *       400:
- *         description: Dados inválidos
- */
-    this.router.post('/', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.createChampionship.bind(this));
+     *                 type: string
+     *                 maxLength: 18
+     *               socialReason:
+     *                 type: string
+     *                 maxLength: 255
+     *               cep:
+     *                 type: string
+     *                 maxLength: 9
+     *               state:
+     *                 type: string
+     *                 maxLength: 2
+     *               city:
+     *                 type: string
+     *                 maxLength: 100
+     *               fullAddress:
+     *                 type: string
+     *               number:
+     *                 type: string
+     *                 maxLength: 10
+     *               isResponsible:
+     *                 type: boolean
+     *               responsibleName:
+     *                 type: string
+     *                 maxLength: 100
+     *               responsiblePhone:
+     *                 type: string
+     *                 maxLength: 15
+     *     responses:
+     *       201:
+     *         description: Campeonato criado com sucesso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Championship'
+     *       400:
+     *         description: Dados inválidos
+     */
+    this.router.post(
+      '/',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]),
+      this.createChampionship.bind(this)
+    );
 
     /**
      * @swagger
@@ -471,7 +489,12 @@ export class ChampionshipController extends BaseController {
      *       403:
      *         description: Sem permissão para deletar este campeonato
      */
-    this.router.delete('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.deleteChampionship.bind(this));
+    this.router.delete(
+      '/:id',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]),
+      this.deleteChampionship.bind(this)
+    );
 
     /**
      * @swagger
@@ -516,7 +539,11 @@ export class ChampionshipController extends BaseController {
      *       404:
      *         description: Campeonato não encontrado
      */
-    this.router.get('/:id/asaas-status', authMiddleware, this.checkAsaasStatus.bind(this));
+    this.router.get(
+      '/:id/asaas-status',
+      authMiddleware,
+      this.checkAsaasStatus.bind(this)
+    );
 
     /**
      * @swagger
@@ -565,10 +592,17 @@ export class ChampionshipController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.put('/:id/asaas-wallet', authMiddleware, this.updateAsaasWallet.bind(this));
+    this.router.put(
+      '/:id/asaas-wallet',
+      authMiddleware,
+      this.updateAsaasWallet.bind(this)
+    );
   }
 
-  private async getAllChampionships(req: Request, res: Response): Promise<void> {
+  private async getAllChampionships(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const championships = await this.championshipService.findAll();
       res.json(championships);
@@ -577,11 +611,14 @@ export class ChampionshipController extends BaseController {
     }
   }
 
-  private async getChampionshipById(req: Request, res: Response): Promise<void> {
+  private async getChampionshipById(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const userId = (req as any).user.id;
-      
+
       const championship = await this.championshipService.findById(id);
 
       if (!championship) {
@@ -589,9 +626,15 @@ export class ChampionshipController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para acessar este campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          id
+        );
       if (!hasPermission) {
-        throw new ForbiddenException('Você não tem permissão para acessar este campeonato');
+        throw new ForbiddenException(
+          'Você não tem permissão para acessar este campeonato'
+        );
       }
 
       res.json(championship);
@@ -606,10 +649,13 @@ export class ChampionshipController extends BaseController {
     }
   }
 
-  private async getChampionshipPublic(req: Request, res: Response): Promise<void> {
+  private async getChampionshipPublic(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { slugOrId } = req.params;
-      
+
       const championship = await this.findChampionshipBySlugOrId(slugOrId);
 
       if (!championship) {
@@ -626,10 +672,14 @@ export class ChampionshipController extends BaseController {
     }
   }
 
-  private async getChampionshipBasicInfo(req: Request, res: Response): Promise<void> {
+  private async getChampionshipBasicInfo(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { id } = req.params;
-      const basicInfo = await this.championshipService.getChampionshipBasicInfo(id);
+      const basicInfo =
+        await this.championshipService.getChampionshipBasicInfo(id);
 
       if (!basicInfo) {
         throw new NotFoundException('Campeonato não encontrado');
@@ -648,62 +698,76 @@ export class ChampionshipController extends BaseController {
   private async getMyChampionships(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
-      
+
       // Buscar campeonatos próprios
-      const ownedChampionships = await this.championshipService.findByOwnerId(userId);
-      
+      const ownedChampionships =
+        await this.championshipService.findByOwnerId(userId);
+
       // Buscar campeonatos onde é staff
-      const staffChampionshipIds = await this.championshipStaffService.getUserStaffChampionships(userId);
+      const staffChampionshipIds =
+        await this.championshipStaffService.getUserStaffChampionships(userId);
       const staffChampionships = await Promise.all(
         staffChampionshipIds.map(id => this.championshipService.findById(id))
       );
-      
+
       // Buscar campeonatos onde está inscrito como piloto
-      const userRegistrations = await this.seasonRegistrationService.findByUserId(userId);
+      const userRegistrations =
+        await this.seasonRegistrationService.findByUserId(userId);
       const participatingChampionshipIds = new Set<string>();
-      
+
       // Extrair IDs únicos dos campeonatos das inscrições
       userRegistrations.forEach(registration => {
         if (registration.season && registration.season.championshipId) {
           participatingChampionshipIds.add(registration.season.championshipId);
         }
       });
-      
+
       // Buscar dados completos dos campeonatos onde está inscrito
       const participatingChampionships = await Promise.all(
-        Array.from(participatingChampionshipIds).map(id => this.championshipService.findById(id))
+        Array.from(participatingChampionshipIds).map(id =>
+          this.championshipService.findById(id)
+        )
       );
-      
+
       // Combinar e remover duplicatas
       const allChampionships: any[] = [...ownedChampionships];
-      
+
       // Adicionar campeonatos onde é staff (se não for owner)
       staffChampionships.forEach(staffChamp => {
-        if (staffChamp && !allChampionships.find(owned => owned.id === staffChamp.id)) {
+        if (
+          staffChamp &&
+          !allChampionships.find(owned => owned.id === staffChamp.id)
+        ) {
           allChampionships.push({
             ...staffChamp,
             isStaff: true,
             isOwner: false,
-            isPilot: false
+            isPilot: false,
           });
         }
       });
-      
+
       // Adicionar campeonatos onde está inscrito como piloto (se não for owner nem staff)
       participatingChampionships.forEach(pilotChamp => {
-        if (pilotChamp && !allChampionships.find(existing => existing.id === pilotChamp.id)) {
+        if (
+          pilotChamp &&
+          !allChampionships.find(existing => existing.id === pilotChamp.id)
+        ) {
           allChampionships.push({
             ...pilotChamp,
             isStaff: false,
             isOwner: false,
-            isPilot: true
+            isPilot: true,
           });
         }
       });
-      
+
       // Marcar os campeonatos próprios e verificar se também é piloto
       allChampionships.forEach((champ: any) => {
-        if (!champ.hasOwnProperty('isStaff') && !champ.hasOwnProperty('isPilot')) {
+        if (
+          !champ.hasOwnProperty('isStaff') &&
+          !champ.hasOwnProperty('isPilot')
+        ) {
           champ.isOwner = true;
           champ.isStaff = false;
           champ.isPilot = participatingChampionshipIds.has(champ.id);
@@ -712,14 +776,18 @@ export class ChampionshipController extends BaseController {
           champ.isPilot = participatingChampionshipIds.has(champ.id);
         }
       });
-      
+
       res.json(allChampionships);
     } catch (error) {
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
-  private async createChampionship(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async createChampionship(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     const userId = (req as any).user.id;
     const championshipData = req.body;
 
@@ -736,18 +804,25 @@ export class ChampionshipController extends BaseController {
 
     // Gerar IDs para sponsors se eles existirem
     if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
-      championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
-        ...sponsor,
-        id: this.generateSponsorId(sponsor.name),
-        type: sponsor.type || 'sponsor' // Default para 'sponsor' se não especificado
-      }));
+      championshipData.sponsors = championshipData.sponsors.map(
+        (sponsor: any) => ({
+          ...sponsor,
+          id: this.generateSponsorId(sponsor.name),
+          type: sponsor.type || 'sponsor', // Default para 'sponsor' se não especificado
+        })
+      );
     }
 
-    const championship = await this.championshipService.create(championshipData);
+    const championship =
+      await this.championshipService.create(championshipData);
     res.status(201).json(championship);
   }
 
-  private async updateChampionship(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async updateChampionship(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     const { id } = req.params;
     const userId = (req as any).user.id;
     const championshipData = req.body;
@@ -759,9 +834,12 @@ export class ChampionshipController extends BaseController {
     }
 
     // Verifica se o usuário é o proprietário ou staff member
-    const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, id);
+    const hasPermission =
+      await this.championshipStaffService.hasChampionshipPermission(userId, id);
     if (!hasPermission) {
-      throw new ForbiddenException('Você não tem permissão para atualizar este campeonato');
+      throw new ForbiddenException(
+        'Você não tem permissão para atualizar este campeonato'
+      );
     }
 
     // Validações básicas (apenas para campos que estão sendo atualizados)
@@ -774,18 +852,27 @@ export class ChampionshipController extends BaseController {
 
     // Gerar IDs para sponsors se eles existirem
     if (championshipData.sponsors && Array.isArray(championshipData.sponsors)) {
-      championshipData.sponsors = championshipData.sponsors.map((sponsor: any) => ({
-        ...sponsor,
-        id: sponsor.id || this.generateSponsorId(sponsor.name),
-        type: sponsor.type || 'sponsor' // Default para 'sponsor' se não especificado
-      }));
+      championshipData.sponsors = championshipData.sponsors.map(
+        (sponsor: any) => ({
+          ...sponsor,
+          id: sponsor.id || this.generateSponsorId(sponsor.name),
+          type: sponsor.type || 'sponsor', // Default para 'sponsor' se não especificado
+        })
+      );
     }
 
-    const championship = await this.championshipService.update(id, championshipData);
+    const championship = await this.championshipService.update(
+      id,
+      championshipData
+    );
     res.json(championship);
   }
 
-  private async deleteChampionship(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async deleteChampionship(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     const { id } = req.params;
     const userId = (req as any).user.id;
 
@@ -797,14 +884,18 @@ export class ChampionshipController extends BaseController {
 
     // Verifica se o usuário é o proprietário
     if (existingChampionship.ownerId !== userId) {
-      throw new ForbiddenException('Você não tem permissão para deletar este campeonato');
+      throw new ForbiddenException(
+        'Você não tem permissão para deletar este campeonato'
+      );
     }
 
     await this.championshipService.delete(id);
     res.json({ message: 'Campeonato deletado com sucesso' });
   }
 
-  private async findChampionshipBySlugOrId(slugOrId: string): Promise<Championship | null> {
+  private async findChampionshipBySlugOrId(
+    slugOrId: string
+  ): Promise<Championship | null> {
     return this.championshipService.findBySlugOrId(slugOrId);
   }
 
@@ -814,14 +905,21 @@ export class ChampionshipController extends BaseController {
       if (!data.name || data.name.trim().length === 0) {
         throw new BadRequestException('Nome do campeonato é obrigatório');
       }
-      if (!data.championshipImage || data.championshipImage.trim().length === 0) {
+      if (
+        !data.championshipImage ||
+        data.championshipImage.trim().length === 0
+      ) {
         throw new BadRequestException('Imagem do campeonato é obrigatória');
       }
       if (!data.shortDescription || data.shortDescription.trim().length === 0) {
-        throw new BadRequestException('Descrição curta do campeonato é obrigatória');
+        throw new BadRequestException(
+          'Descrição curta do campeonato é obrigatória'
+        );
       }
       if (!data.fullDescription || data.fullDescription.trim().length === 0) {
-        throw new BadRequestException('Descrição completa do campeonato é obrigatória');
+        throw new BadRequestException(
+          'Descrição completa do campeonato é obrigatória'
+        );
       }
       if (!data.document || data.document.trim().length === 0) {
         throw new BadRequestException('Documento é obrigatório');
@@ -848,16 +946,24 @@ export class ChampionshipController extends BaseController {
 
     // Validações de tamanho
     if (data.name && data.name.length > 90) {
-      throw new BadRequestException('Nome do campeonato deve ter no máximo 90 caracteres');
+      throw new BadRequestException(
+        'Nome do campeonato deve ter no máximo 90 caracteres'
+      );
     }
     if (data.shortDescription && data.shortDescription.length > 165) {
-      throw new BadRequestException('Descrição curta deve ter no máximo 165 caracteres');
+      throw new BadRequestException(
+        'Descrição curta deve ter no máximo 165 caracteres'
+      );
     }
     if (data.document && data.document.length > 18) {
-      throw new BadRequestException('Documento deve ter no máximo 18 caracteres');
+      throw new BadRequestException(
+        'Documento deve ter no máximo 18 caracteres'
+      );
     }
     if (data.socialReason && data.socialReason.length > 255) {
-      throw new BadRequestException('Razão social deve ter no máximo 255 caracteres');
+      throw new BadRequestException(
+        'Razão social deve ter no máximo 255 caracteres'
+      );
     }
     if (data.cep && data.cep.length > 9) {
       throw new BadRequestException('CEP deve ter no máximo 9 caracteres');
@@ -872,40 +978,59 @@ export class ChampionshipController extends BaseController {
       throw new BadRequestException('Número deve ter no máximo 10 caracteres');
     }
     if (data.complement && data.complement.length > 100) {
-      throw new BadRequestException('Complemento deve ter no máximo 100 caracteres');
+      throw new BadRequestException(
+        'Complemento deve ter no máximo 100 caracteres'
+      );
     }
     if (data.responsibleName && data.responsibleName.length > 100) {
-      throw new BadRequestException('Nome do responsável deve ter no máximo 100 caracteres');
+      throw new BadRequestException(
+        'Nome do responsável deve ter no máximo 100 caracteres'
+      );
     }
     if (data.responsiblePhone && data.responsiblePhone.length > 15) {
-      throw new BadRequestException('Telefone do responsável deve ter no máximo 15 caracteres');
+      throw new BadRequestException(
+        'Telefone do responsável deve ter no máximo 15 caracteres'
+      );
     }
 
     // Validação do tipo de pessoa
-    if (data.personType !== undefined && ![PersonType.FISICA, PersonType.JURIDICA].includes(data.personType)) {
+    if (
+      data.personType !== undefined &&
+      ![PersonType.FISICA, PersonType.JURIDICA].includes(data.personType)
+    ) {
       throw new BadRequestException('Tipo de pessoa inválido');
     }
 
     // Validação condicional: se não é responsável, deve informar nome e telefone
     if (data.isResponsible === false) {
       if (!data.responsibleName || data.responsibleName.trim().length === 0) {
-        throw new BadRequestException('Nome do responsável é obrigatório quando não é o próprio usuário');
+        throw new BadRequestException(
+          'Nome do responsável é obrigatório quando não é o próprio usuário'
+        );
       }
       if (!data.responsiblePhone || data.responsiblePhone.trim().length === 0) {
-        throw new BadRequestException('Telefone do responsável é obrigatório quando não é o próprio usuário');
+        throw new BadRequestException(
+          'Telefone do responsável é obrigatório quando não é o próprio usuário'
+        );
       }
       if (!data.responsibleEmail || data.responsibleEmail.trim().length === 0) {
-        throw new BadRequestException('E-mail do responsável é obrigatório quando não é o próprio usuário');
+        throw new BadRequestException(
+          'E-mail do responsável é obrigatório quando não é o próprio usuário'
+        );
       }
       if (!data.responsibleBirthDate) {
-        throw new BadRequestException('Data de nascimento do responsável é obrigatória quando não é o próprio usuário');
+        throw new BadRequestException(
+          'Data de nascimento do responsável é obrigatória quando não é o próprio usuário'
+        );
       }
     }
 
     // Validação condicional: se é pessoa jurídica, deve informar razão social
     if (data.personType === PersonType.JURIDICA) {
       if (!data.socialReason || data.socialReason.trim().length === 0) {
-        throw new BadRequestException('Razão social é obrigatória para pessoa jurídica');
+        throw new BadRequestException(
+          'Razão social é obrigatória para pessoa jurídica'
+        );
       }
     }
 
@@ -919,10 +1044,14 @@ export class ChampionshipController extends BaseController {
           throw new BadRequestException('Logo do patrocinador é obrigatório');
         }
         if (sponsor.website && typeof sponsor.website !== 'string') {
-          throw new BadRequestException('Website do patrocinador deve ser uma string válida');
+          throw new BadRequestException(
+            'Website do patrocinador deve ser uma string válida'
+          );
         }
         if (sponsor.type && !['sponsor', 'supporter'].includes(sponsor.type)) {
-          throw new BadRequestException('Tipo do patrocinador deve ser "sponsor" ou "supporter"');
+          throw new BadRequestException(
+            'Tipo do patrocinador deve ser "sponsor" ou "supporter"'
+          );
         }
       }
     }
@@ -931,7 +1060,10 @@ export class ChampionshipController extends BaseController {
   /**
    * Preenche automaticamente os dados do responsável com informações do usuário logado
    */
-  private async fillResponsibleDataFromUser(championshipData: any, userId: string): Promise<void> {
+  private async fillResponsibleDataFromUser(
+    championshipData: any,
+    userId: string
+  ): Promise<void> {
     try {
       // Buscar dados do usuário
       const user = await this.userService.findById(userId);
@@ -940,14 +1072,19 @@ export class ChampionshipController extends BaseController {
       }
 
       // Buscar dados do member profile
-      const memberProfile = await this.memberProfileService.findByUserId(userId);
+      const memberProfile =
+        await this.memberProfileService.findByUserId(userId);
 
       // Validar se os campos obrigatórios existem no perfil do usuário
       if (!user.phone) {
-        throw new BadRequestException('Seu perfil de usuário não possui um telefone. Por favor, atualize seu cadastro.');
+        throw new BadRequestException(
+          'Seu perfil de usuário não possui um telefone. Por favor, atualize seu cadastro.'
+        );
       }
       if (!memberProfile || !memberProfile.birthDate) {
-        throw new BadRequestException('Seu perfil de usuário não possui uma data de nascimento. Por favor, atualize seu cadastro.');
+        throw new BadRequestException(
+          'Seu perfil de usuário não possui uma data de nascimento. Por favor, atualize seu cadastro.'
+        );
       }
 
       // Preencher campos responsáveis com dados do usuário
@@ -957,24 +1094,32 @@ export class ChampionshipController extends BaseController {
       championshipData.responsibleBirthDate = memberProfile.birthDate;
     } catch (error) {
       // Não falha a criação do campeonato se não conseguir buscar os dados do usuário
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      throw new BadRequestException('Não foi possível preencher os dados do responsável a partir do seu perfil de usuário.');
+      throw new BadRequestException(
+        'Não foi possível preencher os dados do responsável a partir do seu perfil de usuário.'
+      );
     }
   }
 
   private generateSponsorId(name: string): string {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^\w\s-]/g, '') // Remove caracteres especiais
-      .replace(/\s+/g, '-') // Substitui espaços por hífens
-      .replace(/--+/g, '-') // Remove hífens duplos
-      .trim()
-      .slice(0, 50) // Limita o tamanho
-      + '-' + Date.now().toString(36); // Adiciona timestamp para garantir unicidade
+    return (
+      name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .replace(/[^\w\s-]/g, '') // Remove caracteres especiais
+        .replace(/\s+/g, '-') // Substitui espaços por hífens
+        .replace(/--+/g, '-') // Remove hífens duplos
+        .trim()
+        .slice(0, 50) + // Limita o tamanho
+      '-' +
+      Date.now().toString(36)
+    ); // Adiciona timestamp para garantir unicidade
   }
 
   private async checkAsaasStatus(req: Request, res: Response): Promise<void> {
@@ -983,20 +1128,28 @@ export class ChampionshipController extends BaseController {
       const userId = (req as any).user.id;
       const userRole = (req as any).user.role;
 
-      const championship = await this.championshipService.findById(championshipId);
+      const championship =
+        await this.championshipService.findById(championshipId);
       if (!championship) {
         res.status(404).json({ message: 'Campeonato não encontrado' });
         return;
       }
 
       // Verifica se o usuário tem permissão para gerenciar este campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          championshipId
+        );
       if (!hasPermission) {
-        res.status(403).json({ message: 'Você não tem permissão para acessar este campeonato' });
+        res.status(403).json({
+          message: 'Você não tem permissão para acessar este campeonato',
+        });
         return;
       }
 
-      const status = await this.championshipService.getAsaasStatus(championshipId);
+      const status =
+        await this.championshipService.getAsaasStatus(championshipId);
 
       res.json(status);
     } catch (error: any) {
@@ -1011,22 +1164,31 @@ export class ChampionshipController extends BaseController {
       const { walletId } = req.body;
 
       // Verifica se o campeonato existe
-      const championship = await this.championshipService.findById(championshipId);
+      const championship =
+        await this.championshipService.findById(championshipId);
       if (!championship) {
         res.status(404).json({ message: 'Campeonato não encontrado' });
         return;
       }
 
       // Verifica se o usuário tem permissão para gerenciar este campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          championshipId
+        );
       if (!hasPermission) {
-        res.status(403).json({ message: 'Você não tem permissão para acessar este campeonato' });
+        res.status(403).json({
+          message: 'Você não tem permissão para acessar este campeonato',
+        });
         return;
       }
 
       // Verifica se o split está habilitado
       if (!championship.splitEnabled) {
-        res.status(400).json({ message: 'Split payment não está habilitado para este campeonato' });
+        res.status(400).json({
+          message: 'Split payment não está habilitado para este campeonato',
+        });
         return;
       }
 
@@ -1037,11 +1199,17 @@ export class ChampionshipController extends BaseController {
       }
 
       // Atualiza o Wallet ID
-      const updatedChampionship = await this.championshipService.updateAsaasWalletId(championshipId, walletId);
+      const updatedChampionship =
+        await this.championshipService.updateAsaasWalletId(
+          championshipId,
+          walletId
+        );
 
       res.json(updatedChampionship);
     } catch (error: any) {
-      res.status(500).json({ message: 'Erro interno do servidor ao atualizar Wallet ID' });
+      res
+        .status(500)
+        .json({ message: 'Erro interno do servidor ao atualizar Wallet ID' });
     }
   }
-} 
+}

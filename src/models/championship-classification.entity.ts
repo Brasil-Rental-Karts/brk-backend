@@ -1,9 +1,10 @@
-import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, Unique } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
 import { Category } from './category.entity';
-import { Season } from './season.entity';
 import { Championship } from './championship.entity';
+import { Season } from './season.entity';
+import { User } from './user.entity';
 
 @Entity('ChampionshipClassification')
 @Unique(['userId', 'categoryId', 'seasonId'])
@@ -44,7 +45,11 @@ export class ChampionshipClassification extends BaseEntity {
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   averagePosition: number | null;
 
-  @Column({ type: 'timestamp', nullable: false, default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: 'timestamp',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   lastCalculatedAt: Date;
 
   // Relacionamentos
@@ -63,4 +68,4 @@ export class ChampionshipClassification extends BaseEntity {
   @ManyToOne(() => Championship, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'championshipId' })
   championship: Championship;
-} 
+}

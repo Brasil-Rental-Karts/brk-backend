@@ -1,10 +1,11 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 import { SeasonRegistration } from './season-registration.entity';
 
 export enum AsaasBillingType {
   CREDIT_CARD = 'CREDIT_CARD',
-  PIX = 'PIX'
+  PIX = 'PIX',
 }
 
 export enum AsaasPaymentStatus {
@@ -21,7 +22,7 @@ export enum AsaasPaymentStatus {
   AWAITING_CHARGEBACK_REVERSAL = 'AWAITING_CHARGEBACK_REVERSAL',
   DUNNING_REQUESTED = 'DUNNING_REQUESTED',
   DUNNING_RECEIVED = 'DUNNING_RECEIVED',
-  AWAITING_RISK_ANALYSIS = 'AWAITING_RISK_ANALYSIS'
+  AWAITING_RISK_ANALYSIS = 'AWAITING_RISK_ANALYSIS',
 }
 
 @Entity('AsaasPayments')
@@ -39,17 +40,17 @@ export class AsaasPayment extends BaseEntity {
   @Column({ length: 100, nullable: false })
   asaasCustomerId: string;
 
-  @Column({ 
-    type: 'enum', 
-    enum: AsaasBillingType, 
-    nullable: false 
+  @Column({
+    type: 'enum',
+    enum: AsaasBillingType,
+    nullable: false,
   })
   billingType: AsaasBillingType;
 
-  @Column({ 
-    type: 'enum', 
-    enum: AsaasPaymentStatus, 
-    default: AsaasPaymentStatus.PENDING 
+  @Column({
+    type: 'enum',
+    enum: AsaasPaymentStatus,
+    default: AsaasPaymentStatus.PENDING,
   })
   status: AsaasPaymentStatus;
 
@@ -91,7 +92,7 @@ export class AsaasPayment extends BaseEntity {
   webhookData: any;
 
   // Relacionamento
-  @ManyToOne(() => SeasonRegistration, (registration) => registration.payments)
+  @ManyToOne(() => SeasonRegistration, registration => registration.payments)
   @JoinColumn({ name: 'registrationId' })
   registration: SeasonRegistration;
-} 
+}

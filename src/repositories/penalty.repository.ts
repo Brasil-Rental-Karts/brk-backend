@@ -1,5 +1,4 @@
-import { Repository } from 'typeorm';
-import { Penalty, PenaltyType, PenaltyStatus } from '../models/penalty.entity';
+import { Penalty, PenaltyStatus, PenaltyType } from '../models/penalty.entity';
 
 export interface IPenaltyRepository {
   findByUserId(userId: string): Promise<Penalty[]>;
@@ -7,8 +6,11 @@ export interface IPenaltyRepository {
   findBySeasonId(seasonId: string): Promise<Penalty[]>;
   findByStageId(stageId: string): Promise<Penalty[]>;
   findByCategoryId(categoryId: string): Promise<Penalty[]>;
-  findActivePenalties(userId: string, championshipId: string): Promise<Penalty[]>;
+  findActivePenalties(
+    userId: string,
+    championshipId: string
+  ): Promise<Penalty[]>;
   findPendingPenalties(): Promise<Penalty[]>;
   findByType(type: PenaltyType): Promise<Penalty[]>;
   findByStatus(status: PenaltyStatus): Promise<Penalty[]>;
-} 
+}

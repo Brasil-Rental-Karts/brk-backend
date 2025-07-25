@@ -1,8 +1,9 @@
 import { DeepPartial } from 'typeorm';
+
+import { UpsertMemberProfileDto } from '../dtos/member-profile.dto';
 import { MemberProfile } from '../models/member-profile.entity';
 import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import { BaseService } from './base.service';
-import { UpsertMemberProfileDto } from '../dtos/member-profile.dto';
 import { UserService } from './user.service';
 
 export class MemberProfileService extends BaseService<MemberProfile> {
@@ -19,8 +20,10 @@ export class MemberProfileService extends BaseService<MemberProfile> {
    * @returns The member profile or null if not found
    */
   async findByUserId(userId: string): Promise<MemberProfile | null> {
-    const profile = await (this.repository as MemberProfileRepository).findByUserId(userId);
-    
+    const profile = await (
+      this.repository as MemberProfileRepository
+    ).findByUserId(userId);
+
     // If we have userService, try to get user data
     if (this.userService) {
       try {
@@ -56,7 +59,7 @@ export class MemberProfileService extends BaseService<MemberProfile> {
               attendsEvents: null,
               interestCategories: [],
               preferredTrack: null,
-              profileCompleted: false
+              profileCompleted: false,
             } as any;
           }
         }
@@ -65,7 +68,7 @@ export class MemberProfileService extends BaseService<MemberProfile> {
         // Continue without user data if fetch fails
       }
     }
-    
+
     return profile;
   }
 
@@ -84,7 +87,10 @@ export class MemberProfileService extends BaseService<MemberProfile> {
    * @param data The profile data
    * @returns The created or updated profile
    */
-  async upsert(userId: string, data: UpsertMemberProfileDto): Promise<MemberProfile> {
+  async upsert(
+    userId: string,
+    data: UpsertMemberProfileDto
+  ): Promise<MemberProfile> {
     try {
       // Extract fields that should be updated in the users table
       const userUpdateData: { name?: string; phone?: string } = {};
@@ -102,36 +108,38 @@ export class MemberProfileService extends BaseService<MemberProfile> {
       }
 
       // Check if profile exists - use repository directly to avoid fake profile creation
-      const existingProfile = await (this.repository as MemberProfileRepository).findByUserId(userId);
-      
+      const existingProfile = await (
+        this.repository as MemberProfileRepository
+      ).findByUserId(userId);
+
       // Create new profile if it doesn't exist
       if (!existingProfile) {
         // Set ID to match user ID for new profile
         const newProfileData: DeepPartial<MemberProfile> = {
           ...data,
           id: userId,
-          profileCompleted: true // Mark as completed when creating new profile
+          profileCompleted: true, // Mark as completed when creating new profile
         };
-        
+
         return this.repository.create(newProfileData);
       }
-      
+
       // Update existing profile and mark as completed
       const updateData = {
         ...data,
-        profileCompleted: true // Always mark as completed when updating
+        profileCompleted: true, // Always mark as completed when updating
       };
-      
+
       const updatedProfile = await this.repository.update(userId, updateData);
-      
+
       if (!updatedProfile) {
         throw new Error('Failed to update member profile');
       }
-      
+
       return updatedProfile;
     } catch (error) {
       console.error('Error in upsert method:', error);
       throw error;
     }
   }
-} 
+}

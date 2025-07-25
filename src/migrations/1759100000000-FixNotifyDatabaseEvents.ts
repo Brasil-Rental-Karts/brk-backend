@@ -1,11 +1,13 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class FixNotifyDatabaseEvents1759100000000 implements MigrationInterface {
-    name = 'FixNotifyDatabaseEvents1759100000000'
+export class FixNotifyDatabaseEvents1759100000000
+  implements MigrationInterface
+{
+  name = 'FixNotifyDatabaseEvents1759100000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Update the database events notification function to handle large payloads
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Update the database events notification function to handle large payloads
+    await queryRunner.query(`
             CREATE OR REPLACE FUNCTION notify_database_events() RETURNS TRIGGER AS $$
             DECLARE
                 payload JSON;
@@ -56,11 +58,11 @@ export class FixNotifyDatabaseEvents1759100000000 implements MigrationInterface 
             END;
             $$ LANGUAGE plpgsql;
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Revert to the original function
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Revert to the original function
+    await queryRunner.query(`
             CREATE OR REPLACE FUNCTION notify_database_events() RETURNS TRIGGER AS $$
             DECLARE
                 payload JSON;
@@ -94,5 +96,5 @@ export class FixNotifyDatabaseEvents1759100000000 implements MigrationInterface 
             END;
             $$ LANGUAGE plpgsql;
         `);
-    }
-} 
+  }
+}

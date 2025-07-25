@@ -1,8 +1,16 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+
 import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
-import { Stage } from './stage.entity';
 import { Category } from './category.entity';
+import { Stage } from './stage.entity';
+import { User } from './user.entity';
 
 export interface LapTime {
   lap: number;
@@ -31,9 +39,10 @@ export class LapTimes extends BaseEntity {
   @Column({ type: 'int' })
   kartNumber: number;
 
-  @Column({ 
+  @Column({
     type: 'jsonb',
-    comment: 'JSON array with lap times: [{"lap": 1, "time": "01:21.855", "timeMs": 81855}, ...]'
+    comment:
+      'JSON array with lap times: [{"lap": 1, "time": "01:21.855", "timeMs": 81855}, ...]',
   })
   lapTimes: LapTime[];
 
@@ -53,22 +62,22 @@ export class LapTimes extends BaseEntity {
   // Helper methods
   getBestLapTime(): LapTime | null {
     if (!this.lapTimes || this.lapTimes.length === 0) return null;
-    
-    return this.lapTimes.reduce((best, current) => 
+
+    return this.lapTimes.reduce((best, current) =>
       current.timeMs < best.timeMs ? current : best
     );
   }
 
   getAverageLapTime(): number | null {
     if (!this.lapTimes || this.lapTimes.length === 0) return null;
-    
+
     const totalMs = this.lapTimes.reduce((sum, lap) => sum + lap.timeMs, 0);
     return totalMs / this.lapTimes.length;
   }
 
   getTotalTime(): number {
     if (!this.lapTimes || this.lapTimes.length === 0) return 0;
-    
+
     return this.lapTimes.reduce((sum, lap) => sum + lap.timeMs, 0);
   }
-} 
+}

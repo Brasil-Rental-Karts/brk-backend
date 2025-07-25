@@ -1,10 +1,14 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { StageParticipationService, CreateParticipationData } from '../services/stage-participation.service';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { Request, Response } from 'express';
+
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { authMiddleware } from '../middleware/auth.middleware';
 import { UserRole } from '../models/user.entity';
+import {
+  CreateParticipationData,
+  StageParticipationService,
+} from '../services/stage-participation.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -63,7 +67,7 @@ import { UserRole } from '../models/user.entity';
  *         updatedAt:
  *           type: string
  *           format: date-time
- *     
+ *
  *     ConfirmParticipationRequest:
  *       type: object
  *       required:
@@ -125,7 +129,11 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/confirm', authMiddleware, this.confirmParticipation.bind(this));
+    this.router.post(
+      '/confirm',
+      authMiddleware,
+      this.confirmParticipation.bind(this)
+    );
 
     /**
      * @swagger
@@ -166,7 +174,11 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/cancel', authMiddleware, this.cancelParticipation.bind(this));
+    this.router.post(
+      '/cancel',
+      authMiddleware,
+      this.cancelParticipation.bind(this)
+    );
 
     /**
      * @swagger
@@ -224,7 +236,11 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/my/upcoming', authMiddleware, this.getMyUpcomingParticipations.bind(this));
+    this.router.get(
+      '/my/upcoming',
+      authMiddleware,
+      this.getMyUpcomingParticipations.bind(this)
+    );
 
     /**
      * @swagger
@@ -300,7 +316,11 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/bulk-cancel', authMiddleware, this.bulkCancelParticipation.bind(this));
+    this.router.post(
+      '/bulk-cancel',
+      authMiddleware,
+      this.bulkCancelParticipation.bind(this)
+    );
 
     /**
      * @swagger
@@ -372,7 +392,11 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/bulk-confirm', authMiddleware, this.bulkConfirmParticipation.bind(this));
+    this.router.post(
+      '/bulk-confirm',
+      authMiddleware,
+      this.bulkConfirmParticipation.bind(this)
+    );
 
     /**
      * @swagger
@@ -409,7 +433,11 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/stage/:stageId', authMiddleware, this.getStageParticipations.bind(this));
+    this.router.get(
+      '/stage/:stageId',
+      authMiddleware,
+      this.getStageParticipations.bind(this)
+    );
 
     /**
      * @swagger
@@ -457,7 +485,11 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/available-categories/:stageId', authMiddleware, this.getAvailableCategories.bind(this));
+    this.router.get(
+      '/available-categories/:stageId',
+      authMiddleware,
+      this.getAvailableCategories.bind(this)
+    );
 
     /**
      * @swagger
@@ -506,14 +538,25 @@ export class StageParticipationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/auto-confirm', authMiddleware, this.autoConfirmParticipation.bind(this));
+    this.router.post(
+      '/auto-confirm',
+      authMiddleware,
+      this.autoConfirmParticipation.bind(this)
+    );
   }
 
-  private async confirmParticipation(req: Request, res: Response): Promise<void> {
+  private async confirmParticipation(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       // Se for admin/manager, pode passar userId no body
       let userId = req.user!.id;
-      if (req.user && (req.user.role === UserRole.ADMINISTRATOR || req.user.role === UserRole.MANAGER)) {
+      if (
+        req.user &&
+        (req.user.role === UserRole.ADMINISTRATOR ||
+          req.user.role === UserRole.MANAGER)
+      ) {
         userId = req.body.userId || req.user.id;
       }
 
@@ -526,14 +569,15 @@ export class StageParticipationController extends BaseController {
       const data: CreateParticipationData = {
         userId,
         stageId,
-        categoryId
+        categoryId,
       };
 
-      const participation = await this.stageParticipationService.confirmParticipation(data);
+      const participation =
+        await this.stageParticipationService.confirmParticipation(data);
 
       res.status(201).json({
         message: 'Participação confirmada com sucesso',
-        data: participation
+        data: participation,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -547,11 +591,18 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async cancelParticipation(req: Request, res: Response): Promise<void> {
+  private async cancelParticipation(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       // Se for admin/manager, pode passar userId no body
       let userId = req.user!.id;
-      if (req.user && (req.user.role === UserRole.ADMINISTRATOR || req.user.role === UserRole.MANAGER)) {
+      if (
+        req.user &&
+        (req.user.role === UserRole.ADMINISTRATOR ||
+          req.user.role === UserRole.MANAGER)
+      ) {
         userId = req.body.userId || req.user.id;
       }
 
@@ -561,10 +612,15 @@ export class StageParticipationController extends BaseController {
         throw new BadRequestException('stageId e categoryId são obrigatórios');
       }
 
-      await this.stageParticipationService.cancelParticipation(userId, stageId, categoryId, reason);
+      await this.stageParticipationService.cancelParticipation(
+        userId,
+        stageId,
+        categoryId,
+        reason
+      );
 
       res.json({
-        message: 'Participação cancelada com sucesso'
+        message: 'Participação cancelada com sucesso',
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -578,14 +634,18 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async getMyParticipations(req: Request, res: Response): Promise<void> {
+  private async getMyParticipations(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const userId = req.user!.id;
-      const participations = await this.stageParticipationService.findByUserId(userId);
+      const participations =
+        await this.stageParticipationService.findByUserId(userId);
 
       res.json({
         message: 'Participações recuperadas com sucesso',
-        data: participations
+        data: participations,
       });
     } catch (error: any) {
       console.error('Error getting user participations:', error);
@@ -593,14 +653,20 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async getMyUpcomingParticipations(req: Request, res: Response): Promise<void> {
+  private async getMyUpcomingParticipations(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const userId = req.user!.id;
-      const upcomingParticipations = await this.stageParticipationService.findUserUpcomingParticipations(userId);
+      const upcomingParticipations =
+        await this.stageParticipationService.findUserUpcomingParticipations(
+          userId
+        );
 
       res.json({
         message: 'Próximas participações recuperadas com sucesso',
-        data: upcomingParticipations
+        data: upcomingParticipations,
       });
     } catch (error: any) {
       console.error('Error getting user upcoming participations:', error);
@@ -608,14 +674,18 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async getStageParticipations(req: Request, res: Response): Promise<void> {
+  private async getStageParticipations(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { stageId } = req.params;
-      const participations = await this.stageParticipationService.findByStageId(stageId);
+      const participations =
+        await this.stageParticipationService.findByStageId(stageId);
 
       res.json({
         message: 'Participações da etapa recuperadas com sucesso',
-        data: participations
+        data: participations,
       });
     } catch (error: any) {
       console.error('Error getting stage participations:', error);
@@ -623,12 +693,17 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async bulkConfirmParticipation(req: Request, res: Response): Promise<void> {
+  private async bulkConfirmParticipation(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { stageId, confirmations } = req.body;
 
       if (!stageId || !confirmations || !Array.isArray(confirmations)) {
-        throw new BadRequestException('stageId e confirmations (array) são obrigatórios');
+        throw new BadRequestException(
+          'stageId e confirmations (array) são obrigatórios'
+        );
       }
 
       // Bulk confirm permite confirmação de qualquer piloto, ignorando validações de pagamento
@@ -640,12 +715,12 @@ export class StageParticipationController extends BaseController {
       for (const confirmation of confirmations) {
         try {
           const { userId, categoryId } = confirmation;
-          
+
           if (!userId || !categoryId) {
             errors.push({
               userId,
               categoryId,
-              error: 'userId e categoryId são obrigatórios'
+              error: 'userId e categoryId são obrigatórios',
             });
             continue;
           }
@@ -653,17 +728,20 @@ export class StageParticipationController extends BaseController {
           const data: CreateParticipationData = {
             userId,
             stageId,
-            categoryId
+            categoryId,
           };
 
           // Usar método administrativo que ignora validações de pagamento
-          const participation = await this.stageParticipationService.confirmParticipationAdmin(data);
+          const participation =
+            await this.stageParticipationService.confirmParticipationAdmin(
+              data
+            );
           results.push(participation);
         } catch (error: any) {
           errors.push({
             userId: confirmation.userId,
             categoryId: confirmation.categoryId,
-            error: error.message || 'Erro ao confirmar participação'
+            error: error.message || 'Erro ao confirmar participação',
           });
         }
       }
@@ -671,7 +749,7 @@ export class StageParticipationController extends BaseController {
       res.json({
         message: `Confirmações processadas. ${results.length} confirmadas com sucesso, ${errors.length} com erro.`,
         data: results,
-        errors
+        errors,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -683,12 +761,17 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async bulkCancelParticipation(req: Request, res: Response): Promise<void> {
+  private async bulkCancelParticipation(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { stageId, cancellations } = req.body;
 
       if (!stageId || !cancellations || !Array.isArray(cancellations)) {
-        throw new BadRequestException('stageId e cancellations (array) são obrigatórios');
+        throw new BadRequestException(
+          'stageId e cancellations (array) são obrigatórios'
+        );
       }
 
       const results: any[] = [];
@@ -697,23 +780,28 @@ export class StageParticipationController extends BaseController {
       for (const cancellation of cancellations) {
         try {
           const { userId, categoryId, reason } = cancellation;
-          
+
           if (!userId || !categoryId) {
             errors.push({
               userId,
               categoryId,
-              error: 'userId e categoryId são obrigatórios'
+              error: 'userId e categoryId são obrigatórios',
             });
             continue;
           }
 
-          await this.stageParticipationService.cancelParticipation(userId, stageId, categoryId, reason);
+          await this.stageParticipationService.cancelParticipation(
+            userId,
+            stageId,
+            categoryId,
+            reason
+          );
           results.push({ userId, categoryId, status: 'cancelled' });
         } catch (error: any) {
           errors.push({
             userId: cancellation.userId,
             categoryId: cancellation.categoryId,
-            error: error.message || 'Erro ao cancelar participação'
+            error: error.message || 'Erro ao cancelar participação',
           });
         }
       }
@@ -721,7 +809,7 @@ export class StageParticipationController extends BaseController {
       res.json({
         message: `Cancelamentos processados. ${results.length} cancelados com sucesso, ${errors.length} com erro.`,
         data: results,
-        errors
+        errors,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -733,16 +821,23 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async getAvailableCategories(req: Request, res: Response): Promise<void> {
+  private async getAvailableCategories(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const userId = req.user!.id;
       const { stageId } = req.params;
 
-      const categories = await this.stageParticipationService.getAvailableCategoriesForUser(userId, stageId);
+      const categories =
+        await this.stageParticipationService.getAvailableCategoriesForUser(
+          userId,
+          stageId
+        );
 
       res.json({
         message: 'Categorias disponíveis recuperadas com sucesso',
-        data: categories
+        data: categories,
       });
     } catch (error: any) {
       if (error instanceof NotFoundException) {
@@ -754,7 +849,10 @@ export class StageParticipationController extends BaseController {
     }
   }
 
-  private async autoConfirmParticipation(req: Request, res: Response): Promise<void> {
+  private async autoConfirmParticipation(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     console.log('autoConfirmParticipation');
     try {
       const userId = req.user!.id;
@@ -765,14 +863,15 @@ export class StageParticipationController extends BaseController {
       const data: CreateParticipationData = {
         userId,
         stageId: String(stageId),
-        categoryId: String(categoryId)
+        categoryId: String(categoryId),
       };
 
-      const participation = await this.stageParticipationService.confirmParticipation(data);
+      const participation =
+        await this.stageParticipationService.confirmParticipation(data);
 
       res.json({
         message: 'Participação confirmada com sucesso',
-        data: participation
+        data: participation,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -784,4 +883,4 @@ export class StageParticipationController extends BaseController {
       }
     }
   }
-} 
+}

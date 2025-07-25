@@ -1,4 +1,5 @@
 import { createClient, RedisClientType } from 'redis';
+
 import { redisConfig } from '../config/redis.config';
 
 export class RedisService {
@@ -39,13 +40,13 @@ export class RedisService {
         this.client = createClient(clientOptions);
 
         // Handle connection events
-        this.client.on('error', (err) => {
+        this.client.on('error', err => {
           // console.error('Redis Client Error:', err);
         });
 
         // Connect to Redis
         await this.client.connect();
-        
+
         resolve();
       } catch (error) {
         // console.error('Failed to connect to Redis:', error);
@@ -78,7 +79,11 @@ export class RedisService {
     }
   }
 
-  async setData(key: string, value: any, expireInSeconds?: number): Promise<boolean> {
+  async setData(
+    key: string,
+    value: any,
+    expireInSeconds?: number
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -88,8 +93,9 @@ export class RedisService {
         throw new Error('Failed to create Redis client');
       }
 
-      const valueString = typeof value === 'string' ? value : JSON.stringify(value);
-      
+      const valueString =
+        typeof value === 'string' ? value : JSON.stringify(value);
+
       if (expireInSeconds) {
         await this.client.setEx(key, expireInSeconds, valueString);
       } else {
@@ -114,7 +120,7 @@ export class RedisService {
       }
 
       const value = await this.client.get(key);
-      
+
       if (!value) {
         return null;
       }
@@ -154,14 +160,17 @@ export class RedisService {
         await this.client.quit();
         this.client = null;
       }
-      
+
       this.connectionPromise = null;
     } catch (error) {
       // console.error('Error closing Redis connection:', error);
     }
   }
 
-  async subscribeToChannel(channelName: string, callback: (message: any) => void): Promise<boolean> {
+  async subscribeToChannel(
+    channelName: string,
+    callback: (message: any) => void
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -175,7 +184,7 @@ export class RedisService {
       const subscriber = this.client.duplicate();
       await subscriber.connect();
 
-      subscriber.subscribe(channelName, (message) => {
+      subscriber.subscribe(channelName, message => {
         try {
           const parsedMessage = JSON.parse(message);
           callback(parsedMessage);
@@ -192,7 +201,10 @@ export class RedisService {
   }
 
   // Championship-specific cache methods with Redis Hashes for maximum performance
-  async cacheChampionshipBasicInfo(championshipId: string, data: any): Promise<boolean> {
+  async cacheChampionshipBasicInfo(
+    championshipId: string,
+    data: any
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -211,7 +223,7 @@ export class RedisService {
         championshipImage: data.championshipImage || '',
         shortDescription: data.shortDescription || '',
         fullDescription: data.fullDescription || '',
-        sponsors: JSON.stringify(data.sponsors || [])
+        sponsors: JSON.stringify(data.sponsors || []),
       };
 
       // Store championship data as Redis Hash
@@ -227,7 +239,9 @@ export class RedisService {
     }
   }
 
-  async getCachedChampionshipBasicInfo(championshipId: string): Promise<any | null> {
+  async getCachedChampionshipBasicInfo(
+    championshipId: string
+  ): Promise<any | null> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -239,14 +253,14 @@ export class RedisService {
 
       const key = `championship:${championshipId}`;
       const data = await this.client.hGetAll(key);
-      
+
       if (Object.keys(data).length === 0) {
         return null;
       }
-      
+
       return {
         ...data,
-        sponsors: JSON.parse(data.sponsors || '[]')
+        sponsors: JSON.parse(data.sponsors || '[]'),
       };
     } catch (error) {
       // console.error('Error getting cached championship basic info:', error);
@@ -255,7 +269,9 @@ export class RedisService {
   }
 
   // Get multiple championships at once using Redis pipeline (ultra-fast)
-  async getMultipleChampionshipsBasicInfo(championshipIds: string[]): Promise<any[]> {
+  async getMultipleChampionshipsBasicInfo(
+    championshipIds: string[]
+  ): Promise<any[]> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -271,13 +287,13 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
+
       championshipIds.forEach(id => {
         pipeline.hGetAll(`championship:${id}`);
       });
 
       const results = await pipeline.exec();
-      
+
       if (!results) {
         return [];
       }
@@ -299,7 +315,7 @@ export class RedisService {
               // console.error('Error parsing sponsors JSON:', e);
               return [];
             }
-          })()
+          })(),
         }));
     } catch (error) {
       // console.error('Error getting multiple championships from cache:', error);
@@ -347,11 +363,17 @@ export class RedisService {
         id: data.id,
         name: data.name,
         slug: data.slug || '',
-        startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
-        endDate: data.endDate instanceof Date ? data.endDate.toISOString() : data.endDate,
+        startDate:
+          data.startDate instanceof Date
+            ? data.startDate.toISOString()
+            : data.startDate,
+        endDate:
+          data.endDate instanceof Date
+            ? data.endDate.toISOString()
+            : data.endDate,
         championshipId: data.championshipId,
         registrationOpen: data.registrationOpen ? 'true' : 'false',
-        regulationsEnabled: data.regulationsEnabled ? 'true' : 'false'
+        regulationsEnabled: data.regulationsEnabled ? 'true' : 'false',
       };
 
       // Store season data as Redis Hash
@@ -385,7 +407,7 @@ export class RedisService {
 
       const key = `season:${seasonId}`;
       const data = await this.client.hGetAll(key);
-      
+
       if (!data || Object.keys(data).length === 0) {
         return null;
       }
@@ -398,7 +420,7 @@ export class RedisService {
         endDate: new Date(data.endDate),
         championshipId: data.championshipId,
         registrationOpen: data.registrationOpen === 'true',
-        regulationsEnabled: data.regulationsEnabled === 'true'
+        regulationsEnabled: data.regulationsEnabled === 'true',
       };
 
       // Include classification if available
@@ -434,13 +456,13 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
+
       seasonIds.forEach(id => {
         pipeline.hGetAll(`season:${id}`);
       });
 
       const results = await pipeline.exec();
-      
+
       if (!results) {
         return [];
       }
@@ -457,7 +479,7 @@ export class RedisService {
           endDate: new Date(data.endDate),
           championshipId: data.championshipId,
           registrationOpen: data.registrationOpen === 'true',
-          regulationsEnabled: data.regulationsEnabled === 'true'
+          regulationsEnabled: data.regulationsEnabled === 'true',
         }));
     } catch (error) {
       // console.error('Error getting multiple seasons from cache:', error);
@@ -465,7 +487,10 @@ export class RedisService {
     }
   }
 
-  async invalidateSeasonCache(seasonId: string, championshipId?: string): Promise<boolean> {
+  async invalidateSeasonCache(
+    seasonId: string,
+    championshipId?: string
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -515,7 +540,9 @@ export class RedisService {
   }
 
   // Clean up championship seasons index when championship is deleted
-  async invalidateChampionshipSeasonsIndex(championshipId: string): Promise<boolean> {
+  async invalidateChampionshipSeasonsIndex(
+    championshipId: string
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -535,7 +562,10 @@ export class RedisService {
   }
 
   // Category-specific cache methods with Redis Sets for better performance
-  async cacheCategoryBasicInfo(categoryId: string, data: any): Promise<boolean> {
+  async cacheCategoryBasicInfo(
+    categoryId: string,
+    data: any
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -547,10 +577,10 @@ export class RedisService {
 
       // Use Redis Hash to store category data (more efficient than JSON strings)
       const categoryKey = `category:${categoryId}`;
-      
+
       // Get existing data to preserve pilots
       const existingData = await this.client.hGetAll(categoryKey);
-      
+
       const categoryData = {
         id: data.id,
         name: data.name,
@@ -559,7 +589,7 @@ export class RedisService {
         minimumAge: data.minimumAge.toString(),
         seasonId: data.seasonId,
         // Preserve existing pilots data if it exists
-        ...(existingData.pilots && { pilots: existingData.pilots })
+        ...(existingData.pilots && { pilots: existingData.pilots }),
       };
 
       // Store category data as Redis Hash
@@ -593,7 +623,7 @@ export class RedisService {
 
       const key = `category:${categoryId}`;
       const data = await this.client.hGetAll(key);
-      
+
       if (!data || Object.keys(data).length === 0) {
         return null;
       }
@@ -605,7 +635,7 @@ export class RedisService {
         ballast: data.ballast,
         maxPilots: parseInt(data.maxPilots),
         minimumAge: parseInt(data.minimumAge),
-        seasonId: data.seasonId
+        seasonId: data.seasonId,
       };
 
       // Include pilots if they exist
@@ -637,13 +667,13 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
+
       categoryIds.forEach(id => {
         pipeline.hGetAll(`category:${id}`);
       });
 
       const results = await pipeline.exec();
-      
+
       if (!results) {
         return [];
       }
@@ -659,7 +689,7 @@ export class RedisService {
             ballast: data.ballast,
             maxPilots: parseInt(data.maxPilots),
             minimumAge: parseInt(data.minimumAge),
-            seasonId: data.seasonId
+            seasonId: data.seasonId,
           };
 
           // Include pilots if they exist
@@ -675,7 +705,10 @@ export class RedisService {
     }
   }
 
-  async invalidateCategoryCache(categoryId: string, seasonId?: string): Promise<boolean> {
+  async invalidateCategoryCache(
+    categoryId: string,
+    seasonId?: string
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -734,7 +767,7 @@ export class RedisService {
 
       if (!this.client) {
         throw new Error('Failed to create Redis client');
-            }
+      }
 
       // Use Redis Hash to store stage data (more efficient than JSON strings)
       const stageKey = `stage:${stageId}`;
@@ -748,7 +781,9 @@ export class RedisService {
         streamLink: data.streamLink || '',
         briefing: data.briefing || '',
         seasonId: data.seasonId,
-        stageResults: data.stageResults ? JSON.stringify(data.stageResults) : ''
+        stageResults: data.stageResults
+          ? JSON.stringify(data.stageResults)
+          : '',
       };
 
       // Store stage data as Redis Hash
@@ -782,10 +817,10 @@ export class RedisService {
 
       const key = `stage:${stageId}`;
       const data = await this.client.hGetAll(key);
-      
+
       if (!data || Object.keys(data).length === 0) {
         return null;
-    }
+      }
 
       // Convert date string back to Date object
       const result: any = {
@@ -797,7 +832,7 @@ export class RedisService {
         trackLayoutId: data.trackLayoutId || '',
         streamLink: data.streamLink || '',
         briefing: data.briefing || '',
-        seasonId: data.seasonId
+        seasonId: data.seasonId,
       };
 
       // Parse stageResults if it exists
@@ -834,13 +869,13 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
+
       stageIds.forEach(id => {
         pipeline.hGetAll(`stage:${id}`);
       });
 
       const results = await pipeline.exec();
-      
+
       if (!results) {
         return [];
       }
@@ -859,7 +894,7 @@ export class RedisService {
             trackLayoutId: data.trackLayoutId || '',
             streamLink: data.streamLink || '',
             briefing: data.briefing || '',
-            seasonId: data.seasonId
+            seasonId: data.seasonId,
           };
 
           // Parse stageResults if it exists
@@ -880,7 +915,10 @@ export class RedisService {
     }
   }
 
-  async invalidateStageCache(stageId: string, seasonId?: string): Promise<boolean> {
+  async invalidateStageCache(
+    stageId: string,
+    seasonId?: string
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -931,7 +969,10 @@ export class RedisService {
   }
 
   // Regulation-specific cache methods with Redis Sets for better performance
-  async cacheRegulationBasicInfo(regulationId: string, data: any): Promise<boolean> {
+  async cacheRegulationBasicInfo(
+    regulationId: string,
+    data: any
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -948,7 +989,7 @@ export class RedisService {
         title: data.title,
         content: data.content,
         order: data.order.toString(),
-        seasonId: data.seasonId
+        seasonId: data.seasonId,
       };
 
       // Store regulation data as Redis Hash
@@ -970,7 +1011,9 @@ export class RedisService {
     }
   }
 
-  async getCachedRegulationBasicInfo(regulationId: string): Promise<any | null> {
+  async getCachedRegulationBasicInfo(
+    regulationId: string
+  ): Promise<any | null> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -982,7 +1025,7 @@ export class RedisService {
 
       const key = `regulation:${regulationId}`;
       const data = await this.client.hGetAll(key);
-      
+
       if (!data || Object.keys(data).length === 0) {
         return null;
       }
@@ -992,7 +1035,7 @@ export class RedisService {
         title: data.title,
         content: data.content,
         order: parseInt(data.order),
-        seasonId: data.seasonId
+        seasonId: data.seasonId,
       };
     } catch (error) {
       // console.error('Error getting cached regulation basic info:', error);
@@ -1001,7 +1044,9 @@ export class RedisService {
   }
 
   // Get multiple regulations at once using Redis pipeline (ultra-fast)
-  async getMultipleRegulationsBasicInfo(regulationIds: string[]): Promise<any[]> {
+  async getMultipleRegulationsBasicInfo(
+    regulationIds: string[]
+  ): Promise<any[]> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -1017,13 +1062,13 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
+
       regulationIds.forEach(id => {
         pipeline.hGetAll(`regulation:${id}`);
       });
 
       const results = await pipeline.exec();
-      
+
       if (!results) {
         return [];
       }
@@ -1037,7 +1082,7 @@ export class RedisService {
           title: data.title,
           content: data.content,
           order: parseInt(data.order),
-          seasonId: data.seasonId
+          seasonId: data.seasonId,
         }));
     } catch (error) {
       // console.error('Error getting multiple regulations from cache:', error);
@@ -1045,7 +1090,10 @@ export class RedisService {
     }
   }
 
-  async invalidateRegulationCache(regulationId: string, seasonId?: string): Promise<boolean> {
+  async invalidateRegulationCache(
+    regulationId: string,
+    seasonId?: string
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -1109,13 +1157,13 @@ export class RedisService {
       const categoriesKey = `season:${seasonId}:categories`;
       const stagesKey = `season:${seasonId}:stages`;
       const regulationsKey = `season:${seasonId}:regulations`;
-      
+
       await Promise.all([
         this.client.del(categoriesKey),
         this.client.del(stagesKey),
-        this.client.del(regulationsKey)
+        this.client.del(regulationsKey),
       ]);
-      
+
       return true;
     } catch (error) {
       // console.error('Error invalidating season indexes:', error);
@@ -1124,7 +1172,10 @@ export class RedisService {
   }
 
   // Cache pilots by category
-  async cacheCategoryPilots(categoryId: string, pilots: any[]): Promise<boolean> {
+  async cacheCategoryPilots(
+    categoryId: string,
+    pilots: any[]
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -1135,22 +1186,22 @@ export class RedisService {
       }
 
       const categoryKey = `category:${categoryId}`;
-      
+
       // Get existing category data
       const existingData = await this.client.hGetAll(categoryKey);
-      
+
       // Extract userIds from pilots
       const userIds = pilots.map(pilot => pilot.userId);
-      
+
       // Update category data with pilots
       const updatedData = {
         ...existingData,
-        pilots: JSON.stringify(userIds)
+        pilots: JSON.stringify(userIds),
       };
-      
+
       // Store updated category data
       await this.client.hSet(categoryKey, updatedData);
-      
+
       return true;
     } catch (error) {
       console.error('Error caching category pilots:', error);
@@ -1171,7 +1222,7 @@ export class RedisService {
 
       const categoryKey = `category:${categoryId}`;
       const categoryData = await this.client.hGetAll(categoryKey);
-      
+
       if (!categoryData || !categoryData.pilots) {
         return [];
       }
@@ -1195,10 +1246,10 @@ export class RedisService {
       }
 
       const categoryKey = `category:${categoryId}`;
-      
+
       // Remove pilots field from category data
       await this.client.hDel(categoryKey, 'pilots');
-      
+
       return true;
     } catch (error) {
       console.error('Error invalidating category pilots cache:', error);
@@ -1219,7 +1270,7 @@ export class RedisService {
 
       const categoryKey = `category:${categoryId}`;
       const categoryData = await this.client.hGetAll(categoryKey);
-      
+
       if (!categoryData || !categoryData.pilots) {
         return false;
       }
@@ -1233,7 +1284,10 @@ export class RedisService {
   }
 
   // RaceTrack-specific cache methods with Redis Hashes for maximum performance
-  async cacheRaceTrackBasicInfo(raceTrackId: string, data: any): Promise<boolean> {
+  async cacheRaceTrackBasicInfo(
+    raceTrackId: string,
+    data: any
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -1255,8 +1309,14 @@ export class RedisService {
         defaultFleets: JSON.stringify(data.defaultFleets || []),
         generalInfo: data.generalInfo || '',
         isActive: data.isActive ? 'true' : 'false',
-        createdAt: data.createdAt instanceof Date ? data.createdAt.toISOString() : data.createdAt,
-        updatedAt: data.updatedAt instanceof Date ? data.updatedAt.toISOString() : data.updatedAt
+        createdAt:
+          data.createdAt instanceof Date
+            ? data.createdAt.toISOString()
+            : data.createdAt,
+        updatedAt:
+          data.updatedAt instanceof Date
+            ? data.updatedAt.toISOString()
+            : data.updatedAt,
       };
 
       // Store race track data as Redis Hash
@@ -1317,7 +1377,10 @@ export class RedisService {
   }
 
   // Season Classification cache methods
-  async cacheSeasonClassification(seasonId: string, classificationData: any): Promise<boolean> {
+  async cacheSeasonClassification(
+    seasonId: string,
+    classificationData: any
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -1328,13 +1391,13 @@ export class RedisService {
       }
 
       const seasonKey = `season:${seasonId}`;
-      
+
       // Convert classification data to JSON string for storage in Redis hash
       const classificationJson = JSON.stringify(classificationData);
-      
+
       // Add classification field to the existing season hash
       await this.client.hSet(seasonKey, 'classification', classificationJson);
-      
+
       // Removed TTL - season data should be persistent and not expire
 
       return true;
@@ -1355,8 +1418,11 @@ export class RedisService {
       }
 
       const seasonKey = `season:${seasonId}`;
-      const classificationJson = await this.client.hGet(seasonKey, 'classification');
-      
+      const classificationJson = await this.client.hGet(
+        seasonKey,
+        'classification'
+      );
+
       if (!classificationJson) {
         return null;
       }
@@ -1379,7 +1445,7 @@ export class RedisService {
       }
 
       const seasonKey = `season:${seasonId}`;
-      
+
       // Remove only the classification field from the season hash
       await this.client.hDel(seasonKey, 'classification');
 
@@ -1408,7 +1474,7 @@ export class RedisService {
         name: data.name,
         profilePicture: data.profilePicture || '',
         active: data.active ? 'true' : 'false',
-        nickname: data.nickname || ''
+        nickname: data.nickname || '',
       };
 
       // Store user data as Redis Hash
@@ -1436,7 +1502,7 @@ export class RedisService {
 
       const key = `user:${userId}`;
       const data = await this.client.hGetAll(key);
-      
+
       if (!data || Object.keys(data).length === 0) {
         return null;
       }
@@ -1446,7 +1512,7 @@ export class RedisService {
         name: data.name,
         profilePicture: data.profilePicture || '',
         active: data.active === 'true',
-        nickname: data.nickname || ''
+        nickname: data.nickname || '',
       };
     } catch (error) {
       // console.error('Error getting cached user basic info:', error);
@@ -1455,7 +1521,9 @@ export class RedisService {
   }
 
   // Cache multiple users at once using Redis pipeline (ultra-fast)
-  async cacheMultipleUsersBasicInfo(userDataArray: Array<{userId: string, userData: any}>): Promise<boolean> {
+  async cacheMultipleUsersBasicInfo(
+    userDataArray: Array<{ userId: string; userData: any }>
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -1471,20 +1539,20 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
-      userDataArray.forEach(({userId, userData}) => {
+
+      userDataArray.forEach(({ userId, userData }) => {
         const userKey = `user:${userId}`;
         const redisUserData = {
           id: userData.id,
           name: userData.name,
           profilePicture: userData.profilePicture || '',
           active: userData.active ? 'true' : 'false',
-          nickname: userData.nickname || ''
+          nickname: userData.nickname || '',
         };
 
         // Store user data as Redis Hash
         pipeline.hSet(userKey, redisUserData);
-        
+
         // Add to global users set for bulk operations
         pipeline.sAdd('users:all', userId);
       });
@@ -1514,13 +1582,13 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
+
       userIds.forEach(id => {
         pipeline.hGetAll(`user:${id}`);
       });
 
       const results = await pipeline.exec();
-      
+
       if (!results) {
         return [];
       }
@@ -1534,7 +1602,7 @@ export class RedisService {
           name: data.name,
           profilePicture: data.profilePicture || '',
           active: data.active === 'true',
-          nickname: data.nickname || ''
+          nickname: data.nickname || '',
         }));
     } catch (error) {
       // console.error('Error getting multiple users from cache:', error);
@@ -1586,7 +1654,9 @@ export class RedisService {
   }
 
   // Cache multiple categories at once using Redis pipeline (ultra-fast)
-  async cacheMultipleCategoriesPilots(categoryPilotsArray: Array<{categoryId: string, pilots: any[]}>): Promise<boolean> {
+  async cacheMultipleCategoriesPilots(
+    categoryPilotsArray: Array<{ categoryId: string; pilots: any[] }>
+  ): Promise<boolean> {
     try {
       if (!this.client || !this.client.isOpen) {
         await this.connect();
@@ -1602,13 +1672,13 @@ export class RedisService {
 
       // Use Redis pipeline for batch operations
       const pipeline = this.client.multi();
-      
-      categoryPilotsArray.forEach(({categoryId, pilots}) => {
+
+      categoryPilotsArray.forEach(({ categoryId, pilots }) => {
         const categoryKey = `category:${categoryId}`;
-        
+
         // Extract userIds from pilots
         const userIds = pilots.map(pilot => pilot.userId);
-        
+
         // Update category data with pilots
         pipeline.hSet(categoryKey, 'pilots', JSON.stringify(userIds));
       });
@@ -1620,5 +1690,4 @@ export class RedisService {
       return false;
     }
   }
-
-} 
+}

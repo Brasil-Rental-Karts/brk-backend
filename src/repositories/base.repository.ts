@@ -7,4 +7,4 @@ export interface BaseRepository<T> {
   create(item: DeepPartial<T>): Promise<T>;
   update(id: string, item: DeepPartial<T>): Promise<T | null>;
   delete(id: string): Promise<boolean>;
-} 
+}

@@ -1,20 +1,10 @@
 import { Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { MemberProfileService } from '../services/member-profile.service';
+
 import { UpsertMemberProfileDto } from '../dtos/member-profile.dto';
-import { validationMiddleware } from '../middleware/validator.middleware';
 import { authMiddleware, requireMember } from '../middleware/auth.middleware';
-import { UserRole } from '../models/user.entity';
-import { MemberProfile } from '../models/member-profile.entity';
-import { 
-  Gender, 
-  KartExperienceYears, 
-  RaceFrequency, 
-  ChampionshipParticipation, 
-  CompetitiveLevel, 
-  AttendsEvents,
-  InterestCategory
-} from '../models/member-profile-enums';
+import { validationMiddleware } from '../middleware/validator.middleware';
+import { MemberProfileService } from '../services/member-profile.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -492,17 +482,21 @@ export class MemberProfileController extends BaseController {
       }
 
       const userId = req.user.id;
-      
+
       // Handle both nested and direct payload formats
       const profileData = req.body.profile || req.body;
-      
+
       // Check if profile exists to determine response status
-      const existingProfile = await this.memberProfileService.findByUserId(userId);
+      const existingProfile =
+        await this.memberProfileService.findByUserId(userId);
       const isNewProfile = !existingProfile;
-      
+
       // Perform upsert operation
-      const result = await this.memberProfileService.upsert(userId, profileData);
-      
+      const result = await this.memberProfileService.upsert(
+        userId,
+        profileData
+      );
+
       // Return appropriate status code based on whether profile was created or updated
       res.status(isNewProfile ? 201 : 200).json(result);
     } catch (error) {
@@ -521,18 +515,18 @@ export class MemberProfileController extends BaseController {
         res.status(401).json({ message: 'Authentication required' });
         return;
       }
-      
+
       const userId = req.user.id;
       const profile = await this.memberProfileService.findByUserId(userId);
-      
+
       if (!profile) {
         res.status(404).json({ message: 'Profile not found' });
         return;
       }
-      
+
       res.status(200).json(profile);
     } catch (error) {
       res.status(500).json({ message: 'Failed to retrieve profile' });
     }
   }
-} 
+}

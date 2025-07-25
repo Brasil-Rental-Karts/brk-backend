@@ -1,10 +1,11 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
 import { Championship } from './championship.entity';
+import { User } from './user.entity';
 
 export enum StaffRole {
-  STAFF = 'staff'
+  STAFF = 'staff',
 }
 
 export interface StaffPermissions {
@@ -81,10 +82,10 @@ export class ChampionshipStaff extends BaseEntity {
   @Column({ name: 'userId', nullable: false })
   userId: string;
 
-  @Column({ 
-    type: 'enum', 
-    enum: StaffRole, 
-    default: StaffRole.STAFF 
+  @Column({
+    type: 'enum',
+    enum: StaffRole,
+    default: StaffRole.STAFF,
   })
   role: StaffRole;
 
@@ -94,21 +95,28 @@ export class ChampionshipStaff extends BaseEntity {
   @Column({ name: 'addedById', nullable: false })
   addedById: string;
 
-  @Column({ name: 'addedAt', type: 'timestamptz', nullable: false, default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'addedAt',
+    type: 'timestamptz',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   addedAt: Date;
 
   @Column({ name: 'removedAt', type: 'timestamptz', nullable: true })
   removedAt: Date;
 
-  @Column({ 
-    type: 'jsonb', 
+  @Column({
+    type: 'jsonb',
     default: () => "'{}'::jsonb",
-    nullable: true 
+    nullable: true,
   })
   permissions: StaffPermissions;
 
   // Relacionamentos
-  @ManyToOne(() => Championship, championship => championship.id, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Championship, championship => championship.id, {
+    onDelete: 'CASCADE',
+  })
   championship: Championship;
 
   @ManyToOne(() => User, { eager: true })
@@ -118,4 +126,4 @@ export class ChampionshipStaff extends BaseEntity {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'addedById' })
   addedBy: User;
-} 
+}

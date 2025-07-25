@@ -1,5 +1,5 @@
-import { validate, ValidationError } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
+import { validate, ValidationError } from 'class-validator';
 
 export abstract class BaseDto {
   id?: string;
@@ -19,30 +19,30 @@ export abstract class BaseDto {
       enableImplicitConversion: false,
       excludeExtraneousValues: false,
     }) as T;
-    
+
     const errors = await dto.validate();
-    
+
     if (errors.length > 0) {
       return { dto: null, errors };
     }
-    
+
     return { dto, errors: [] };
   }
 
   private formatErrors(errors: ValidationError[]): string[] {
     const result: string[] = [];
-    
+
     errors.forEach(error => {
       const constraints = error.constraints;
       if (constraints) {
         result.push(...Object.values(constraints));
       }
-      
+
       if (error.children && error.children.length) {
         result.push(...this.formatErrors(error.children));
       }
     });
-    
+
     return result;
   }
-} 
+}

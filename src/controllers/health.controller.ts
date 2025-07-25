@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+
 import { BaseController } from './base.controller';
 
 /**
@@ -24,4 +25,4 @@ export class HealthController extends BaseController {
       timestamp: new Date().toISOString(),
     });
   }
-} 
+}

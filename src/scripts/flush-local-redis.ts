@@ -32,8 +32,8 @@ async function migrateRedisData() {
   const prodClient = createClient(PROD_REDIS_CONFIG);
   const localClient = createClient(LOCAL_REDIS_CONFIG);
 
-  prodClient.on('error', (err) => console.error('Redis PROD Error:', err));
-  localClient.on('error', (err) => console.error('Redis LOCAL Error:', err));
+  prodClient.on('error', err => console.error('Redis PROD Error:', err));
+  localClient.on('error', err => console.error('Redis LOCAL Error:', err));
 
   try {
     console.log('🔌 Conectando aos Redis...');
@@ -94,7 +94,10 @@ async function migrateRedisData() {
           case 'zset':
             value = await prodClient.zRangeWithScores(key, 0, -1);
             if (value.length > 0) {
-              const entries = value.map(item => ({ score: item.score, value: item.value }));
+              const entries = value.map(item => ({
+                score: item.score,
+                value: item.value,
+              }));
               await localClient.zAdd(key, entries);
             }
             break;
@@ -105,7 +108,9 @@ async function migrateRedisData() {
 
         copiedCount++;
         if (copiedCount % 100 === 0) {
-          console.log(`📊 Progresso: ${copiedCount}/${keys.length} chaves copiadas`);
+          console.log(
+            `📊 Progresso: ${copiedCount}/${keys.length} chaves copiadas`
+          );
         }
       } catch (error) {
         console.error(`❌ Erro ao copiar chave ${key}:`, error);
@@ -114,8 +119,9 @@ async function migrateRedisData() {
     }
 
     console.log(`✅ Migração concluída!`);
-    console.log(`📊 Resumo: ${copiedCount} chaves copiadas, ${errorCount} erros`);
-
+    console.log(
+      `📊 Resumo: ${copiedCount} chaves copiadas, ${errorCount} erros`
+    );
   } catch (err) {
     console.error('❌ Erro durante a migração do Redis:', err);
   } finally {
@@ -127,4 +133,4 @@ async function migrateRedisData() {
 
 if (require.main === module) {
   migrateRedisData();
-} 
+}

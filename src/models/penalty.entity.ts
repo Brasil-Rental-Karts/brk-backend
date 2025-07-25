@@ -1,22 +1,31 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
 import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
+import { Category } from './category.entity';
 import { Championship } from './championship.entity';
 import { Season } from './season.entity';
 import { Stage } from './stage.entity';
-import { Category } from './category.entity';
+import { User } from './user.entity';
 
 export enum PenaltyType {
   DISQUALIFICATION = 'disqualification',
   TIME_PENALTY = 'time_penalty',
   POSITION_PENALTY = 'position_penalty',
-  WARNING = 'warning'
+  WARNING = 'warning',
 }
 
 export enum PenaltyStatus {
   APPLIED = 'applied',
   NOT_APPLIED = 'not_applied',
-  APPEALED = 'appealed'
+  APPEALED = 'appealed',
 }
 
 @Entity('penalties')
@@ -105,4 +114,4 @@ export class Penalty extends BaseEntity {
 
   @UpdateDateColumn()
   updatedAt: Date;
-} 
+}

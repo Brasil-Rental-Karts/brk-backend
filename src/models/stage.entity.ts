@@ -1,4 +1,5 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 import { RaceTrack } from './race-track.entity';
 
@@ -53,4 +54,4 @@ export class Stage extends BaseEntity {
   @ManyToOne(() => RaceTrack, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'raceTrackId' })
   raceTrack: RaceTrack;
-} 
+}

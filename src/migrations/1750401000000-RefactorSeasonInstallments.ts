@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class RefactorSeasonInstallments1750401000000 implements MigrationInterface {
+export class RefactorSeasonInstallments1750401000000
+  implements MigrationInterface
+{
   name = 'RefactorSeasonInstallments1750401000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -16,7 +18,7 @@ export class RefactorSeasonInstallments1750401000000 implements MigrationInterfa
         name: 'pixInstallments',
         type: 'int',
         default: 1,
-        comment: 'Número máximo de parcelas para pagamento via PIX'
+        comment: 'Número máximo de parcelas para pagamento via PIX',
       })
     );
 
@@ -26,7 +28,8 @@ export class RefactorSeasonInstallments1750401000000 implements MigrationInterfa
         name: 'creditCardInstallments',
         type: 'int',
         default: 1,
-        comment: 'Número máximo de parcelas para pagamento via cartão de crédito'
+        comment:
+          'Número máximo de parcelas para pagamento via cartão de crédito',
       })
     );
 
@@ -36,7 +39,7 @@ export class RefactorSeasonInstallments1750401000000 implements MigrationInterfa
         name: 'boletoInstallments',
         type: 'int',
         default: 1,
-        comment: 'Número máximo de parcelas para pagamento via boleto'
+        comment: 'Número máximo de parcelas para pagamento via boleto',
       })
     );
   }
@@ -53,7 +56,7 @@ export class RefactorSeasonInstallments1750401000000 implements MigrationInterfa
       new TableColumn({
         name: 'allowInstallment',
         type: 'boolean',
-        default: false
+        default: false,
       })
     );
 
@@ -62,7 +65,7 @@ export class RefactorSeasonInstallments1750401000000 implements MigrationInterfa
       new TableColumn({
         name: 'maxInstallments',
         type: 'int',
-        isNullable: true
+        isNullable: true,
       })
     );
 
@@ -73,8 +76,8 @@ export class RefactorSeasonInstallments1750401000000 implements MigrationInterfa
         type: 'decimal',
         precision: 5,
         scale: 2,
-        isNullable: true
+        isNullable: true,
       })
     );
   }
-} 
+}

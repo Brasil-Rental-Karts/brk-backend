@@ -1,14 +1,19 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddNewInscriptionTypeValues1750450200000 implements MigrationInterface {
-    name = 'AddNewInscriptionTypeValues1750450200000'
+export class AddNewInscriptionTypeValues1750450200000
+  implements MigrationInterface
+{
+  name = 'AddNewInscriptionTypeValues1750450200000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Adicionar os novos valores ao enum existente
-        await queryRunner.query(`ALTER TYPE "public"."Seasons_inscriptiontype_enum" ADD VALUE 'por_temporada'`);
-        await queryRunner.query(`ALTER TYPE "public"."Seasons_inscriptiontype_enum" ADD VALUE 'por_etapa'`);
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Adicionar os novos valores ao enum existente
+    await queryRunner.query(
+      `ALTER TYPE "public"."Seasons_inscriptiontype_enum" ADD VALUE 'por_temporada'`
+    );
+    await queryRunner.query(
+      `ALTER TYPE "public"."Seasons_inscriptiontype_enum" ADD VALUE 'por_etapa'`
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-    }
-} 
+  public async down(queryRunner: QueryRunner): Promise<void> {}
+}

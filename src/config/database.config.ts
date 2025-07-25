@@ -1,6 +1,6 @@
-import { DataSource, DataSourceOptions } from 'typeorm';
-import { join } from 'path';
 import dotenv from 'dotenv';
+import { join } from 'path';
+import { DataSource, DataSourceOptions } from 'typeorm';
 
 // Load environment variables
 dotenv.config();
@@ -27,4 +27,4 @@ export const dbConfig: DataSourceOptions = {
 };
 
 // Create and export the data source
-export const AppDataSource = new DataSource(dbConfig); 
+export const AppDataSource = new DataSource(dbConfig);

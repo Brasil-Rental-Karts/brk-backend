@@ -1,7 +1,8 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { UserStatsService } from '../services/user-stats.service';
+import { Request, Response } from 'express';
+
 import { authMiddleware } from '../middleware/auth.middleware';
+import { UserStatsService } from '../services/user-stats.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -139,7 +140,11 @@ export class UserStatsController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/basic', authMiddleware, this.getUserBasicStats.bind(this));
+    this.router.get(
+      '/basic',
+      authMiddleware,
+      this.getUserBasicStats.bind(this)
+    );
   }
 
   private async getUserStats(req: Request, res: Response): Promise<void> {
@@ -149,12 +154,12 @@ export class UserStatsController extends BaseController {
 
       res.json({
         message: 'Estatísticas do usuário recuperadas com sucesso',
-        data: stats
+        data: stats,
       });
     } catch (error: any) {
       console.error('Error getting user stats:', error);
       res.status(500).json({
-        message: error.message || 'Erro interno do servidor'
+        message: error.message || 'Erro interno do servidor',
       });
     }
   }
@@ -166,13 +171,13 @@ export class UserStatsController extends BaseController {
 
       res.json({
         message: 'Estatísticas básicas do usuário recuperadas com sucesso',
-        data: stats
+        data: stats,
       });
     } catch (error: any) {
       console.error('Error getting user basic stats:', error);
       res.status(500).json({
-        message: error.message || 'Erro interno do servidor'
+        message: error.message || 'Erro interno do servidor',
       });
     }
   }
-} 
+}

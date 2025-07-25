@@ -1,7 +1,10 @@
-import { BaseService } from './base.service';
 import { Category } from '../models/category.entity';
-import { CategoryRepository, CategoryWithRegistrationCount } from '../repositories/category.repository';
+import {
+  CategoryRepository,
+  CategoryWithRegistrationCount,
+} from '../repositories/category.repository';
 import { validateBatteriesConfig } from '../types/category.types';
+import { BaseService } from './base.service';
 import { RedisService } from './redis.service';
 import { SeasonService } from './season.service';
 
@@ -29,25 +32,28 @@ export class CategoryService extends BaseService<Category> {
 
   async create(categoryData: Partial<Category>): Promise<Category> {
     const category = await super.create(categoryData);
-    
+
     // O cache será atualizado via database events, não aqui
-    
+
     return category;
   }
 
-  async update(id: string, categoryData: Partial<Category>): Promise<Category | null> {
+  async update(
+    id: string,
+    categoryData: Partial<Category>
+  ): Promise<Category | null> {
     const category = await super.update(id, categoryData);
-    
+
     // O cache será atualizado via database events, não aqui
-    
+
     return category;
   }
 
   async delete(id: string): Promise<boolean> {
     const result = await super.delete(id);
-    
+
     // O cache será atualizado via database events, não aqui
-    
+
     return result;
   }
 
@@ -55,7 +61,10 @@ export class CategoryService extends BaseService<Category> {
     return this.categoryRepository.findByName(name);
   }
 
-  async findByNameAndSeason(name: string, seasonIdOrSlug: string): Promise<Category | null> {
+  async findByNameAndSeason(
+    name: string,
+    seasonIdOrSlug: string
+  ): Promise<Category | null> {
     // Try to resolve season by slug or ID if season service is available
     if (this.seasonService) {
       try {
@@ -67,13 +76,14 @@ export class CategoryService extends BaseService<Category> {
         console.error('Error resolving season by slug/ID:', error);
       }
     }
-    
+
     // Fallback to direct ID lookup
     return this.categoryRepository.findByNameAndSeason(name, seasonIdOrSlug);
   }
 
   async findByBallast(ballast: number): Promise<Category[]> {
-    const numericBallast = typeof ballast === 'string' ? parseInt(ballast, 10) : ballast;
+    const numericBallast =
+      typeof ballast === 'string' ? parseInt(ballast, 10) : ballast;
     if (isNaN(numericBallast)) {
       return []; // ou lançar um erro, dependendo da lógica de negócio
     }
@@ -92,29 +102,37 @@ export class CategoryService extends BaseService<Category> {
         console.error('Error resolving season by slug/ID:', error);
       }
     }
-    
+
     // Fallback to direct ID lookup
     return this.categoryRepository.findBySeasonId(seasonIdOrSlug);
   }
 
-  async findBySeasonIdWithRegistrationCount(seasonIdOrSlug: string): Promise<CategoryWithRegistrationCount[]> {
+  async findBySeasonIdWithRegistrationCount(
+    seasonIdOrSlug: string
+  ): Promise<CategoryWithRegistrationCount[]> {
     // Try to resolve season by slug or ID if season service is available
     if (this.seasonService) {
       try {
         const season = await this.seasonService.findBySlugOrId(seasonIdOrSlug);
         if (season) {
-          return this.categoryRepository.findBySeasonIdWithRegistrationCount(season.id);
+          return this.categoryRepository.findBySeasonIdWithRegistrationCount(
+            season.id
+          );
         }
       } catch (error) {
         console.error('Error resolving season by slug/ID:', error);
       }
     }
-    
+
     // Fallback to direct ID lookup
-    return this.categoryRepository.findBySeasonIdWithRegistrationCount(seasonIdOrSlug);
+    return this.categoryRepository.findBySeasonIdWithRegistrationCount(
+      seasonIdOrSlug
+    );
   }
 
-  async findByIdsWithRegistrationCount(categoryIds: string[]): Promise<CategoryWithRegistrationCount[]> {
+  async findByIdsWithRegistrationCount(
+    categoryIds: string[]
+  ): Promise<CategoryWithRegistrationCount[]> {
     return this.categoryRepository.findByIdsWithRegistrationCount(categoryIds);
   }
 
@@ -123,32 +141,39 @@ export class CategoryService extends BaseService<Category> {
     if (!this.stageService) {
       throw new Error('Stage service not available');
     }
-    
+
     const stage = await this.stageService.findById(stageId);
-    
+
     if (!stage || !stage.categoryIds || stage.categoryIds.length === 0) {
       return [];
     }
 
     // Get all categories that are in the stage's categoryIds
-    const categories = await this.categoryRepository.findByIds(stage.categoryIds);
+    const categories = await this.categoryRepository.findByIds(
+      stage.categoryIds
+    );
     return categories;
   }
 
-  async findByStageIdWithRegistrationCount(stageId: string): Promise<CategoryWithRegistrationCount[]> {
+  async findByStageIdWithRegistrationCount(
+    stageId: string
+  ): Promise<CategoryWithRegistrationCount[]> {
     // First, get the stage to find its categoryIds
     if (!this.stageService) {
       throw new Error('Stage service not available');
     }
-    
+
     const stage = await this.stageService.findById(stageId);
-    
+
     if (!stage || !stage.categoryIds || stage.categoryIds.length === 0) {
       return [];
     }
 
     // Get all categories that are in the stage's categoryIds with registration count
-    const categories = await this.categoryRepository.findByIdsWithRegistrationCount(stage.categoryIds);
+    const categories =
+      await this.categoryRepository.findByIdsWithRegistrationCount(
+        stage.categoryIds
+      );
     return categories;
   }
 
@@ -159,21 +184,28 @@ export class CategoryService extends BaseService<Category> {
   }
 
   // Buscar todas as categorias de uma temporada no cache (alta performance)
-  async getSeasonCategoriesBasicInfo(seasonId: string): Promise<CategoryCacheData[]> {
+  async getSeasonCategoriesBasicInfo(
+    seasonId: string
+  ): Promise<CategoryCacheData[]> {
     try {
       // Busca a lista de IDs das categorias da temporada
-      const categoryIds = await this.redisService.getSeasonCategoryIds(seasonId);
-      
+      const categoryIds =
+        await this.redisService.getSeasonCategoryIds(seasonId);
+
       if (!categoryIds || categoryIds.length === 0) {
         return [];
       }
 
       // Busca os dados de todas as categorias em paralelo
-      const categoriesPromises = categoryIds.map(id => this.getCachedCategoryData(id));
+      const categoriesPromises = categoryIds.map(id =>
+        this.getCachedCategoryData(id)
+      );
       const categories = await Promise.all(categoriesPromises);
-      
+
       // Filtra apenas as categorias que foram encontradas no cache
-      return categories.filter(category => category !== null) as CategoryCacheData[];
+      return categories.filter(
+        category => category !== null
+      ) as CategoryCacheData[];
     } catch (error) {
       console.error('Error getting season categories from cache:', error);
       return [];
@@ -181,7 +213,9 @@ export class CategoryService extends BaseService<Category> {
   }
 
   // Buscar múltiplas categorias por IDs (alta performance)
-  async getMultipleCategoriesBasicInfo(ids: string[]): Promise<CategoryCacheData[]> {
+  async getMultipleCategoriesBasicInfo(
+    ids: string[]
+  ): Promise<CategoryCacheData[]> {
     try {
       // Usa o novo método otimizado com Redis pipeline
       return await this.redisService.getMultipleCategoriesBasicInfo(ids);
@@ -194,11 +228,17 @@ export class CategoryService extends BaseService<Category> {
   /**
    * Verifica se um usuário está inscrito em uma categoria usando cache
    */
-  async isUserRegisteredInCategory(categoryId: string, userId: string): Promise<boolean> {
+  async isUserRegisteredInCategory(
+    categoryId: string,
+    userId: string
+  ): Promise<boolean> {
     try {
       // Primeiro tenta buscar do cache
-      const isInCache = await this.redisService.isUserInCategory(categoryId, userId);
-      
+      const isInCache = await this.redisService.isUserInCategory(
+        categoryId,
+        userId
+      );
+
       if (isInCache) {
         return true;
       }
@@ -219,8 +259,9 @@ export class CategoryService extends BaseService<Category> {
   async getCategoryPilots(categoryId: string): Promise<string[]> {
     try {
       // Primeiro tenta buscar do cache
-      const cachedPilots = await this.redisService.getCachedCategoryPilots(categoryId);
-      
+      const cachedPilots =
+        await this.redisService.getCachedCategoryPilots(categoryId);
+
       if (cachedPilots.length > 0) {
         return cachedPilots;
       }
@@ -235,7 +276,9 @@ export class CategoryService extends BaseService<Category> {
   }
 
   // Métodos privados para cache (usados apenas pelos database events)
-  private async getCachedCategoryData(id: string): Promise<CategoryCacheData | null> {
+  private async getCachedCategoryData(
+    id: string
+  ): Promise<CategoryCacheData | null> {
     try {
       const key = `category:${id}`;
       return await this.redisService.getData(key);
@@ -245,7 +288,10 @@ export class CategoryService extends BaseService<Category> {
     }
   }
 
-  async validateCategoryData(data: any, isUpdate: boolean = false): Promise<string[]> {
+  async validateCategoryData(
+    data: any,
+    isUpdate: boolean = false
+  ): Promise<string[]> {
     const errors: string[] = [];
 
     // Validações básicas
@@ -279,4 +325,4 @@ export class CategoryService extends BaseService<Category> {
 
     return errors;
   }
-} 
+}

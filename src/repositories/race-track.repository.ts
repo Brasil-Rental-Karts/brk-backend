@@ -1,4 +1,5 @@
 import { Repository } from 'typeorm';
+
 import { RaceTrack } from '../models/race-track.entity';
 import { BaseRepository } from './base.repository';
 
@@ -30,38 +31,41 @@ export class RaceTrackRepository implements IRaceTrackRepository {
 
   async findAll(): Promise<RaceTrack[]> {
     return await this.repository.find({
-      order: { name: 'ASC' }
+      order: { name: 'ASC' },
     });
   }
 
   async findActive(): Promise<RaceTrack[]> {
     return await this.repository.find({
       where: { isActive: true },
-      order: { name: 'ASC' }
+      order: { name: 'ASC' },
     });
   }
 
   async findByName(name: string): Promise<RaceTrack | null> {
     return await this.repository.findOne({
-      where: { name }
+      where: { name },
     });
   }
 
   async findByCity(city: string): Promise<RaceTrack[]> {
     return await this.repository.find({
       where: { city },
-      order: { name: 'ASC' }
+      order: { name: 'ASC' },
     });
   }
 
   async findByState(state: string): Promise<RaceTrack[]> {
     return await this.repository.find({
       where: { state },
-      order: { name: 'ASC' }
+      order: { name: 'ASC' },
     });
   }
 
-  async update(id: string, data: Partial<RaceTrack>): Promise<RaceTrack | null> {
+  async update(
+    id: string,
+    data: Partial<RaceTrack>
+  ): Promise<RaceTrack | null> {
     await this.repository.update(id, data);
     return await this.findById(id);
   }
@@ -75,4 +79,4 @@ export class RaceTrackRepository implements IRaceTrackRepository {
     const count = await this.repository.count({ where: { id } });
     return count > 0;
   }
-} 
+}

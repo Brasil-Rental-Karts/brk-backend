@@ -1,12 +1,13 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
-import { Stage } from './stage.entity';
 import { Category } from './category.entity';
+import { Stage } from './stage.entity';
+import { User } from './user.entity';
 
 export enum ParticipationStatus {
   CONFIRMED = 'confirmed',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
 }
 
 @Entity('StageParticipations')
@@ -21,10 +22,10 @@ export class StageParticipation extends BaseEntity {
   @Column({ nullable: false })
   categoryId: string;
 
-  @Column({ 
-    type: 'enum', 
-    enum: ParticipationStatus, 
-    default: ParticipationStatus.CONFIRMED 
+  @Column({
+    type: 'enum',
+    enum: ParticipationStatus,
+    default: ParticipationStatus.CONFIRMED,
   })
   status: ParticipationStatus;
 
@@ -49,4 +50,4 @@ export class StageParticipation extends BaseEntity {
   @ManyToOne(() => Category, { eager: true })
   @JoinColumn({ name: 'categoryId' })
   category: Category;
-} 
+}

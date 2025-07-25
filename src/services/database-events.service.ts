@@ -1,16 +1,17 @@
-import { Client } from 'pg';
-import { RedisService } from './redis.service';
-import { redisConfig } from '../config/redis.config';
-import { AppDataSource } from '../config/database.config';
-import { Championship } from '../models/championship.entity';
-import { Stage } from '../models/stage.entity';
-import { ChampionshipClassificationService } from './championship-classification.service';
-import { UserRepository } from '../repositories/user.repository';
-import { MemberProfileRepository } from '../repositories/member-profile.repository';
-import { UserService } from './user.service';
-import { User } from '../models/user.entity';
-import { MemberProfile } from '../models/member-profile.entity';
 import dotenv from 'dotenv';
+import { Client } from 'pg';
+
+import { AppDataSource } from '../config/database.config';
+import { redisConfig } from '../config/redis.config';
+import { Championship } from '../models/championship.entity';
+import { MemberProfile } from '../models/member-profile.entity';
+import { Stage } from '../models/stage.entity';
+import { User } from '../models/user.entity';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { UserRepository } from '../repositories/user.repository';
+import { ChampionshipClassificationService } from './championship-classification.service';
+import { RedisService } from './redis.service';
+import { UserService } from './user.service';
 
 // Load environment variables
 dotenv.config();
@@ -51,10 +52,10 @@ export class DatabaseEventsService {
       if (redisConfig.trackedTables.includes(event.table)) {
         // Publish the message to Redis
         const success = await this.redisService.publishMessage(event);
-        
+
         return success;
       }
-      
+
       return true; // Return true for non-tracked tables
     } catch (error) {
       return false;
@@ -74,22 +75,21 @@ export class DatabaseEventsService {
         user: process.env.DB_USERNAME || 'postgres',
         password: process.env.DB_PASSWORD || 'postgres',
         database: process.env.DB_DATABASE || 'brk_competition',
-        ssl: process.env.DB_SSL === 'true' ? 
-          { rejectUnauthorized: false } : 
-          false,
+        ssl:
+          process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       });
 
       await this.client.connect();
-      
+
       // Listen for database events
       this.client.query('LISTEN database_events');
-      
+
       // Set up notification handler
-      this.client.on('notification', async (msg) => {
+      this.client.on('notification', async msg => {
         try {
           if (msg.channel === 'database_events' && msg.payload) {
             const payload = JSON.parse(msg.payload);
-            
+
             // Check if the table is in our tracked tables
             if (redisConfig.trackedTables.includes(payload.table)) {
               // Publish the message to Redis
@@ -102,7 +102,10 @@ export class DatabaseEventsService {
       });
 
       // Subscribe to Redis channel to handle caching
-      await this.redisService.subscribeToChannel(redisConfig.channelName, this.handleDatabaseEvent.bind(this));
+      await this.redisService.subscribeToChannel(
+        redisConfig.channelName,
+        this.handleDatabaseEvent.bind(this)
+      );
 
       this.isListening = true;
     } catch (error) {
@@ -118,19 +121,29 @@ export class DatabaseEventsService {
           case 'UPDATE':
             // Cache the championship info with image
             if (event.data && event.data.id) {
-              const championshipRepo = AppDataSource.getRepository(Championship);
-              const fullChampionship = await championshipRepo.findOneBy({ id: event.data.id });
+              const championshipRepo =
+                AppDataSource.getRepository(Championship);
+              const fullChampionship = await championshipRepo.findOneBy({
+                id: event.data.id,
+              });
 
               if (fullChampionship) {
-                await this.redisService.cacheChampionshipBasicInfo(fullChampionship.id, fullChampionship);
+                await this.redisService.cacheChampionshipBasicInfo(
+                  fullChampionship.id,
+                  fullChampionship
+                );
               }
             }
             break;
           case 'DELETE':
             // Remove championship from cache and clean up seasons index
             if (event.data && event.data.id) {
-              await this.redisService.invalidateChampionshipCache(event.data.id);
-              await this.redisService.invalidateChampionshipSeasonsIndex(event.data.id);
+              await this.redisService.invalidateChampionshipCache(
+                event.data.id
+              );
+              await this.redisService.invalidateChampionshipSeasonsIndex(
+                event.data.id
+              );
             }
             break;
         }
@@ -150,15 +163,21 @@ export class DatabaseEventsService {
                 endDate: event.data.endDate,
                 championshipId: event.data.championshipId,
                 registrationOpen: event.data.registrationOpen,
-                regulationsEnabled: event.data.regulationsEnabled
+                regulationsEnabled: event.data.regulationsEnabled,
               };
-              await this.redisService.cacheSeasonBasicInfo(event.data.id, seasonInfo);
+              await this.redisService.cacheSeasonBasicInfo(
+                event.data.id,
+                seasonInfo
+              );
             }
             break;
           case 'DELETE':
             // Remove season from cache and clean up related indexes
             if (event.data && event.data.id) {
-              await this.redisService.invalidateSeasonCache(event.data.id, event.data.championshipId);
+              await this.redisService.invalidateSeasonCache(
+                event.data.id,
+                event.data.championshipId
+              );
               await this.redisService.invalidateSeasonIndexes(event.data.id);
             }
             break;
@@ -177,17 +196,25 @@ export class DatabaseEventsService {
                 ballast: event.data.ballast,
                 maxPilots: event.data.maxPilots,
                 minimumAge: event.data.minimumAge,
-                seasonId: event.data.seasonId
+                seasonId: event.data.seasonId,
               };
-              await this.redisService.cacheCategoryBasicInfo(event.data.id, categoryInfo);
+              await this.redisService.cacheCategoryBasicInfo(
+                event.data.id,
+                categoryInfo
+              );
             }
             break;
           case 'DELETE':
             // Remove category from cache and season categories index
             if (event.data && event.data.id) {
-              await this.redisService.invalidateCategoryCache(event.data.id, event.data.seasonId);
+              await this.redisService.invalidateCategoryCache(
+                event.data.id,
+                event.data.seasonId
+              );
               // Also invalidate category pilots cache
-              await this.redisService.invalidateCategoryPilotsCache(event.data.id);
+              await this.redisService.invalidateCategoryPilotsCache(
+                event.data.id
+              );
             }
             break;
         }
@@ -201,7 +228,9 @@ export class DatabaseEventsService {
           case 'DELETE':
             // Invalidate category pilots cache when registration categories change
             if (event.data && event.data.categoryId) {
-              await this.redisService.invalidateCategoryPilotsCache(event.data.categoryId);
+              await this.redisService.invalidateCategoryPilotsCache(
+                event.data.categoryId
+              );
             }
             break;
         }
@@ -215,7 +244,9 @@ export class DatabaseEventsService {
           case 'DELETE':
             // Invalidate all category pilots caches when registrations change
             // This is a bit heavy-handed but ensures consistency
-            const categories = await this.redisService.getSeasonCategoryIds(event.data?.seasonId || '');
+            const categories = await this.redisService.getSeasonCategoryIds(
+              event.data?.seasonId || ''
+            );
             for (const categoryId of categories) {
               await this.redisService.invalidateCategoryPilotsCache(categoryId);
             }
@@ -231,7 +262,9 @@ export class DatabaseEventsService {
             if (event.large_payload && event.data && event.data.id) {
               // Fetch the full stage data from PostgreSQL
               const stageRepo = AppDataSource.getRepository(Stage);
-              const fullStage = await stageRepo.findOneBy({ id: event.data.id });
+              const fullStage = await stageRepo.findOneBy({
+                id: event.data.id,
+              });
 
               if (fullStage) {
                 const stageInfo = {
@@ -244,9 +277,12 @@ export class DatabaseEventsService {
                   streamLink: fullStage.streamLink,
                   briefing: fullStage.briefing,
                   seasonId: fullStage.seasonId,
-                  stageResults: fullStage.stage_results
+                  stageResults: fullStage.stage_results,
                 };
-                await this.redisService.cacheStageBasicInfo(fullStage.id, stageInfo);
+                await this.redisService.cacheStageBasicInfo(
+                  fullStage.id,
+                  stageInfo
+                );
               }
             } else if (event.data && event.data.id) {
               // Cache the stage info with season relationship (normal payload)
@@ -260,23 +296,31 @@ export class DatabaseEventsService {
                 streamLink: event.data.streamLink,
                 briefing: event.data.briefing,
                 seasonId: event.data.seasonId,
-                stageResults: event.data.stage_results
+                stageResults: event.data.stage_results,
               };
-              await this.redisService.cacheStageBasicInfo(event.data.id, stageInfo);
+              await this.redisService.cacheStageBasicInfo(
+                event.data.id,
+                stageInfo
+              );
             }
-            
+
             // NOTE: Recálculo de classificação removido daqui - agora é feito diretamente no StageService.updateStageResults()
             // para evitar duplo processamento e melhorar performance
             break;
           case 'DELETE':
             // Remove stage from cache and season stages index
             if (event.data && event.data.id) {
-              await this.redisService.invalidateStageCache(event.data.id, event.data.seasonId);
+              await this.redisService.invalidateStageCache(
+                event.data.id,
+                event.data.seasonId
+              );
             }
-            
+
             // If stage was deleted, recalculate season classification
             if (event.data && event.data.seasonId) {
-              await this.classificationService.recalculateSeasonClassification(event.data.seasonId);
+              await this.classificationService.recalculateSeasonClassification(
+                event.data.seasonId
+              );
             }
             break;
         }
@@ -293,15 +337,21 @@ export class DatabaseEventsService {
                 title: event.data.title,
                 content: event.data.content,
                 order: event.data.order,
-                seasonId: event.data.seasonId
+                seasonId: event.data.seasonId,
               };
-              await this.redisService.cacheRegulationBasicInfo(event.data.id, regulationInfo);
+              await this.redisService.cacheRegulationBasicInfo(
+                event.data.id,
+                regulationInfo
+              );
             }
             break;
           case 'DELETE':
             // Remove regulation from cache and season regulations index
             if (event.data && event.data.id) {
-              await this.redisService.invalidateRegulationCache(event.data.id, event.data.seasonId);
+              await this.redisService.invalidateRegulationCache(
+                event.data.id,
+                event.data.seasonId
+              );
             }
             break;
         }
@@ -357,7 +407,7 @@ export class DatabaseEventsService {
     try {
       // Unlisten
       this.client.query('UNLISTEN database_events');
-      
+
       // End the client connection
       await this.client.end();
       this.client = null;
@@ -366,4 +416,4 @@ export class DatabaseEventsService {
       // No need to log errors here, as we're not using console.error
     }
   }
-} 
+}

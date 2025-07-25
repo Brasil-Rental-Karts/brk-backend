@@ -1,6 +1,15 @@
-import { IsEmail, IsString, IsOptional, IsEnum, IsBoolean, Length, MinLength } from 'class-validator';
-import { BaseDto } from './base.dto';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Length,
+  MinLength,
+} from 'class-validator';
+
 import { UserRole } from '../models/user.entity';
+import { BaseDto } from './base.dto';
 
 /**
  * @swagger
@@ -118,4 +127,4 @@ export class UpdateUserDto extends BaseDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
-} 
+}

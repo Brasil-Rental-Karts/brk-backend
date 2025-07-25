@@ -1,15 +1,18 @@
-import { IsString, IsOptional, IsBoolean, IsArray, Length, IsISO8601, IsUUID, IsNumber, IsInt, Min, Max, ArrayMinSize, ArrayMaxSize } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Max,
+  Min,
+} from 'class-validator';
+
 import { BaseDto } from './base.dto';
-import { Type, Transform } from 'class-transformer';
-import { 
-  Gender, 
-  KartExperienceYears, 
-  RaceFrequency, 
-  ChampionshipParticipation, 
-  CompetitiveLevel, 
-  AttendsEvents,
-  InterestCategory
-} from '../models/member-profile-enums';
 
 /**
  * @swagger
@@ -211,7 +214,7 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Transform(({ value }) => value === null ? undefined : value)
+  @Transform(({ value }) => (value === null ? undefined : value))
   @Length(0, 100)
   teamName?: string;
 
@@ -221,7 +224,7 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Transform(({ value }) => value === null ? undefined : value)
+  @Transform(({ value }) => (value === null ? undefined : value))
   @Length(0, 100)
   telemetryType?: string;
 
@@ -240,11 +243,11 @@ export class UpsertMemberProfileDto extends BaseDto {
 
   @IsString()
   @IsOptional()
-  @Transform(({ value }) => value === null ? undefined : value)
+  @Transform(({ value }) => (value === null ? undefined : value))
   @Length(0, 100)
   preferredTrack?: string;
 
   @IsBoolean()
   @IsOptional()
   profileCompleted?: boolean;
-} 
+}

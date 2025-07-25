@@ -1,11 +1,13 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateScoringSystemTable0012000000000 implements MigrationInterface {
-    name = 'CreateScoringSystemTable0012000000000'
+export class CreateScoringSystemTable0012000000000
+  implements MigrationInterface
+{
+  name = 'CreateScoringSystemTable0012000000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create ScoringSystem table
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create ScoringSystem table
+    await queryRunner.query(`
             CREATE TABLE "ScoringSystem" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
@@ -22,9 +24,9 @@ export class CreateScoringSystemTable0012000000000 implements MigrationInterface
                 CONSTRAINT "PK_ScoringSystem" PRIMARY KEY ("id")
             )
         `);
-        
-        // Add foreign key constraint for championship
-        await queryRunner.query(`
+
+    // Add foreign key constraint for championship
+    await queryRunner.query(`
             ALTER TABLE "ScoringSystem" 
             ADD CONSTRAINT "FK_ScoringSystem_Championships_championshipId" 
             FOREIGN KEY ("championshipId") 
@@ -33,21 +35,29 @@ export class CreateScoringSystemTable0012000000000 implements MigrationInterface
             ON UPDATE NO ACTION
         `);
 
-        // Create indexes for better performance
-        await queryRunner.query(`CREATE INDEX "IDX_ScoringSystem_championshipId" ON "ScoringSystem" ("championshipId")`);
-        await queryRunner.query(`CREATE INDEX "IDX_ScoringSystem_name" ON "ScoringSystem" ("name")`);
-        await queryRunner.query(`CREATE INDEX "IDX_ScoringSystem_isActive" ON "ScoringSystem" ("isActive")`);
-        await queryRunner.query(`CREATE INDEX "IDX_ScoringSystem_isDefault" ON "ScoringSystem" ("isDefault")`);
-        
-        // Create trigger for the ScoringSystem table
-        await queryRunner.query(`
+    // Create indexes for better performance
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ScoringSystem_championshipId" ON "ScoringSystem" ("championshipId")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ScoringSystem_name" ON "ScoringSystem" ("name")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ScoringSystem_isActive" ON "ScoringSystem" ("isActive")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ScoringSystem_isDefault" ON "ScoringSystem" ("isDefault")`
+    );
+
+    // Create trigger for the ScoringSystem table
+    await queryRunner.query(`
             CREATE TRIGGER scoring_system_notify_trigger
             AFTER INSERT OR UPDATE OR DELETE ON "ScoringSystem"
             FOR EACH ROW EXECUTE FUNCTION notify_database_events();
         `);
 
-        // Insert default scoring systems examples
-        await queryRunner.query(`
+    // Insert default scoring systems examples
+    await queryRunner.query(`
             INSERT INTO "ScoringSystem" (
                 "name", 
                 "description", 
@@ -83,22 +93,26 @@ export class CreateScoringSystemTable0012000000000 implements MigrationInterface
             FROM "Championships" c 
             LIMIT 1
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Remove trigger from ScoringSystem table
-        await queryRunner.query(`DROP TRIGGER IF EXISTS scoring_system_notify_trigger ON "ScoringSystem"`);
-        
-        // Drop indexes
-        await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_isDefault"`);
-        await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_isActive"`);
-        await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_name"`);
-        await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_championshipId"`);
-        
-        // Drop the foreign key constraint
-        await queryRunner.query(`ALTER TABLE "ScoringSystem" DROP CONSTRAINT "FK_ScoringSystem_Championships_championshipId"`);
-        
-        // Drop ScoringSystem table
-        await queryRunner.query(`DROP TABLE "ScoringSystem"`);
-    }
-} 
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Remove trigger from ScoringSystem table
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS scoring_system_notify_trigger ON "ScoringSystem"`
+    );
+
+    // Drop indexes
+    await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_isDefault"`);
+    await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_isActive"`);
+    await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_name"`);
+    await queryRunner.query(`DROP INDEX "IDX_ScoringSystem_championshipId"`);
+
+    // Drop the foreign key constraint
+    await queryRunner.query(
+      `ALTER TABLE "ScoringSystem" DROP CONSTRAINT "FK_ScoringSystem_Championships_championshipId"`
+    );
+
+    // Drop ScoringSystem table
+    await queryRunner.query(`DROP TABLE "ScoringSystem"`);
+  }
+}

@@ -1,7 +1,22 @@
-import { IsString, IsNotEmpty, MaxLength, IsInt, Min, IsUUID, IsArray, ValidateNested, IsOptional, Max } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+
+import {
+  BatteriesConfig,
+  validateBatteriesConfig,
+} from '../types/category.types';
 import { BaseDto } from './base.dto';
-import { BatteriesConfig, validateBatteriesConfig } from '../types/category.types';
 
 /**
  * DTO para resposta de categoria com contagem de inscritos
@@ -66,7 +81,7 @@ export class BatteryConfigDto {
   isRequired: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Duração deve ser um número inteiro' })
   @Min(1, { message: 'Duração deve ser maior que 0' })
   duration?: number;
@@ -140,7 +155,9 @@ export class BatteryConfigDto {
 export class CreateCategoryDto extends BaseDto {
   @IsString()
   @IsNotEmpty({ message: 'Nome da categoria é obrigatório' })
-  @MaxLength(75, { message: 'Nome da categoria deve ter no máximo 75 caracteres' })
+  @MaxLength(75, {
+    message: 'Nome da categoria deve ter no máximo 75 caracteres',
+  })
   name: string;
 
   @Transform(({ value }) => parseInt(value))
@@ -183,7 +200,7 @@ export class CreateCategoryDto extends BaseDto {
   discardingType?: 'bateria' | 'etapa';
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Quantidade de descarte deve ser um número inteiro' })
   @Min(0, { message: 'Quantidade de descarte deve ser maior que 0' })
   discardingQuantity?: number;
@@ -254,18 +271,20 @@ export class CreateCategoryDto extends BaseDto {
 export class UpdateCategoryDto extends BaseDto {
   @IsOptional()
   @IsString()
-  @MaxLength(75, { message: 'Nome da categoria deve ter no máximo 75 caracteres' })
+  @MaxLength(75, {
+    message: 'Nome da categoria deve ter no máximo 75 caracteres',
+  })
   name?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Lastro deve ser um número inteiro' })
   @Min(0, { message: 'Lastro deve ser no mínimo 0' })
   @Max(999, { message: 'Lastro deve ser no máximo 999' })
   ballast?: number;
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Máximo de pilotos deve ser um número inteiro' })
   @Min(0, { message: 'Máximo de pilotos deve ser no mínimo 0' })
   @Max(999, { message: 'Máximo de pilotos deve ser no máximo 999' })
@@ -287,7 +306,7 @@ export class UpdateCategoryDto extends BaseDto {
   batteriesConfig?: BatteryConfigDto[];
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Idade mínima deve ser um número inteiro' })
   @Min(0, { message: 'Idade mínima deve ser no mínimo 0' })
   @Max(999, { message: 'Idade mínima deve ser no máximo 999' })
@@ -302,7 +321,7 @@ export class UpdateCategoryDto extends BaseDto {
   discardingType?: 'bateria' | 'etapa';
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Quantidade de descarte deve ser um número inteiro' })
   @Min(0, { message: 'Quantidade de descarte deve ser maior que 0' })
   discardingQuantity?: number;
@@ -310,4 +329,4 @@ export class UpdateCategoryDto extends BaseDto {
   @IsOptional()
   @IsUUID('4', { message: 'ID da temporada deve ser um UUID válido' })
   seasonId?: string;
-} 
+}

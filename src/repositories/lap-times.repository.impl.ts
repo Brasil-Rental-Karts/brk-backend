@@ -1,9 +1,13 @@
 import { Repository } from 'typeorm';
+
+import { LapTime, LapTimes } from '../models/lap-times.entity';
 import { BaseRepositoryImpl } from './base.repository.impl';
 import { LapTimesRepository } from './lap-times.repository';
-import { LapTimes, LapTime } from '../models/lap-times.entity';
 
-export class LapTimesRepositoryImpl extends BaseRepositoryImpl<LapTimes> implements LapTimesRepository {
+export class LapTimesRepositoryImpl
+  extends BaseRepositoryImpl<LapTimes>
+  implements LapTimesRepository
+{
   constructor(repository: Repository<LapTimes>) {
     super(repository);
   }
@@ -12,47 +16,55 @@ export class LapTimesRepositoryImpl extends BaseRepositoryImpl<LapTimes> impleme
     return this.repository.find({
       where: { stageId },
       relations: ['user', 'category'],
-      order: { createdAt: 'ASC' }
+      order: { createdAt: 'ASC' },
     });
   }
 
-  async findByStageAndCategory(stageId: string, categoryId: string): Promise<LapTimes[]> {
+  async findByStageAndCategory(
+    stageId: string,
+    categoryId: string
+  ): Promise<LapTimes[]> {
     return this.repository.find({
       where: { stageId, categoryId },
       relations: ['user'],
-      order: { batteryIndex: 'ASC', createdAt: 'ASC' }
+      order: { batteryIndex: 'ASC', createdAt: 'ASC' },
     });
   }
 
   async findByUserStageCategory(
-    userId: string, 
-    stageId: string, 
-    categoryId: string, 
+    userId: string,
+    stageId: string,
+    categoryId: string,
     batteryIndex?: number
   ): Promise<LapTimes | null> {
     const where: any = { userId, stageId, categoryId };
-    
+
     if (batteryIndex !== undefined) {
       where.batteryIndex = batteryIndex;
     }
 
     return this.repository.findOne({
       where,
-      relations: ['user', 'category']
+      relations: ['user', 'category'],
     });
   }
 
   async saveLapTimes(
-    userId: string, 
-    stageId: string, 
-    categoryId: string, 
-    batteryIndex: number, 
-    kartNumber: number, 
+    userId: string,
+    stageId: string,
+    categoryId: string,
+    batteryIndex: number,
+    kartNumber: number,
     lapTimes: LapTime[]
   ): Promise<LapTimes> {
     // Buscar registro existente
-    let lapTimesEntity = await this.findByUserStageCategory(userId, stageId, categoryId, batteryIndex);
-    
+    let lapTimesEntity = await this.findByUserStageCategory(
+      userId,
+      stageId,
+      categoryId,
+      batteryIndex
+    );
+
     if (lapTimesEntity) {
       // Atualizar registro existente
       lapTimesEntity.kartNumber = kartNumber;
@@ -66,16 +78,21 @@ export class LapTimesRepositoryImpl extends BaseRepositoryImpl<LapTimes> impleme
         categoryId,
         batteryIndex,
         kartNumber,
-        lapTimes
+        lapTimes,
       });
     }
 
     return this.repository.save(lapTimesEntity);
   }
 
-  async deleteLapTimes(userId: string, stageId: string, categoryId: string, batteryIndex?: number): Promise<void> {
+  async deleteLapTimes(
+    userId: string,
+    stageId: string,
+    categoryId: string,
+    batteryIndex?: number
+  ): Promise<void> {
     const where: any = { userId, stageId, categoryId };
-    
+
     if (batteryIndex !== undefined) {
       where.batteryIndex = batteryIndex;
     }
@@ -83,8 +100,12 @@ export class LapTimesRepositoryImpl extends BaseRepositoryImpl<LapTimes> impleme
     await this.repository.delete(where);
   }
 
-  async deleteLapTimesByCategoryAndBattery(stageId: string, categoryId: string, batteryIndex: number): Promise<void> {
+  async deleteLapTimesByCategoryAndBattery(
+    stageId: string,
+    categoryId: string,
+    batteryIndex: number
+  ): Promise<void> {
     const where: any = { stageId, categoryId, batteryIndex };
     await this.repository.delete(where);
   }
-} 
+}

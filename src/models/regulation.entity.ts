@@ -1,4 +1,5 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 import { Season } from './season.entity';
 
@@ -17,7 +18,9 @@ export class Regulation extends BaseEntity {
   @Column({ nullable: false })
   seasonId: string;
 
-  @ManyToOne(() => Season, (season) => season.regulations, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Season, season => season.regulations, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'seasonId' })
   season: Season;
-} 
+}

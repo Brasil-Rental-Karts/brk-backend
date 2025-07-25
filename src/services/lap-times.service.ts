@@ -1,7 +1,8 @@
 import { DataSource } from 'typeorm';
+
+import { LapTime, LapTimes } from '../models/lap-times.entity';
 import { LapTimesRepository } from '../repositories/lap-times.repository';
 import { LapTimesRepositoryImpl } from '../repositories/lap-times.repository.impl';
-import { LapTimes, LapTime } from '../models/lap-times.entity';
 
 export class LapTimesService {
   private lapTimesRepository: LapTimesRepository;
@@ -16,40 +17,48 @@ export class LapTimesService {
     return this.lapTimesRepository.findByStageId(stageId);
   }
 
-  async getLapTimesByStageAndCategory(stageId: string, categoryId: string): Promise<LapTimes[]> {
+  async getLapTimesByStageAndCategory(
+    stageId: string,
+    categoryId: string
+  ): Promise<LapTimes[]> {
     return this.lapTimesRepository.findByStageAndCategory(stageId, categoryId);
   }
 
   async getLapTimesByUser(
-    userId: string, 
-    stageId: string, 
-    categoryId: string, 
+    userId: string,
+    stageId: string,
+    categoryId: string,
     batteryIndex?: number
   ): Promise<LapTimes | null> {
-    return this.lapTimesRepository.findByUserStageCategory(userId, stageId, categoryId, batteryIndex);
+    return this.lapTimesRepository.findByUserStageCategory(
+      userId,
+      stageId,
+      categoryId,
+      batteryIndex
+    );
   }
 
   async saveLapTimes(
-    userId: string, 
-    stageId: string, 
-    categoryId: string, 
-    batteryIndex: number, 
-    kartNumber: number, 
+    userId: string,
+    stageId: string,
+    categoryId: string,
+    batteryIndex: number,
+    kartNumber: number,
     lapTimes: LapTime[]
   ): Promise<LapTimes> {
     // Validar e converter tempos para milissegundos
     const processedLapTimes = lapTimes.map((lapTime, index) => ({
       ...lapTime,
       lap: lapTime.lap || index + 1,
-      timeMs: lapTime.timeMs || this.parseTimeToMs(lapTime.time)
+      timeMs: lapTime.timeMs || this.parseTimeToMs(lapTime.time),
     }));
 
     return this.lapTimesRepository.saveLapTimes(
-      userId, 
-      stageId, 
-      categoryId, 
-      batteryIndex, 
-      kartNumber, 
+      userId,
+      stageId,
+      categoryId,
+      batteryIndex,
+      kartNumber,
       processedLapTimes
     );
   }
@@ -86,7 +95,7 @@ export class LapTimesService {
           kartLapTimes[kartNumber].push({
             lap: lapNumber,
             time: lapTime,
-            timeMs
+            timeMs,
           });
         }
       }
@@ -104,23 +113,49 @@ export class LapTimesService {
         // Ordenar voltas por número
         lapTimes.sort((a, b) => a.lap - b.lap);
 
-        await this.saveLapTimes(userId, stageId, categoryId, batteryIndex, kartNum, lapTimes);
+        await this.saveLapTimes(
+          userId,
+          stageId,
+          categoryId,
+          batteryIndex,
+          kartNum,
+          lapTimes
+        );
         imported++;
       }
 
       return { imported, errors };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
       throw new Error(`Erro ao importar tempos volta a volta: ${errorMessage}`);
     }
   }
 
-  async deleteLapTimes(userId: string, stageId: string, categoryId: string, batteryIndex?: number): Promise<void> {
-    return this.lapTimesRepository.deleteLapTimes(userId, stageId, categoryId, batteryIndex);
+  async deleteLapTimes(
+    userId: string,
+    stageId: string,
+    categoryId: string,
+    batteryIndex?: number
+  ): Promise<void> {
+    return this.lapTimesRepository.deleteLapTimes(
+      userId,
+      stageId,
+      categoryId,
+      batteryIndex
+    );
   }
 
-  async deleteLapTimesByCategoryAndBattery(stageId: string, categoryId: string, batteryIndex: number): Promise<void> {
-    return this.lapTimesRepository.deleteLapTimesByCategoryAndBattery(stageId, categoryId, batteryIndex);
+  async deleteLapTimesByCategoryAndBattery(
+    stageId: string,
+    categoryId: string,
+    batteryIndex: number
+  ): Promise<void> {
+    return this.lapTimesRepository.deleteLapTimesByCategoryAndBattery(
+      stageId,
+      categoryId,
+      batteryIndex
+    );
   }
 
   private parseTimeToMs(timeString: string): number {
@@ -134,18 +169,26 @@ export class LapTimesService {
         const minutes = parseInt(parts[0]);
         const secondsParts = parts[1].split('.');
         const seconds = parseInt(secondsParts[0]);
-        const milliseconds = parseInt(secondsParts[1]?.padEnd(3, '0').substring(0, 3) || '0');
-        
-        totalMs = (minutes * 60 * 1000) + (seconds * 1000) + milliseconds;
+        const milliseconds = parseInt(
+          secondsParts[1]?.padEnd(3, '0').substring(0, 3) || '0'
+        );
+
+        totalMs = minutes * 60 * 1000 + seconds * 1000 + milliseconds;
       } else if (parts.length === 3) {
         // HH:MM:SS.sss
         const hours = parseInt(parts[0]);
         const minutes = parseInt(parts[1]);
         const secondsParts = parts[2].split('.');
         const seconds = parseInt(secondsParts[0]);
-        const milliseconds = parseInt(secondsParts[1]?.padEnd(3, '0').substring(0, 3) || '0');
-        
-        totalMs = (hours * 60 * 60 * 1000) + (minutes * 60 * 1000) + (seconds * 1000) + milliseconds;
+        const milliseconds = parseInt(
+          secondsParts[1]?.padEnd(3, '0').substring(0, 3) || '0'
+        );
+
+        totalMs =
+          hours * 60 * 60 * 1000 +
+          minutes * 60 * 1000 +
+          seconds * 1000 +
+          milliseconds;
       }
 
       return totalMs;
@@ -162,4 +205,4 @@ export class LapTimesService {
 
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   }
-} 
+}

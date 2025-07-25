@@ -5,16 +5,24 @@ export class CreatePaymentTables0005000000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create RegistrationStatus enum
-    await queryRunner.query(`CREATE TYPE "public"."SeasonRegistrations_status_enum" AS ENUM('pending', 'payment_pending', 'confirmed', 'cancelled', 'expired')`);
-    
+    await queryRunner.query(
+      `CREATE TYPE "public"."SeasonRegistrations_status_enum" AS ENUM('pending', 'payment_pending', 'confirmed', 'cancelled', 'expired')`
+    );
+
     // Create PaymentStatus enum
-    await queryRunner.query(`CREATE TYPE "public"."SeasonRegistrations_paymentstatus_enum" AS ENUM('pending', 'processing', 'paid', 'failed', 'cancelled', 'refunded')`);
-    
+    await queryRunner.query(
+      `CREATE TYPE "public"."SeasonRegistrations_paymentstatus_enum" AS ENUM('pending', 'processing', 'paid', 'failed', 'cancelled', 'refunded')`
+    );
+
     // Create AsaasBillingType enum
-    await queryRunner.query(`CREATE TYPE "public"."AsaasPayments_billingtype_enum" AS ENUM('BOLETO', 'CREDIT_CARD', 'PIX', 'DEBIT_CARD')`);
-    
+    await queryRunner.query(
+      `CREATE TYPE "public"."AsaasPayments_billingtype_enum" AS ENUM('BOLETO', 'CREDIT_CARD', 'PIX', 'DEBIT_CARD')`
+    );
+
     // Create AsaasPaymentStatus enum
-    await queryRunner.query(`CREATE TYPE "public"."AsaasPayments_status_enum" AS ENUM('PENDING', 'RECEIVED', 'CONFIRMED', 'OVERDUE', 'REFUNDED', 'RECEIVED_IN_CASH', 'REFUND_REQUESTED', 'REFUND_IN_PROGRESS', 'CHARGEBACK_REQUESTED', 'CHARGEBACK_DISPUTE', 'AWAITING_CHARGEBACK_REVERSAL', 'DUNNING_REQUESTED', 'DUNNING_RECEIVED', 'AWAITING_RISK_ANALYSIS')`);
+    await queryRunner.query(
+      `CREATE TYPE "public"."AsaasPayments_status_enum" AS ENUM('PENDING', 'RECEIVED', 'CONFIRMED', 'OVERDUE', 'REFUNDED', 'RECEIVED_IN_CASH', 'REFUND_REQUESTED', 'REFUND_IN_PROGRESS', 'CHARGEBACK_REQUESTED', 'CHARGEBACK_DISPUTE', 'AWAITING_CHARGEBACK_REVERSAL', 'DUNNING_REQUESTED', 'DUNNING_RECEIVED', 'AWAITING_RISK_ANALYSIS')`
+    );
 
     // Create SeasonRegistrations table
     await queryRunner.query(`
@@ -64,16 +72,34 @@ export class CreatePaymentTables0005000000000 implements MigrationInterface {
     `);
 
     // Create indexes
-    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_SeasonRegistrations_user_season" ON "SeasonRegistrations" ("userId", "seasonId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_SeasonRegistrations_userId" ON "SeasonRegistrations" ("userId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_SeasonRegistrations_seasonId" ON "SeasonRegistrations" ("seasonId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_SeasonRegistrations_status" ON "SeasonRegistrations" ("status")`);
-    await queryRunner.query(`CREATE INDEX "IDX_SeasonRegistrations_paymentStatus" ON "SeasonRegistrations" ("paymentStatus")`);
-    
-    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_AsaasPayments_asaasPaymentId" ON "AsaasPayments" ("asaasPaymentId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_AsaasPayments_registrationId" ON "AsaasPayments" ("registrationId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_AsaasPayments_status" ON "AsaasPayments" ("status")`);
-    await queryRunner.query(`CREATE INDEX "IDX_AsaasPayments_billingType" ON "AsaasPayments" ("billingType")`);
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "IDX_SeasonRegistrations_user_season" ON "SeasonRegistrations" ("userId", "seasonId")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_SeasonRegistrations_userId" ON "SeasonRegistrations" ("userId")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_SeasonRegistrations_seasonId" ON "SeasonRegistrations" ("seasonId")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_SeasonRegistrations_status" ON "SeasonRegistrations" ("status")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_SeasonRegistrations_paymentStatus" ON "SeasonRegistrations" ("paymentStatus")`
+    );
+
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "IDX_AsaasPayments_asaasPaymentId" ON "AsaasPayments" ("asaasPaymentId")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_AsaasPayments_registrationId" ON "AsaasPayments" ("registrationId")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_AsaasPayments_status" ON "AsaasPayments" ("status")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_AsaasPayments_billingType" ON "AsaasPayments" ("billingType")`
+    );
 
     // Add foreign key constraints
     await queryRunner.query(`
@@ -97,17 +123,25 @@ export class CreatePaymentTables0005000000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop foreign key constraints
-    await queryRunner.query(`ALTER TABLE "AsaasPayments" DROP CONSTRAINT "FK_AsaasPayments_registrationId"`);
-    await queryRunner.query(`ALTER TABLE "SeasonRegistrations" DROP CONSTRAINT "FK_SeasonRegistrations_seasonId"`);
-    await queryRunner.query(`ALTER TABLE "SeasonRegistrations" DROP CONSTRAINT "FK_SeasonRegistrations_userId"`);
+    await queryRunner.query(
+      `ALTER TABLE "AsaasPayments" DROP CONSTRAINT "FK_AsaasPayments_registrationId"`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "SeasonRegistrations" DROP CONSTRAINT "FK_SeasonRegistrations_seasonId"`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "SeasonRegistrations" DROP CONSTRAINT "FK_SeasonRegistrations_userId"`
+    );
 
     // Drop indexes
     await queryRunner.query(`DROP INDEX "IDX_AsaasPayments_billingType"`);
     await queryRunner.query(`DROP INDEX "IDX_AsaasPayments_status"`);
     await queryRunner.query(`DROP INDEX "IDX_AsaasPayments_registrationId"`);
     await queryRunner.query(`DROP INDEX "IDX_AsaasPayments_asaasPaymentId"`);
-    
-    await queryRunner.query(`DROP INDEX "IDX_SeasonRegistrations_paymentStatus"`);
+
+    await queryRunner.query(
+      `DROP INDEX "IDX_SeasonRegistrations_paymentStatus"`
+    );
     await queryRunner.query(`DROP INDEX "IDX_SeasonRegistrations_status"`);
     await queryRunner.query(`DROP INDEX "IDX_SeasonRegistrations_seasonId"`);
     await queryRunner.query(`DROP INDEX "IDX_SeasonRegistrations_userId"`);
@@ -119,8 +153,14 @@ export class CreatePaymentTables0005000000000 implements MigrationInterface {
 
     // Drop enums
     await queryRunner.query(`DROP TYPE "public"."AsaasPayments_status_enum"`);
-    await queryRunner.query(`DROP TYPE "public"."AsaasPayments_billingtype_enum"`);
-    await queryRunner.query(`DROP TYPE "public"."SeasonRegistrations_paymentstatus_enum"`);
-    await queryRunner.query(`DROP TYPE "public"."SeasonRegistrations_status_enum"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."AsaasPayments_billingtype_enum"`
+    );
+    await queryRunner.query(
+      `DROP TYPE "public"."SeasonRegistrations_paymentstatus_enum"`
+    );
+    await queryRunner.query(
+      `DROP TYPE "public"."SeasonRegistrations_status_enum"`
+    );
   }
-} 
+}

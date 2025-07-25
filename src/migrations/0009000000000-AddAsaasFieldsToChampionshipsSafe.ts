@@ -1,11 +1,13 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements MigrationInterface {
+export class AddAsaasFieldsToChampionshipsSafe0010000000000
+  implements MigrationInterface
+{
   name = 'AddAsaasFieldsToChampionshipsSafe0010000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Verifica e adiciona todos os campos para integração completa com Asaas
-    
+
     const fieldsToAdd = [
       // Campos originais do Asaas
       {
@@ -15,8 +17,8 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           type: 'varchar',
           length: '255',
           isNullable: true,
-          comment: 'ID do cliente/subconta no Asaas'
-        })
+          comment: 'ID do cliente/subconta no Asaas',
+        }),
       },
       {
         name: 'asaasWalletId',
@@ -25,8 +27,8 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           type: 'varchar',
           length: '255',
           isNullable: true,
-          comment: 'ID da carteira (wallet) no Asaas para split payment'
-        })
+          comment: 'ID da carteira (wallet) no Asaas para split payment',
+        }),
       },
       {
         name: 'platformCommissionPercentage',
@@ -36,8 +38,8 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           precision: 5,
           scale: 2,
           default: '10.00',
-          comment: 'Percentual de comissão da plataforma BRK'
-        })
+          comment: 'Percentual de comissão da plataforma BRK',
+        }),
       },
       {
         name: 'splitEnabled',
@@ -45,8 +47,8 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           name: 'splitEnabled',
           type: 'boolean',
           default: true,
-          comment: 'Indica se o split payment está habilitado'
-        })
+          comment: 'Indica se o split payment está habilitado',
+        }),
       },
       // Campos adicionais para o Asaas
       {
@@ -56,8 +58,8 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           type: 'varchar',
           length: '100',
           isNullable: true,
-          comment: 'Bairro do endereço'
-        })
+          comment: 'Bairro do endereço',
+        }),
       },
       {
         name: 'incomeValue',
@@ -67,8 +69,8 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           precision: 10,
           scale: 2,
           isNullable: true,
-          comment: 'Faturamento/Renda mensal'
-        })
+          comment: 'Faturamento/Renda mensal',
+        }),
       },
       // Campos do responsável
       {
@@ -78,8 +80,8 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           type: 'varchar',
           length: '100',
           isNullable: true,
-          comment: 'E-mail do responsável quando não é o organizador'
-        })
+          comment: 'E-mail do responsável quando não é o organizador',
+        }),
       },
       {
         name: 'responsibleBirthDate',
@@ -87,15 +89,18 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
           name: 'responsibleBirthDate',
           type: 'date',
           isNullable: true,
-          comment: 'Data de nascimento do responsável'
-        })
-      }
+          comment: 'Data de nascimento do responsável',
+        }),
+      },
     ];
 
     // Adicionar campos
     for (const field of fieldsToAdd) {
-      const hasColumn = await queryRunner.hasColumn('Championships', field.name);
-      
+      const hasColumn = await queryRunner.hasColumn(
+        'Championships',
+        field.name
+      );
+
       if (!hasColumn) {
         await queryRunner.addColumn('Championships', field.column);
       }
@@ -105,7 +110,7 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
     const hasEnum = await queryRunner.query(`
       SELECT 1 FROM pg_type WHERE typname = 'championships_companytype_enum'
     `);
-    
+
     if (!hasEnum || hasEnum.length === 0) {
       await queryRunner.query(`
         CREATE TYPE "championships_companytype_enum" AS ENUM('MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION')
@@ -113,16 +118,22 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
     }
 
     // Adicionar campo companyType
-    const hasCompanyType = await queryRunner.hasColumn('Championships', 'companyType');
+    const hasCompanyType = await queryRunner.hasColumn(
+      'Championships',
+      'companyType'
+    );
     if (!hasCompanyType) {
-      await queryRunner.addColumn('Championships', new TableColumn({
-        name: 'companyType',
-        type: 'enum',
-        enum: ['MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION'],
-        enumName: 'championships_companytype_enum',
-        isNullable: true,
-        comment: 'Tipo de empresa para pessoa jurídica'
-      }));
+      await queryRunner.addColumn(
+        'Championships',
+        new TableColumn({
+          name: 'companyType',
+          type: 'enum',
+          enum: ['MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION'],
+          enumName: 'championships_companytype_enum',
+          isNullable: true,
+          comment: 'Tipo de empresa para pessoa jurídica',
+        })
+      );
     }
 
     // Adicionar comentário ao campo fullAddress
@@ -134,20 +145,20 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Remove todos os campos adicionados
     const fieldsToRemove = [
-      'responsibleBirthDate', 
-      'responsibleEmail', 
-      'incomeValue', 
+      'responsibleBirthDate',
+      'responsibleEmail',
+      'incomeValue',
       'companyType',
-      'province', 
-      'asaasCustomerId', 
-      'asaasWalletId', 
-      'platformCommissionPercentage', 
-      'splitEnabled'
+      'province',
+      'asaasCustomerId',
+      'asaasWalletId',
+      'platformCommissionPercentage',
+      'splitEnabled',
     ];
-    
+
     for (const fieldName of fieldsToRemove) {
       const hasColumn = await queryRunner.hasColumn('Championships', fieldName);
-      
+
       if (hasColumn) {
         await queryRunner.dropColumn('Championships', fieldName);
       }
@@ -157,9 +168,9 @@ export class AddAsaasFieldsToChampionshipsSafe0010000000000 implements Migration
     const hasEnum = await queryRunner.query(`
       SELECT 1 FROM pg_type WHERE typname = 'championships_companytype_enum'
     `);
-    
+
     if (hasEnum && hasEnum.length > 0) {
       await queryRunner.query(`DROP TYPE "championships_companytype_enum"`);
     }
   }
-} 
+}

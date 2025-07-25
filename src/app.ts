@@ -1,16 +1,15 @@
-import express, { Application } from 'express';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import express, { Application } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+
+import config from './config/config';
+import { BaseController } from './controllers/base.controller';
 import { errorMiddleware } from './middleware/error.middleware';
 import { loggerMiddleware } from './middleware/logger.middleware';
-import { BaseController } from './controllers/base.controller';
-import path from 'path';
-import fs from 'fs';
-import config from './config/config';
-import cookieParser from 'cookie-parser';
 
 const swaggerOptions: swaggerJsdoc.Options = {
   definition: {
@@ -21,31 +20,33 @@ const swaggerOptions: swaggerJsdoc.Options = {
       description: 'API documentation for BRK Backend',
       contact: {
         name: 'API Support',
-        email: 'support@example.com'
-      }
+        email: 'support@example.com',
+      },
     },
     servers: [
       {
         url: 'http://localhost:3000',
-        description: 'Development server'
+        description: 'Development server',
       },
       {
         url: 'https://brk-backend.onrender.com',
-        description: 'Production server'
-      }
+        description: 'Production server',
+      },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT'
-        }
-      }
+          bearerFormat: 'JWT',
+        },
+      },
     },
-    security: [{
-      bearerAuth: []
-    }]
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
   apis: [
     `${__dirname}/controllers/*.js`,
@@ -53,8 +54,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
     `${__dirname}/models/*.js`,
     `${__dirname}/controllers/*.ts`,
     `${__dirname}/dtos/*.ts`,
-    `${__dirname}/models/*.ts`
-  ]
+    `${__dirname}/models/*.ts`,
+  ],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -75,39 +76,46 @@ export class App {
 
   private initializeMiddlewares(): void {
     console.log(`🔧 [MIDDLEWARE] Inicializando middlewares...`);
-    this.app.use(helmet({
-      contentSecurityPolicy: false, // Disable CSP for Swagger UI
-    }));
-    this.app.use(cors({
-      origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, Swagger UI, etc.)
-        if (!origin) return callback(null, true);
-        
-        // Always allow localhost with the same port for Swagger UI
-        const allowedOrigins = [
-          ...config.frontendUrls,
-          `http://localhost:${config.port}`,
-          `https://localhost:${config.port}`,
-          'http://localhost:3000',
-          'https://localhost:3000'
-        ];
-        
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        
-        // In development, be more permissive
-        if (config.nodeEnv === 'development') {
-          // Allow any localhost origin in development
-          if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: false, // Disable CSP for Swagger UI
+      })
+    );
+    this.app.use(
+      cors({
+        origin: (origin, callback) => {
+          // Allow requests with no origin (like mobile apps, curl, Swagger UI, etc.)
+          if (!origin) return callback(null, true);
+
+          // Always allow localhost with the same port for Swagger UI
+          const allowedOrigins = [
+            ...config.frontendUrls,
+            `http://localhost:${config.port}`,
+            `https://localhost:${config.port}`,
+            'http://localhost:3000',
+            'https://localhost:3000',
+          ];
+
+          if (allowedOrigins.includes(origin)) {
             return callback(null, true);
           }
-        }
-        
-        return callback(new Error('Not allowed by CORS'), false);
-      },
-      credentials: true,
-    }));
+
+          // In development, be more permissive
+          if (config.nodeEnv === 'development') {
+            // Allow any localhost origin in development
+            if (
+              origin.startsWith('http://localhost:') ||
+              origin.startsWith('https://localhost:')
+            ) {
+              return callback(null, true);
+            }
+          }
+
+          return callback(new Error('Not allowed by CORS'), false);
+        },
+        credentials: true,
+      })
+    );
     this.app.use(express.json());
     this.app.use(cookieParser());
     this.app.use(morgan('dev'));
@@ -120,41 +128,53 @@ export class App {
     // Só expõe Swagger se não for produção
     if (process.env.NODE_ENV !== 'production') {
       // Serve Swagger UI com opções customizadas
-      this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-        explorer: true,
-        customCss: '.swagger-ui .topbar { display: none }',
-        customSiteTitle: 'BRK API Documentation',
-        swaggerOptions: {
-          persistAuthorization: true,
-          docExpansion: 'list',
-          filter: true,
-          showExtensions: true,
-          showCommonExtensions: true,
-          defaultModelsExpandDepth: 3,
-          defaultModelExpandDepth: 3,
-          displayRequestDuration: true,
-          tryItOutEnabled: true
-        }
-      }));
+      this.app.use(
+        '/api-docs',
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerSpec, {
+          explorer: true,
+          customCss: '.swagger-ui .topbar { display: none }',
+          customSiteTitle: 'BRK API Documentation',
+          swaggerOptions: {
+            persistAuthorization: true,
+            docExpansion: 'list',
+            filter: true,
+            showExtensions: true,
+            showCommonExtensions: true,
+            defaultModelsExpandDepth: 3,
+            defaultModelExpandDepth: 3,
+            displayRequestDuration: true,
+            tryItOutEnabled: true,
+          },
+        })
+      );
 
       // Serve raw Swagger JSON
       this.app.get('/api-docs.json', (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         res.send(swaggerSpec);
       });
-      console.log(`✅ [SWAGGER] Documentação configurada para ambiente de desenvolvimento`);
+      console.log(
+        `✅ [SWAGGER] Documentação configurada para ambiente de desenvolvimento`
+      );
     } else {
       console.log(`⚠️ [SWAGGER] Documentação desabilitada em produção`);
     }
   }
 
   private initializeControllers(controllers: BaseController[]): void {
-    console.log(`🎮 [CONTROLLERS] Registrando ${controllers.length} controllers...`);
-    controllers.forEach((controller) => {
-      console.log(`  📍 [CONTROLLER] ${controller.constructor.name} -> ${controller.path}`);
+    console.log(
+      `🎮 [CONTROLLERS] Registrando ${controllers.length} controllers...`
+    );
+    controllers.forEach(controller => {
+      console.log(
+        `  📍 [CONTROLLER] ${controller.constructor.name} -> ${controller.path}`
+      );
       this.app.use(controller.path, controller.router);
     });
-    console.log(`✅ [CONTROLLERS] Todos os controllers registrados com sucesso`);
+    console.log(
+      `✅ [CONTROLLERS] Todos os controllers registrados com sucesso`
+    );
   }
 
   private initializeErrorHandling(): void {
@@ -167,9 +187,15 @@ export class App {
     this.app.listen(port, () => {
       console.log(`🚀 [SERVER] Servidor iniciado na porta ${port}`);
       console.log(`📊 [SERVER] Ambiente: ${config.nodeEnv}`);
-      console.log(`🌐 [SERVER] URLs permitidas: ${config.frontendUrls.join(', ')}`);
-      console.log(`📚 [SERVER] Documentação disponível em: http://localhost:${port}/api-docs`);
-      console.log(`⏰ [SERVER] Data/Hora de inicialização: ${new Date().toISOString()}`);
+      console.log(
+        `🌐 [SERVER] URLs permitidas: ${config.frontendUrls.join(', ')}`
+      );
+      console.log(
+        `📚 [SERVER] Documentação disponível em: http://localhost:${port}/api-docs`
+      );
+      console.log(
+        `⏰ [SERVER] Data/Hora de inicialização: ${new Date().toISOString()}`
+      );
     });
   }
 }

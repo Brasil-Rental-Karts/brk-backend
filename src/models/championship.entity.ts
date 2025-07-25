@@ -1,11 +1,12 @@
-import { Entity, Column, BeforeInsert, BeforeUpdate, OneToMany } from 'typeorm';
-import { BaseEntity } from './base.entity';
+import { BeforeInsert, BeforeUpdate, Column, Entity, OneToMany } from 'typeorm';
+
 import { slugify } from '../utils/slugify';
+import { BaseEntity } from './base.entity';
 import { Season } from './season.entity';
 
 export enum PersonType {
   FISICA = 0,
-  JURIDICA = 1
+  JURIDICA = 1,
 }
 
 export interface Sponsor {
@@ -35,10 +36,10 @@ export class Championship extends BaseEntity {
   fullDescription: string;
 
   // Dados Gerais
-  @Column({ 
-    type: 'enum', 
-    enum: PersonType, 
-    default: PersonType.FISICA 
+  @Column({
+    type: 'enum',
+    enum: PersonType,
+    default: PersonType.FISICA,
   })
   personType: PersonType;
 
@@ -84,10 +85,10 @@ export class Championship extends BaseEntity {
   @Column({ type: 'date', nullable: false })
   responsibleBirthDate: Date;
 
-  @Column({ 
-    type: 'enum', 
-    enum: ['MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION'], 
-    nullable: true 
+  @Column({
+    type: 'enum',
+    enum: ['MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION'],
+    nullable: true,
   })
   companyType: string;
 
@@ -99,7 +100,7 @@ export class Championship extends BaseEntity {
   @Column({ length: 255, nullable: true })
   asaasWalletId: string;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 10.00 })
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 10.0 })
   platformCommissionPercentage: number;
 
   @Column({ default: true })
@@ -112,7 +113,7 @@ export class Championship extends BaseEntity {
   @Column({ nullable: false })
   ownerId: string;
 
-  @OneToMany(() => Season, (season) => season.championship)
+  @OneToMany(() => Season, season => season.championship)
   seasons: Season[];
 
   @BeforeInsert()
@@ -120,4 +121,4 @@ export class Championship extends BaseEntity {
   generateSlug() {
     this.slug = slugify(this.name);
   }
-} 
+}

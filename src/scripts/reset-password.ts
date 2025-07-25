@@ -1,5 +1,7 @@
 import 'reflect-metadata';
+
 import bcrypt from 'bcrypt';
+
 import { AppDataSource } from '../config/database.config';
 import { User } from '../models/user.entity';
 import { UserRepository } from '../repositories/user.repository';
@@ -42,7 +44,9 @@ async function resetPassword() {
     await AppDataSource.initialize();
 
     // Inicializar repositório
-    const userRepository = new UserRepository(AppDataSource.getRepository(User));
+    const userRepository = new UserRepository(
+      AppDataSource.getRepository(User)
+    );
 
     // Buscar usuário pelo email
     const user = await userRepository.findByEmail(email);
@@ -56,7 +60,6 @@ async function resetPassword() {
 
     // Atualizar apenas o campo senha
     await userRepository.update(user.id, { password: hashedPassword });
-
   } catch (error) {
     console.error('Erro ao redefinir a senha:', error);
   } finally {
@@ -68,4 +71,4 @@ async function resetPassword() {
 }
 
 // Executar o script
-resetPassword(); 
+resetPassword();

@@ -1,12 +1,17 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { RegulationService } from '../services/regulation.service';
-import { ChampionshipStaffService } from '../services/championship-staff.service';
-import { SeasonService } from '../services/season.service';
+import { Request, Response } from 'express';
+
+import {
+  CreateRegulationDto,
+  ReorderRegulationsDto,
+  UpdateRegulationDto,
+} from '../dtos/regulation.dto';
+import { NotFoundException } from '../exceptions/not-found.exception';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { seasonAccessMiddleware } from '../middleware/championship-access.middleware';
-import { CreateRegulationDto, UpdateRegulationDto, ReorderRegulationsDto } from '../dtos/regulation.dto';
-import { NotFoundException } from '../exceptions/not-found.exception';
+import { ChampionshipStaffService } from '../services/championship-staff.service';
+import { RegulationService } from '../services/regulation.service';
+import { SeasonService } from '../services/season.service';
+import { BaseController } from './base.controller';
 
 export class RegulationController extends BaseController {
   constructor(
@@ -20,15 +25,17 @@ export class RegulationController extends BaseController {
 
   public initializeRoutes(): void {
     // Get regulations by season ID
-    this.router.get('/season/:seasonId', 
-      authMiddleware, 
+    this.router.get(
+      '/season/:seasonId',
+      authMiddleware,
       seasonAccessMiddleware(this.championshipStaffService, this.seasonService),
       this.findBySeasonId.bind(this)
     );
 
     // Get regulations by season ID (ordered)
-    this.router.get('/season/:seasonId/ordered', 
-      authMiddleware, 
+    this.router.get(
+      '/season/:seasonId/ordered',
+      authMiddleware,
       seasonAccessMiddleware(this.championshipStaffService, this.seasonService),
       this.findBySeasonIdOrdered.bind(this)
     );
@@ -37,9 +44,14 @@ export class RegulationController extends BaseController {
     this.router.get('/:id', authMiddleware, this.findById.bind(this));
 
     // Create regulation
-    this.router.post('/', 
-      authMiddleware, 
-      seasonAccessMiddleware(this.championshipStaffService, this.seasonService, 'seasonId'),
+    this.router.post(
+      '/',
+      authMiddleware,
+      seasonAccessMiddleware(
+        this.championshipStaffService,
+        this.seasonService,
+        'seasonId'
+      ),
       this.create.bind(this)
     );
 
@@ -50,9 +62,14 @@ export class RegulationController extends BaseController {
     this.router.delete('/:id', authMiddleware, this.delete.bind(this));
 
     // Reorder regulations
-    this.router.post('/reorder', 
-      authMiddleware, 
-      seasonAccessMiddleware(this.championshipStaffService, this.seasonService, 'seasonId'),
+    this.router.post(
+      '/reorder',
+      authMiddleware,
+      seasonAccessMiddleware(
+        this.championshipStaffService,
+        this.seasonService,
+        'seasonId'
+      ),
       this.reorder.bind(this)
     );
   }
@@ -64,7 +81,7 @@ export class RegulationController extends BaseController {
       res.status(201).json({
         success: true,
         data: regulation,
-        message: 'Regulation created successfully'
+        message: 'Regulation created successfully',
       });
     } catch (error) {
       this.handleError(res, error);
@@ -75,12 +92,12 @@ export class RegulationController extends BaseController {
     try {
       const { id } = req.params;
       const dto: UpdateRegulationDto = req.body;
-      
+
       const regulation = await this.regulationService.updateRegulation(id, dto);
       res.status(200).json({
         success: true,
         data: regulation,
-        message: 'Regulation updated successfully'
+        message: 'Regulation updated successfully',
       });
     } catch (error) {
       this.handleError(res, error);
@@ -93,7 +110,7 @@ export class RegulationController extends BaseController {
       await this.regulationService.deleteRegulation(id);
       res.status(200).json({
         success: true,
-        message: 'Regulation deleted successfully'
+        message: 'Regulation deleted successfully',
       });
     } catch (error) {
       this.handleError(res, error);
@@ -109,7 +126,7 @@ export class RegulationController extends BaseController {
       }
       res.status(200).json({
         success: true,
-        data: regulation
+        data: regulation,
       });
     } catch (error) {
       this.handleError(res, error);
@@ -122,20 +139,24 @@ export class RegulationController extends BaseController {
       const regulations = await this.regulationService.findBySeasonId(seasonId);
       res.status(200).json({
         success: true,
-        data: regulations
+        data: regulations,
       });
     } catch (error) {
       this.handleError(res, error);
     }
   }
 
-  private async findBySeasonIdOrdered(req: Request, res: Response): Promise<void> {
+  private async findBySeasonIdOrdered(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
-      const regulations = await this.regulationService.findBySeasonIdOrdered(seasonId);
+      const regulations =
+        await this.regulationService.findBySeasonIdOrdered(seasonId);
       res.status(200).json({
         success: true,
-        data: regulations
+        data: regulations,
       });
     } catch (error) {
       this.handleError(res, error);
@@ -148,7 +169,7 @@ export class RegulationController extends BaseController {
       await this.regulationService.reorderRegulations(dto);
       res.status(200).json({
         success: true,
-        message: 'Regulations reordered successfully'
+        message: 'Regulations reordered successfully',
       });
     } catch (error) {
       this.handleError(res, error);
@@ -157,17 +178,17 @@ export class RegulationController extends BaseController {
 
   private handleError(res: Response, error: any): void {
     console.error('Regulation controller error:', error);
-    
+
     if (error instanceof NotFoundException) {
       res.status(404).json({
         success: false,
-        message: error.message
+        message: error.message,
       });
     } else {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Internal server error',
       });
     }
   }
-} 
+}

@@ -1,4 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+
 import { BaseDto } from './base.dto';
 
 /**
@@ -64,4 +65,4 @@ export class UpdateVipPreregisterDto extends BaseDto {
   @IsEmail({}, { message: 'Por favor, forneça um endereço de e-mail válido' })
   @MaxLength(255, { message: 'E-mail não pode exceder 255 caracteres' })
   email?: string;
-} 
+}

@@ -1,4 +1,5 @@
 import { Repository } from 'typeorm';
+
 import { MemberProfile } from '../models/member-profile.entity';
 import { BaseRepositoryImpl } from './base.repository.impl';
 
@@ -13,12 +14,12 @@ export class MemberProfileRepository extends BaseRepositoryImpl<MemberProfile> {
 
   async updateLastLogin(userId: string): Promise<MemberProfile | null> {
     const profile = await this.findByUserId(userId);
-    
+
     if (profile) {
       profile.lastLoginAt = new Date();
       return this.repository.save(profile);
     }
-    
+
     return null;
   }
-} 
+}

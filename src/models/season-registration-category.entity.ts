@@ -1,7 +1,8 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
-import { SeasonRegistration } from './season-registration.entity';
 import { Category } from './category.entity';
+import { SeasonRegistration } from './season-registration.entity';
 
 @Entity('SeasonRegistrationCategories')
 @Index(['registrationId', 'categoryId'], { unique: true })
@@ -20,4 +21,4 @@ export class SeasonRegistrationCategory extends BaseEntity {
   @ManyToOne(() => Category)
   @JoinColumn({ name: 'categoryId' })
   category: Category;
-} 
+}

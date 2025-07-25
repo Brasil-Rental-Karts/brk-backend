@@ -1,9 +1,10 @@
 import { Repository } from 'typeorm';
+
 import { AppDataSource } from '../config/database.config';
-import { GridType, GridTypeEnum } from '../models/grid-type.entity';
 import { CreateGridTypeDto, UpdateGridTypeDto } from '../dtos/grid-type.dto';
-import { NotFoundException } from '../exceptions/not-found.exception';
 import { BadRequestException } from '../exceptions/bad-request.exception';
+import { NotFoundException } from '../exceptions/not-found.exception';
+import { GridType, GridTypeEnum } from '../models/grid-type.entity';
 
 export class GridTypeService {
   private gridTypeRepository: Repository<GridType>;
@@ -18,7 +19,7 @@ export class GridTypeService {
   async findByChampionship(championshipId: string): Promise<GridType[]> {
     return this.gridTypeRepository.find({
       where: { championshipId },
-      order: { isDefault: 'DESC', name: 'ASC' }
+      order: { isDefault: 'DESC', name: 'ASC' },
     });
   }
 
@@ -27,7 +28,7 @@ export class GridTypeService {
    */
   async findById(id: string, championshipId: string): Promise<GridType> {
     const gridType = await this.gridTypeRepository.findOne({
-      where: { id, championshipId }
+      where: { id, championshipId },
     });
 
     if (!gridType) {
@@ -40,15 +41,28 @@ export class GridTypeService {
   /**
    * Criar novo tipo de grid
    */
-  async create(championshipId: string, data: CreateGridTypeDto): Promise<GridType> {
+  async create(
+    championshipId: string,
+    data: CreateGridTypeDto
+  ): Promise<GridType> {
     // Validar se tipo inverted_partial tem invertedPositions
-    if (data.type === GridTypeEnum.INVERTED_PARTIAL && !data.invertedPositions) {
-      throw new BadRequestException('Número de posições invertidas é obrigatório para tipo inverted_partial');
+    if (
+      data.type === GridTypeEnum.INVERTED_PARTIAL &&
+      !data.invertedPositions
+    ) {
+      throw new BadRequestException(
+        'Número de posições invertidas é obrigatório para tipo inverted_partial'
+      );
     }
 
     // Validar se tipo qualifying_session tem qualifyingDuration
-    if (data.type === GridTypeEnum.QUALIFYING_SESSION && !data.qualifyingDuration) {
-      throw new BadRequestException('Duração da classificação é obrigatória para tipo qualifying_session');
+    if (
+      data.type === GridTypeEnum.QUALIFYING_SESSION &&
+      !data.qualifyingDuration
+    ) {
+      throw new BadRequestException(
+        'Duração da classificação é obrigatória para tipo qualifying_session'
+      );
     }
 
     // Se está sendo definido como padrão, remover padrão dos outros
@@ -58,7 +72,7 @@ export class GridTypeService {
 
     const gridType = this.gridTypeRepository.create({
       ...data,
-      championshipId
+      championshipId,
     });
 
     return this.gridTypeRepository.save(gridType);
@@ -67,23 +81,37 @@ export class GridTypeService {
   /**
    * Atualizar tipo de grid
    */
-  async update(id: string, championshipId: string, data: UpdateGridTypeDto): Promise<GridType> {
+  async update(
+    id: string,
+    championshipId: string,
+    data: UpdateGridTypeDto
+  ): Promise<GridType> {
     const gridType = await this.findById(id, championshipId);
 
     // Validar se tipo inverted_partial tem invertedPositions
     const newType = data.type || gridType.type;
     if (newType === GridTypeEnum.INVERTED_PARTIAL) {
-      const newInvertedPositions = data.invertedPositions !== undefined ? data.invertedPositions : gridType.invertedPositions;
+      const newInvertedPositions =
+        data.invertedPositions !== undefined
+          ? data.invertedPositions
+          : gridType.invertedPositions;
       if (!newInvertedPositions) {
-        throw new BadRequestException('Número de posições invertidas é obrigatório para tipo inverted_partial');
+        throw new BadRequestException(
+          'Número de posições invertidas é obrigatório para tipo inverted_partial'
+        );
       }
     }
 
     // Validar se tipo qualifying_session tem qualifyingDuration
     if (newType === GridTypeEnum.QUALIFYING_SESSION) {
-      const newQualifyingDuration = data.qualifyingDuration !== undefined ? data.qualifyingDuration : gridType.qualifyingDuration;
+      const newQualifyingDuration =
+        data.qualifyingDuration !== undefined
+          ? data.qualifyingDuration
+          : gridType.qualifyingDuration;
       if (!newQualifyingDuration) {
-        throw new BadRequestException('Duração da classificação é obrigatória para tipo qualifying_session');
+        throw new BadRequestException(
+          'Duração da classificação é obrigatória para tipo qualifying_session'
+        );
       }
     }
 
@@ -104,20 +132,24 @@ export class GridTypeService {
 
     // Verificar se não é o único tipo de grid total
     const totalCount = await this.gridTypeRepository.count({
-      where: { championshipId }
+      where: { championshipId },
     });
 
     if (totalCount <= 1) {
-      throw new BadRequestException('Não é possível excluir o único tipo de grid. Pelo menos um tipo deve existir.');
+      throw new BadRequestException(
+        'Não é possível excluir o único tipo de grid. Pelo menos um tipo deve existir.'
+      );
     }
 
     // Não permitir excluir se for o único tipo ativo
     const activeCount = await this.gridTypeRepository.count({
-      where: { championshipId, isActive: true }
+      where: { championshipId, isActive: true },
     });
 
     if (gridType.isActive && activeCount <= 1) {
-      throw new BadRequestException('Não é possível excluir o último tipo de grid ativo');
+      throw new BadRequestException(
+        'Não é possível excluir o último tipo de grid ativo'
+      );
     }
 
     await this.gridTypeRepository.remove(gridType);
@@ -130,7 +162,9 @@ export class GridTypeService {
     const gridType = await this.findById(id, championshipId);
 
     if (!gridType.isActive) {
-      throw new BadRequestException('Não é possível definir um tipo de grid inativo como padrão');
+      throw new BadRequestException(
+        'Não é possível definir um tipo de grid inativo como padrão'
+      );
     }
 
     // Remover padrão dos outros
@@ -149,18 +183,22 @@ export class GridTypeService {
     // Se está desativando, verificar se não é o último ativo
     if (gridType.isActive) {
       const activeCount = await this.gridTypeRepository.count({
-        where: { championshipId, isActive: true }
+        where: { championshipId, isActive: true },
       });
 
       if (activeCount <= 1) {
-        throw new BadRequestException('Não é possível desativar o último tipo de grid ativo');
+        throw new BadRequestException(
+          'Não é possível desativar o último tipo de grid ativo'
+        );
       }
 
       // Se era padrão, definir outro como padrão
       if (gridType.isDefault) {
         const otherActive = await this.gridTypeRepository
           .createQueryBuilder('gridType')
-          .where('gridType.championshipId = :championshipId', { championshipId })
+          .where('gridType.championshipId = :championshipId', {
+            championshipId,
+          })
           .andWhere('gridType.isActive = :isActive', { isActive: true })
           .andWhere('gridType.id != :id', { id })
           .getOne();
@@ -173,11 +211,11 @@ export class GridTypeService {
     }
 
     gridType.isActive = !gridType.isActive;
-    
+
     // Se estava inativo e agora está ativo, e não há padrão, definir como padrão
     if (gridType.isActive) {
       const hasDefault = await this.gridTypeRepository.findOne({
-        where: { championshipId, isDefault: true, isActive: true }
+        where: { championshipId, isDefault: true, isActive: true },
       });
 
       if (!hasDefault) {
@@ -195,47 +233,53 @@ export class GridTypeService {
    */
   async createPredefined(championshipId: string): Promise<GridType[]> {
     const existingCount = await this.gridTypeRepository.count({
-      where: { championshipId }
+      where: { championshipId },
     });
 
     if (existingCount > 0) {
-      throw new BadRequestException('Já existem tipos de grid configurados para este campeonato');
+      throw new BadRequestException(
+        'Já existem tipos de grid configurados para este campeonato'
+      );
     }
 
     const predefinedTypes = [
       {
         name: 'Super Pole',
-        description: 'A volta mais rápida da classificação define a ordem de largada',
+        description:
+          'A volta mais rápida da classificação define a ordem de largada',
         type: GridTypeEnum.SUPER_POLE,
         isActive: true,
-        isDefault: true
+        isDefault: true,
       },
       {
         name: 'Invertido',
-        description: 'Posições de largada são definidas pelo resultado da bateria anterior de forma invertida',
+        description:
+          'Posições de largada são definidas pelo resultado da bateria anterior de forma invertida',
         type: GridTypeEnum.INVERTED,
         isActive: true,
-        isDefault: false
+        isDefault: false,
       },
       {
         name: 'Invertido + 10',
-        description: 'Somente os 10 primeiros colocados da bateria anterior invertem suas posições',
+        description:
+          'Somente os 10 primeiros colocados da bateria anterior invertem suas posições',
         type: GridTypeEnum.INVERTED_PARTIAL,
         isActive: true,
         isDefault: false,
-        invertedPositions: 10
+        invertedPositions: 10,
       },
       {
         name: 'Classificação 5min',
-        description: 'Sessão de classificação por tempo determinado. Posições definidas pela volta mais rápida durante a sessão',
+        description:
+          'Sessão de classificação por tempo determinado. Posições definidas pela volta mais rápida durante a sessão',
         type: GridTypeEnum.QUALIFYING_SESSION,
         isActive: true,
         isDefault: false,
-        qualifyingDuration: 5
-      }
+        qualifyingDuration: 5,
+      },
     ];
 
-    const gridTypes = predefinedTypes.map(data => 
+    const gridTypes = predefinedTypes.map(data =>
       this.gridTypeRepository.create({ ...data, championshipId })
     );
 
@@ -251,4 +295,4 @@ export class GridTypeService {
       { isDefault: false }
     );
   }
-} 
+}

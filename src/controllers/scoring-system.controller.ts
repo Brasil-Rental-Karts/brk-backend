@@ -1,12 +1,17 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { ScoringSystemService, CreateScoringSystemDto, UpdateScoringSystemDto } from '../services/scoring-system.service';
+import { Request, Response } from 'express';
+
+import { BadRequestException } from '../exceptions/bad-request.exception';
+import { ForbiddenException } from '../exceptions/forbidden.exception';
+import { NotFoundException } from '../exceptions/not-found.exception';
+import { authMiddleware } from '../middleware/auth.middleware';
 import { ChampionshipService } from '../services/championship.service';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { BadRequestException } from '../exceptions/bad-request.exception';
-import { NotFoundException } from '../exceptions/not-found.exception';
-import { ForbiddenException } from '../exceptions/forbidden.exception';
+import {
+  CreateScoringSystemDto,
+  ScoringSystemService,
+  UpdateScoringSystemDto,
+} from '../services/scoring-system.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -105,7 +110,11 @@ export class ScoringSystemController extends BaseController {
      *               items:
      *                 $ref: '#/components/schemas/ScoringSystem'
      */
-    this.router.get('/championship/:championshipId', authMiddleware, this.getByChampionship.bind(this));
+    this.router.get(
+      '/championship/:championshipId',
+      authMiddleware,
+      this.getByChampionship.bind(this)
+    );
 
     /**
      * @swagger
@@ -136,7 +145,11 @@ export class ScoringSystemController extends BaseController {
      *             schema:
      *               $ref: '#/components/schemas/ScoringSystem'
      */
-    this.router.get('/:id/championship/:championshipId', authMiddleware, this.getById.bind(this));
+    this.router.get(
+      '/:id/championship/:championshipId',
+      authMiddleware,
+      this.getById.bind(this)
+    );
 
     /**
      * @swagger
@@ -195,7 +208,11 @@ export class ScoringSystemController extends BaseController {
      *             schema:
      *               $ref: '#/components/schemas/ScoringSystem'
      */
-    this.router.post('/championship/:championshipId', authMiddleware, this.create.bind(this));
+    this.router.post(
+      '/championship/:championshipId',
+      authMiddleware,
+      this.create.bind(this)
+    );
 
     /**
      * @swagger
@@ -257,7 +274,11 @@ export class ScoringSystemController extends BaseController {
      *             schema:
      *               $ref: '#/components/schemas/ScoringSystem'
      */
-    this.router.put('/:id/championship/:championshipId', authMiddleware, this.update.bind(this));
+    this.router.put(
+      '/:id/championship/:championshipId',
+      authMiddleware,
+      this.update.bind(this)
+    );
 
     /**
      * @swagger
@@ -284,7 +305,11 @@ export class ScoringSystemController extends BaseController {
      *       204:
      *         description: Sistema de pontuação excluído
      */
-    this.router.delete('/:id/championship/:championshipId', authMiddleware, this.delete.bind(this));
+    this.router.delete(
+      '/:id/championship/:championshipId',
+      authMiddleware,
+      this.delete.bind(this)
+    );
 
     /**
      * @swagger
@@ -315,7 +340,11 @@ export class ScoringSystemController extends BaseController {
      *             schema:
      *               $ref: '#/components/schemas/ScoringSystem'
      */
-    this.router.patch('/:id/championship/:championshipId/set-default', authMiddleware, this.setAsDefault.bind(this));
+    this.router.patch(
+      '/:id/championship/:championshipId/set-default',
+      authMiddleware,
+      this.setAsDefault.bind(this)
+    );
 
     /**
      * @swagger
@@ -346,7 +375,11 @@ export class ScoringSystemController extends BaseController {
      *             schema:
      *               $ref: '#/components/schemas/ScoringSystem'
      */
-    this.router.patch('/:id/championship/:championshipId/toggle-active', authMiddleware, this.toggleActive.bind(this));
+    this.router.patch(
+      '/:id/championship/:championshipId/toggle-active',
+      authMiddleware,
+      this.toggleActive.bind(this)
+    );
 
     /**
      * @swagger
@@ -373,7 +406,11 @@ export class ScoringSystemController extends BaseController {
      *               items:
      *                 $ref: '#/components/schemas/ScoringSystem'
      */
-    this.router.post('/championship/:championshipId/create-predefined', authMiddleware, this.createPredefined.bind(this));
+    this.router.post(
+      '/championship/:championshipId/create-predefined',
+      authMiddleware,
+      this.createPredefined.bind(this)
+    );
   }
 
   private async getByChampionship(req: Request, res: Response): Promise<void> {
@@ -388,7 +425,8 @@ export class ScoringSystemController extends BaseController {
       // Verificar se o usuário tem permissão para gerenciar este campeonato
       await this.validateChampionshipPermission(championshipId, userId);
 
-      const scoringSystems = await this.scoringSystemService.findByChampionship(championshipId);
+      const scoringSystems =
+        await this.scoringSystemService.findByChampionship(championshipId);
 
       res.json(scoringSystems);
     } catch (error) {
@@ -408,7 +446,10 @@ export class ScoringSystemController extends BaseController {
       // Verificar se o usuário tem permissão para gerenciar este campeonato
       await this.validateChampionshipPermission(championshipId, userId);
 
-      const scoringSystem = await this.scoringSystemService.findById(id, championshipId);
+      const scoringSystem = await this.scoringSystemService.findById(
+        id,
+        championshipId
+      );
 
       res.json(scoringSystem);
     } catch (error) {
@@ -429,13 +470,18 @@ export class ScoringSystemController extends BaseController {
       await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystemData: CreateScoringSystemDto = req.body;
-      
+
       // Validar dados obrigatórios
       if (!scoringSystemData.name || !scoringSystemData.positions) {
-        throw new BadRequestException('Nome e configuração de posições são obrigatórios');
+        throw new BadRequestException(
+          'Nome e configuração de posições são obrigatórios'
+        );
       }
 
-      const scoringSystem = await this.scoringSystemService.create(championshipId, scoringSystemData);
+      const scoringSystem = await this.scoringSystemService.create(
+        championshipId,
+        scoringSystemData
+      );
 
       res.status(201).json(scoringSystem);
     } catch (error) {
@@ -456,7 +502,11 @@ export class ScoringSystemController extends BaseController {
       await this.validateChampionshipPermission(championshipId, userId);
 
       const scoringSystemData: UpdateScoringSystemDto = req.body;
-      const scoringSystem = await this.scoringSystemService.update(id, championshipId, scoringSystemData);
+      const scoringSystem = await this.scoringSystemService.update(
+        id,
+        championshipId,
+        scoringSystemData
+      );
 
       res.json(scoringSystem);
     } catch (error) {
@@ -496,7 +546,10 @@ export class ScoringSystemController extends BaseController {
       // Verificar se o usuário é proprietário do campeonato
       await this.validateChampionshipPermission(championshipId, userId);
 
-      const scoringSystem = await this.scoringSystemService.setAsDefault(id, championshipId);
+      const scoringSystem = await this.scoringSystemService.setAsDefault(
+        id,
+        championshipId
+      );
 
       res.json(scoringSystem);
     } catch (error) {
@@ -516,7 +569,10 @@ export class ScoringSystemController extends BaseController {
       // Verificar se o usuário é proprietário do campeonato
       await this.validateChampionshipPermission(championshipId, userId);
 
-      const scoringSystem = await this.scoringSystemService.toggleActive(id, championshipId);
+      const scoringSystem = await this.scoringSystemService.toggleActive(
+        id,
+        championshipId
+      );
 
       res.json(scoringSystem);
     } catch (error) {
@@ -536,7 +592,8 @@ export class ScoringSystemController extends BaseController {
       // Verificar se o usuário é proprietário do campeonato
       await this.validateChampionshipPermission(championshipId, userId);
 
-      const scoringSystems = await this.scoringSystemService.createPredefined(championshipId);
+      const scoringSystems =
+        await this.scoringSystemService.createPredefined(championshipId);
 
       res.status(201).json(scoringSystems);
     } catch (error) {
@@ -544,11 +601,20 @@ export class ScoringSystemController extends BaseController {
     }
   }
 
-  private async validateChampionshipPermission(championshipId: string, userId: string): Promise<void> {
+  private async validateChampionshipPermission(
+    championshipId: string,
+    userId: string
+  ): Promise<void> {
     try {
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          championshipId
+        );
       if (!hasPermission) {
-        throw new ForbiddenException('Você não tem permissão para gerenciar este campeonato');
+        throw new ForbiddenException(
+          'Você não tem permissão para gerenciar este campeonato'
+        );
       }
     } catch (error) {
       if (error instanceof ForbiddenException) {
@@ -571,4 +637,4 @@ export class ScoringSystemController extends BaseController {
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
-} 
+}

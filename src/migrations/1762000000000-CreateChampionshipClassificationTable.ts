@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateChampionshipClassificationTable1762000000000 implements MigrationInterface {
+export class CreateChampionshipClassificationTable1762000000000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE "ChampionshipClassification" (
@@ -33,15 +35,15 @@ export class CreateChampionshipClassificationTable1762000000000 implements Migra
     await queryRunner.query(`
       CREATE INDEX "IDX_ChampionshipClassification_Season_Category" ON "ChampionshipClassification" ("seasonId", "categoryId")
     `);
-    
+
     await queryRunner.query(`
       CREATE INDEX "IDX_ChampionshipClassification_Championship_Category" ON "ChampionshipClassification" ("championshipId", "categoryId")
     `);
-    
+
     await queryRunner.query(`
       CREATE INDEX "IDX_ChampionshipClassification_User_Championship" ON "ChampionshipClassification" ("userId", "championshipId")
     `);
-    
+
     await queryRunner.query(`
       CREATE INDEX "IDX_ChampionshipClassification_TotalPoints" ON "ChampionshipClassification" ("totalPoints" DESC)
     `);
@@ -55,11 +57,21 @@ export class CreateChampionshipClassificationTable1762000000000 implements Migra
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP TRIGGER IF EXISTS championship_classification_notify_trigger ON "ChampionshipClassification"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ChampionshipClassification_TotalPoints"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ChampionshipClassification_User_Championship"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ChampionshipClassification_Championship_Category"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ChampionshipClassification_Season_Category"`);
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS championship_classification_notify_trigger ON "ChampionshipClassification"`
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_ChampionshipClassification_TotalPoints"`
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_ChampionshipClassification_User_Championship"`
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_ChampionshipClassification_Championship_Category"`
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_ChampionshipClassification_Season_Category"`
+    );
     await queryRunner.query(`DROP TABLE "ChampionshipClassification"`);
   }
-} 
+}

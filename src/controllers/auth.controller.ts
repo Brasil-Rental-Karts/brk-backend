@@ -1,12 +1,19 @@
 import { Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { AuthService } from '../services/auth.service';
-import { RegisterUserDto, LoginUserDto, RefreshTokenDto, ForgotPasswordDto, ResetPasswordDto, GoogleAuthDto, ConfirmEmailDto } from '../dtos/auth.dto';
-import { authMiddleware } from '../middleware/auth.middleware';
-import jwt from 'jsonwebtoken';
+
 import config from '../config/config';
+import {
+  ConfirmEmailDto,
+  ForgotPasswordDto,
+  GoogleAuthDto,
+  LoginUserDto,
+  RegisterUserDto,
+  ResetPasswordDto,
+} from '../dtos/auth.dto';
+import { authMiddleware } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
+import { AuthService } from '../services/auth.service';
 import { GoogleAuthService } from '../services/google-auth.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -70,8 +77,12 @@ export class AuthController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.post('/register', validationMiddleware(RegisterUserDto), this.register.bind(this));
-    
+    this.router.post(
+      '/register',
+      validationMiddleware(RegisterUserDto),
+      this.register.bind(this)
+    );
+
     /**
      * @swagger
      * /auth/login:
@@ -97,8 +108,12 @@ export class AuthController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.post('/login', validationMiddleware(LoginUserDto), this.login.bind(this));
-    
+    this.router.post(
+      '/login',
+      validationMiddleware(LoginUserDto),
+      this.login.bind(this)
+    );
+
     /**
      * @swagger
      * /auth/google/url:
@@ -118,7 +133,7 @@ export class AuthController extends BaseController {
      *                   type: string
      */
     this.router.get('/google/url', this.getGoogleAuthUrl.bind(this));
-    
+
     /**
      * @swagger
      * /auth/google/callback:
@@ -137,7 +152,7 @@ export class AuthController extends BaseController {
      *         description: Redirect to frontend with tokens
      */
     this.router.get('/google/callback', this.handleGoogleCallback.bind(this));
-    
+
     /**
      * @swagger
      * /auth/google:
@@ -163,8 +178,12 @@ export class AuthController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.post('/google', validationMiddleware(GoogleAuthDto), this.authenticateWithGoogle.bind(this));
-    
+    this.router.post(
+      '/google',
+      validationMiddleware(GoogleAuthDto),
+      this.authenticateWithGoogle.bind(this)
+    );
+
     /**
      * @swagger
      * /auth/forgot-password:
@@ -191,8 +210,12 @@ export class AuthController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.post('/forgot-password', validationMiddleware(ForgotPasswordDto), this.forgotPassword.bind(this));
-    
+    this.router.post(
+      '/forgot-password',
+      validationMiddleware(ForgotPasswordDto),
+      this.forgotPassword.bind(this)
+    );
+
     /**
      * @swagger
      * /auth/reset-password:
@@ -221,8 +244,12 @@ export class AuthController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.post('/reset-password', validationMiddleware(ResetPasswordDto), this.resetPassword.bind(this));
-    
+    this.router.post(
+      '/reset-password',
+      validationMiddleware(ResetPasswordDto),
+      this.resetPassword.bind(this)
+    );
+
     /**
      * @swagger
      * /auth/logout:
@@ -307,7 +334,11 @@ export class AuthController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.post('/confirm-email', validationMiddleware(ConfirmEmailDto), this.confirmEmail.bind(this));
+    this.router.post(
+      '/confirm-email',
+      validationMiddleware(ConfirmEmailDto),
+      this.confirmEmail.bind(this)
+    );
 
     /**
      * @swagger
@@ -335,23 +366,26 @@ export class AuthController extends BaseController {
     this.router.post('/refresh-token', this.refreshToken.bind(this));
   }
 
-  
   private async register(req: Request, res: Response): Promise<void> {
     try {
       const registerUserDto: RegisterUserDto = req.body;
       const user = await this.authService.register(registerUserDto);
-      
+
       res.status(201).json({
-        message: 'User registered successfully. Please check your email to confirm your account.',
+        message:
+          'User registered successfully. Please check your email to confirm your account.',
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
-        }
+          role: user.role,
+        },
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'User with this email already exists') {
+      if (
+        error instanceof Error &&
+        error.message === 'User with this email already exists'
+      ) {
         res.status(409).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Internal server error' });
@@ -359,7 +393,6 @@ export class AuthController extends BaseController {
     }
   }
 
-  
   private async login(req: Request, res: Response): Promise<void> {
     try {
       const loginUserDto: LoginUserDto = req.body;
@@ -369,13 +402,13 @@ export class AuthController extends BaseController {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 15 // 15 minutes (should match accessToken expiry)
+        maxAge: 1000 * 60 * 15, // 15 minutes (should match accessToken expiry)
       };
       const refreshCookieOptions = {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days (should match refreshToken expiry)
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days (should match refreshToken expiry)
       };
       // Only set domain in production
       if (process.env.NODE_ENV === 'production') {
@@ -387,11 +420,15 @@ export class AuthController extends BaseController {
       // Return only firstLogin indicator
       res.status(200).json({});
     } catch (error) {
-      if (error instanceof Error && 
-          (error.message === 'Email ou senha incorretos' || 
-           error.message === 'Conta de usuário inativa' ||
-           error.message === 'Email de confirmação expirado. Um novo e-mail foi enviado. Por favor, verifique sua caixa de entrada.' ||
-           error.message === 'Sua conta ainda não foi ativada. Por favor, confirme seu e-mail para acessar a plataforma.')) {
+      if (
+        error instanceof Error &&
+        (error.message === 'Email ou senha incorretos' ||
+          error.message === 'Conta de usuário inativa' ||
+          error.message ===
+            'Email de confirmação expirado. Um novo e-mail foi enviado. Por favor, verifique sua caixa de entrada.' ||
+          error.message ===
+            'Sua conta ainda não foi ativada. Por favor, confirme seu e-mail para acessar a plataforma.')
+      ) {
         res.status(401).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Internal server error' });
@@ -399,17 +436,16 @@ export class AuthController extends BaseController {
     }
   }
 
-  
   private async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
       const forgotPasswordDto: ForgotPasswordDto = req.body;
-      
+
       // Process the request (will not reveal if email exists)
       await this.authService.forgotPassword(forgotPasswordDto);
-      
+
       // Always return the same response to prevent email enumeration
       res.status(200).json({
-        message: 'If your email is registered, you will receive a reset link'
+        message: 'If your email is registered, you will receive a reset link',
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -417,20 +453,22 @@ export class AuthController extends BaseController {
       }
     }
   }
-  
+
   private async resetPassword(req: Request, res: Response): Promise<void> {
     try {
       const resetPasswordDto: ResetPasswordDto = req.body;
-      
+
       await this.authService.resetPassword(resetPasswordDto);
-      
+
       res.status(200).json({
-        message: 'Password has been reset successfully'
+        message: 'Password has been reset successfully',
       });
     } catch (error) {
-      if (error instanceof Error && 
-          (error.message === 'Invalid or expired reset token' || 
-           error.message === 'Reset token has expired')) {
+      if (
+        error instanceof Error &&
+        (error.message === 'Invalid or expired reset token' ||
+          error.message === 'Reset token has expired')
+      ) {
         res.status(400).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Internal server error' });
@@ -438,7 +476,6 @@ export class AuthController extends BaseController {
     }
   }
 
-  
   private async logout(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user || !req.user.id) {
@@ -475,7 +512,10 @@ export class AuthController extends BaseController {
     }
   }
 
-  private async handleGoogleCallback(req: Request, res: Response): Promise<void> {
+  private async handleGoogleCallback(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       if (req.query.error) {
         res.redirect(`${config.frontendUrl}/login-error`);
@@ -493,13 +533,13 @@ export class AuthController extends BaseController {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 15 // 15 minutes
+        maxAge: 1000 * 60 * 15, // 15 minutes
       };
       const refreshCookieOptions = {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       };
       if (process.env.NODE_ENV === 'production') {
         cookieOptions['domain'] = config.cookie.domain;
@@ -515,7 +555,10 @@ export class AuthController extends BaseController {
     }
   }
 
-  private async authenticateWithGoogle(req: Request, res: Response): Promise<void> {
+  private async authenticateWithGoogle(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { idToken } = req.body as GoogleAuthDto;
       const user = await this.googleAuthService.verifyGoogleIdToken(idToken);
@@ -525,13 +568,13 @@ export class AuthController extends BaseController {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 15 // 15 minutes
+        maxAge: 1000 * 60 * 15, // 15 minutes
       };
       const refreshCookieOptions = {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       };
       if (process.env.NODE_ENV === 'production') {
         cookieOptions['domain'] = config.cookie.domain;
@@ -570,7 +613,11 @@ export class AuthController extends BaseController {
       await this.authService.confirmEmail(token);
       res.status(200).json({ message: 'Email confirmado com sucesso!' });
     } catch (error) {
-      if (error instanceof Error && (error.message === 'Invalid or expired confirmation token' || error.message === 'Confirmation token has expired')) {
+      if (
+        error instanceof Error &&
+        (error.message === 'Invalid or expired confirmation token' ||
+          error.message === 'Confirmation token has expired')
+      ) {
         res.status(400).json({ message: error.message });
       } else {
         res.status(500).json({ message: 'Erro interno do servidor' });
@@ -586,47 +633,49 @@ export class AuthController extends BaseController {
         res.status(401).json({ message: 'Refresh token não fornecido.' });
         return;
       }
-      
+
       // Decodifica o refresh token para obter o userId
       const jwt = require('jsonwebtoken');
       let payload;
       try {
         payload = jwt.verify(refreshToken, config.jwt.secret);
       } catch (err) {
-        res.status(401).json({ message: 'Refresh token inválido ou expirado.' });
+        res
+          .status(401)
+          .json({ message: 'Refresh token inválido ou expirado.' });
         return;
       }
-      
+
       const userId = payload.id;
       const tokens = await this.authService.refreshToken(userId, refreshToken);
-      
+
       // Set new tokens as cookies
       const cookieOptions = {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 15 // 15 minutes (should match accessToken expiry)
+        maxAge: 1000 * 60 * 15, // 15 minutes (should match accessToken expiry)
       };
       const refreshCookieOptions = {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days (should match refreshToken expiry)
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days (should match refreshToken expiry)
       };
-      
+
       // Only set domain in production
       if (process.env.NODE_ENV === 'production') {
         cookieOptions['domain'] = config.cookie.domain;
         refreshCookieOptions['domain'] = config.cookie.domain;
       }
-      
+
       res.cookie('accessToken', tokens.accessToken, cookieOptions);
       res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
-      
+
       // Return success response (no need to return tokens in body since they're in cookies)
       res.status(200).json({ message: 'Tokens renovados com sucesso.' });
     } catch (error) {
       res.status(401).json({ message: 'Não foi possível renovar o token.' });
     }
   }
-} 
+}

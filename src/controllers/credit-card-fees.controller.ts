@@ -1,11 +1,19 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { CreditCardFeesService, CreateCreditCardFeesData, UpdateCreditCardFeesData } from '../services/credit-card-fees.service';
+import { Request, Response } from 'express';
+
+import {
+  CreateCreditCardFeesDto,
+  UpdateCreditCardFeesDto,
+} from '../dtos/credit-card-fees.dto';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
 import { UserRole } from '../models/user.entity';
-import { CreateCreditCardFeesDto, UpdateCreditCardFeesDto } from '../dtos/credit-card-fees.dto';
+import {
+  CreateCreditCardFeesData,
+  CreditCardFeesService,
+  UpdateCreditCardFeesData,
+} from '../services/credit-card-fees.service';
+import { BaseController } from './base.controller';
 
 export class CreditCardFeesController extends BaseController {
   private service: CreditCardFeesService;
@@ -18,15 +26,48 @@ export class CreditCardFeesController extends BaseController {
 
   public initializeRoutes(): void {
     // Rotas públicas para consulta de taxas
-    this.router.get('/championship/:championshipId', this.findByChampionshipId.bind(this));
-    this.router.get('/championship/:championshipId/installments/:installments', this.getRateForInstallments.bind(this));
+    this.router.get(
+      '/championship/:championshipId',
+      this.findByChampionshipId.bind(this)
+    );
+    this.router.get(
+      '/championship/:championshipId/installments/:installments',
+      this.getRateForInstallments.bind(this)
+    );
 
     // Rotas protegidas para administração
-    this.router.get('/', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.findAll.bind(this));
-    this.router.get('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.findById.bind(this));
-    this.router.post('/', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), validationMiddleware(CreateCreditCardFeesDto), this.create.bind(this));
-    this.router.put('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), validationMiddleware(UpdateCreditCardFeesDto), this.update.bind(this));
-    this.router.delete('/:id', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.delete.bind(this));
+    this.router.get(
+      '/',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      this.findAll.bind(this)
+    );
+    this.router.get(
+      '/:id',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      this.findById.bind(this)
+    );
+    this.router.post(
+      '/',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      validationMiddleware(CreateCreditCardFeesDto),
+      this.create.bind(this)
+    );
+    this.router.put(
+      '/:id',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      validationMiddleware(UpdateCreditCardFeesDto),
+      this.update.bind(this)
+    );
+    this.router.delete(
+      '/:id',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      this.delete.bind(this)
+    );
   }
 
   private async findAll(req: Request, res: Response): Promise<void> {
@@ -43,9 +84,11 @@ export class CreditCardFeesController extends BaseController {
     try {
       const { id } = req.params;
       const fee = await this.service.findById(id);
-      
+
       if (!fee) {
-        res.status(404).json({ message: 'Configuração de taxa não encontrada' });
+        res
+          .status(404)
+          .json({ message: 'Configuração de taxa não encontrada' });
         return;
       }
 
@@ -56,7 +99,10 @@ export class CreditCardFeesController extends BaseController {
     }
   }
 
-  private async findByChampionshipId(req: Request, res: Response): Promise<void> {
+  private async findByChampionshipId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { championshipId } = req.params;
       const fees = await this.service.findByChampionshipId(championshipId);
@@ -70,7 +116,7 @@ export class CreditCardFeesController extends BaseController {
   private async create(req: Request, res: Response): Promise<void> {
     try {
       const data: CreateCreditCardFeesData = req.body;
-      
+
       // Validar dados obrigatórios
       if (!data.championshipId) {
         res.status(400).json({ message: 'ID do campeonato é obrigatório' });
@@ -107,9 +153,11 @@ export class CreditCardFeesController extends BaseController {
       const data: UpdateCreditCardFeesData = req.body;
 
       const fee = await this.service.update(id, data);
-      
+
       if (!fee) {
-        res.status(404).json({ message: 'Configuração de taxa não encontrada' });
+        res
+          .status(404)
+          .json({ message: 'Configuração de taxa não encontrada' });
         return;
       }
 
@@ -128,34 +176,47 @@ export class CreditCardFeesController extends BaseController {
     try {
       const { id } = req.params;
       const deleted = await this.service.delete(id);
-      
+
       if (!deleted) {
-        res.status(404).json({ message: 'Configuração de taxa não encontrada' });
+        res
+          .status(404)
+          .json({ message: 'Configuração de taxa não encontrada' });
         return;
       }
 
-      res.status(200).json({ message: 'Configuração de taxa removida com sucesso' });
+      res
+        .status(200)
+        .json({ message: 'Configuração de taxa removida com sucesso' });
     } catch (error) {
       console.error('Erro ao deletar taxa:', error);
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
-  private async getRateForInstallments(req: Request, res: Response): Promise<void> {
+  private async getRateForInstallments(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { championshipId, installments } = req.params;
       const installmentsNumber = parseInt(installments, 10);
-      
+
       if (isNaN(installmentsNumber) || installmentsNumber < 1) {
-        res.status(400).json({ message: 'Número de parcelas deve ser um número válido maior que 0' });
+        res.status(400).json({
+          message: 'Número de parcelas deve ser um número válido maior que 0',
+        });
         return;
       }
 
-      const rate = await this.service.getRateForInstallments(championshipId, installmentsNumber);
-      
+      const rate = await this.service.getRateForInstallments(
+        championshipId,
+        installmentsNumber
+      );
+
       if (!rate) {
         // Se não encontrar configuração específica, usar taxas padrão
-        const defaultRate = await this.service.getDefaultRateForInstallments(installmentsNumber);
+        const defaultRate =
+          await this.service.getDefaultRateForInstallments(installmentsNumber);
         res.status(200).json({ ...defaultRate, isDefault: true });
         return;
       }
@@ -166,4 +227,4 @@ export class CreditCardFeesController extends BaseController {
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
-} 
+}

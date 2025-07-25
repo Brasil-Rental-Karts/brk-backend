@@ -1,19 +1,20 @@
 import bcrypt from 'bcrypt';
-import { BaseService } from './base.service';
-import { User, UserRole } from '../models/user.entity';
-import { UserRepository } from '../repositories/user.repository';
-import { RedisService } from './redis.service';
-import { HttpException } from '../exceptions/http.exception';
-import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import { v4 as uuidv4 } from 'uuid';
+
+import { HttpException } from '../exceptions/http.exception';
+import { User, UserRole } from '../models/user.entity';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { UserRepository } from '../repositories/user.repository';
+import { BaseService } from './base.service';
+import { RedisService } from './redis.service';
 
 export class UserService extends BaseService<User> {
   private redisService: RedisService;
-  
+
   constructor(
     private userRepository: UserRepository,
     private memberProfileRepository: MemberProfileRepository
-    ) {
+  ) {
     super(userRepository);
     this.redisService = RedisService.getInstance();
   }
@@ -86,29 +87,32 @@ export class UserService extends BaseService<User> {
     if (!user) {
       throw new HttpException(404, 'User not found');
     }
-    
+
     // Create a copy of the user object without the password
     const userWithoutPassword = { ...user };
     if ('password' in userWithoutPassword) {
       delete (userWithoutPassword as any).password;
     }
-    
+
     return userWithoutPassword as User;
   }
 
-  async validateUserCredentials(email: string, password: string): Promise<User | null> {
+  async validateUserCredentials(
+    email: string,
+    password: string
+  ): Promise<User | null> {
     const user = await this.findByEmail(email);
-    
+
     if (!user) {
       return null;
     }
-    
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    
+
     if (!isPasswordValid) {
       return null;
     }
-    
+
     return user;
   }
 
@@ -130,7 +134,7 @@ export class UserService extends BaseService<User> {
     user.googleId = '';
     user.profilePicture = '';
     user.emailConfirmed = false;
-    
+
     await this.userRepository.update(user.id, user);
 
     // Delete MemberProfile
@@ -155,7 +159,7 @@ export class UserService extends BaseService<User> {
       name: user.name,
       profilePicture: user.profilePicture || '',
       active: user.active,
-      nickname: nickname
+      nickname: nickname,
     };
 
     return this.redisService.cacheUserBasicInfo(userId, userInfo);
@@ -179,13 +183,13 @@ export class UserService extends BaseService<User> {
       // Get nickname from MemberProfile if exists
       const memberProfile = await this.memberProfileRepository.findById(userId);
       const nickname = memberProfile?.nickName || '';
-      
+
       return {
         id: user.id,
         name: user.name,
         profilePicture: user.profilePicture || '',
         active: user.active,
-        nickname: nickname
+        nickname: nickname,
       };
     }
 
@@ -194,8 +198,9 @@ export class UserService extends BaseService<User> {
 
   async getMultipleUsersBasicInfo(userIds: string[]): Promise<any[]> {
     // Use Redis pipeline for ultra-fast bulk retrieval
-    const cachedUsers = await this.redisService.getMultipleUsersBasicInfo(userIds);
-    
+    const cachedUsers =
+      await this.redisService.getMultipleUsersBasicInfo(userIds);
+
     // If we got all users from cache, return them
     if (cachedUsers.length === userIds.length) {
       return cachedUsers;
@@ -214,14 +219,15 @@ export class UserService extends BaseService<User> {
           missingUsers.push(user);
         }
       }
-      
+
       // Cache the missing users
       for (const user of missingUsers) {
         await this.cacheUserBasicInfo(user.id);
       }
 
       // Get the freshly cached users with nickname included
-      const freshlyCache = await this.redisService.getMultipleUsersBasicInfo(missingUserIds);
+      const freshlyCache =
+        await this.redisService.getMultipleUsersBasicInfo(missingUserIds);
 
       return [...cachedUsers, ...freshlyCache];
     }
@@ -239,8 +245,9 @@ export class UserService extends BaseService<User> {
 
   async preloadAllUsersToCache(): Promise<void> {
     // Get all users with their MemberProfiles in a single optimized query
-    const allUsersWithProfiles = await this.userRepository.findAllWithMemberProfiles();
-    
+    const allUsersWithProfiles =
+      await this.userRepository.findAllWithMemberProfiles();
+
     if (allUsersWithProfiles.length === 0) {
       return;
     }
@@ -248,7 +255,7 @@ export class UserService extends BaseService<User> {
     // Process users in batches of 100 to avoid memory issues
     const batchSize = 100;
     const batches: User[][] = [];
-    
+
     for (let i = 0; i < allUsersWithProfiles.length; i += batchSize) {
       batches.push(allUsersWithProfiles.slice(i, i + batchSize));
     }
@@ -262,7 +269,7 @@ export class UserService extends BaseService<User> {
   private async cacheUsersBatch(users: User[]): Promise<void> {
     try {
       // Prepare user data for Redis pipeline
-      const userDataArray = users.map((user) => {
+      const userDataArray = users.map(user => {
         // Get nickname from MemberProfile if exists (already loaded in the query)
         const nickname = (user as any).memberProfile?.nickName || '';
 
@@ -273,8 +280,8 @@ export class UserService extends BaseService<User> {
             name: user.name,
             profilePicture: user.profilePicture || '',
             active: user.active,
-            nickname: nickname
-          }
+            nickname: nickname,
+          },
         };
       });
 
@@ -288,18 +295,18 @@ export class UserService extends BaseService<User> {
 
   /*
    * USAGE EXAMPLES:
-   * 
+   *
    * // Get user from cache (ultra-fast) - includes nickname from MemberProfile
    * const userFromCache = await userService.getUserBasicInfoFromCache(userId);
    * // Returns: { id, name, profilePicture, active, nickname }
-   * 
+   *
    * // Get user (cache-first, fallback to database) - includes nickname
    * const userOptimized = await userService.getUserBasicInfoOptimized(userId);
-   * 
+   *
    * // Get multiple users at once (uses Redis pipeline) - includes nicknames
    * const multipleUsers = await userService.getMultipleUsersBasicInfo([id1, id2, id3]);
-   * 
+   *
    * // Preload all users to cache (useful for startup) - includes nicknames
    * await userService.preloadAllUsersToCache();
    */
-} 
+}

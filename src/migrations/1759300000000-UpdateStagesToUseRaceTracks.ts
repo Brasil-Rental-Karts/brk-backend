@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UpdateStagesToUseRaceTracks1759300000000 implements MigrationInterface {
+export class UpdateStagesToUseRaceTracks1759300000000
+  implements MigrationInterface
+{
   name = 'UpdateStagesToUseRaceTracks1759300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -19,13 +21,16 @@ export class UpdateStagesToUseRaceTracks1759300000000 implements MigrationInterf
 
     if (firstRaceTrack.length > 0) {
       const firstRaceTrackId = firstRaceTrack[0].id;
-      
+
       // 3. Atualizar todas as etapas existentes para usar o primeiro kartódromo
-      await queryRunner.query(`
+      await queryRunner.query(
+        `
         UPDATE "Stages" 
         SET "raceTrackId" = $1
         WHERE "raceTrackId" IS NULL
-      `, [firstRaceTrackId]);
+      `,
+        [firstRaceTrackId]
+      );
 
       // 4. Tornar a coluna raceTrackId obrigatória
       await queryRunner.query(`
@@ -79,4 +84,4 @@ export class UpdateStagesToUseRaceTracks1759300000000 implements MigrationInterf
       DROP COLUMN "raceTrackId"
     `);
   }
-} 
+}

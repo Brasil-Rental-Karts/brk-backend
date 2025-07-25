@@ -1,9 +1,10 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { ChampionshipClassificationService } from '../services/championship-classification.service';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { Request, Response } from 'express';
+
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { ChampionshipClassificationService } from '../services/championship-classification.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -109,7 +110,11 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId/category/:categoryId', authMiddleware, this.getClassificationBySeasonAndCategory.bind(this));
+    this.router.get(
+      '/season/:seasonId/category/:categoryId',
+      authMiddleware,
+      this.getClassificationBySeasonAndCategory.bind(this)
+    );
 
     /**
      * @swagger
@@ -145,7 +150,11 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/championship/:championshipId', authMiddleware, this.getClassificationByChampionship.bind(this));
+    this.router.get(
+      '/championship/:championshipId',
+      authMiddleware,
+      this.getClassificationByChampionship.bind(this)
+    );
 
     /**
      * @swagger
@@ -191,7 +200,11 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/user/:userId/season/:seasonId/category/:categoryId', authMiddleware, this.getUserClassification.bind(this));
+    this.router.get(
+      '/user/:userId/season/:seasonId/category/:categoryId',
+      authMiddleware,
+      this.getUserClassification.bind(this)
+    );
 
     /**
      * @swagger
@@ -219,7 +232,11 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/season/:seasonId/recalculate', authMiddleware, this.recalculateSeasonClassification.bind(this));
+    this.router.post(
+      '/season/:seasonId/recalculate',
+      authMiddleware,
+      this.recalculateSeasonClassification.bind(this)
+    );
 
     /**
      * @swagger
@@ -247,7 +264,11 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/season/:seasonId/update-cache', authMiddleware, this.updateSeasonClassificationCache.bind(this));
+    this.router.post(
+      '/season/:seasonId/update-cache',
+      authMiddleware,
+      this.updateSeasonClassificationCache.bind(this)
+    );
 
     /**
      * @swagger
@@ -308,7 +329,11 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId/optimized', authMiddleware, this.getSeasonClassificationOptimized.bind(this));
+    this.router.get(
+      '/season/:seasonId/optimized',
+      authMiddleware,
+      this.getSeasonClassificationOptimized.bind(this)
+    );
 
     /**
      * @swagger
@@ -347,7 +372,11 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId/redis', authMiddleware, this.getSeasonClassificationFromRedis.bind(this));
+    this.router.get(
+      '/season/:seasonId/redis',
+      authMiddleware,
+      this.getSeasonClassificationFromRedis.bind(this)
+    );
 
     /**
      * @swagger
@@ -405,10 +434,17 @@ export class ChampionshipClassificationController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/stages/:stageId/recalculate-positions', authMiddleware, this.recalculateStagePositions.bind(this));
+    this.router.post(
+      '/stages/:stageId/recalculate-positions',
+      authMiddleware,
+      this.recalculateStagePositions.bind(this)
+    );
   }
 
-  private async getClassificationBySeasonAndCategory(req: Request, res: Response): Promise<void> {
+  private async getClassificationBySeasonAndCategory(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId, categoryId } = req.params;
 
@@ -416,11 +452,15 @@ export class ChampionshipClassificationController extends BaseController {
         throw new BadRequestException('seasonId e categoryId são obrigatórios');
       }
 
-      const classification = await this.classificationService.getClassificationBySeasonAndCategory(seasonId, categoryId);
+      const classification =
+        await this.classificationService.getClassificationBySeasonAndCategory(
+          seasonId,
+          categoryId
+        );
 
       res.json({
         message: 'Classificação recuperada com sucesso',
-        data: classification
+        data: classification,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -428,13 +468,19 @@ export class ChampionshipClassificationController extends BaseController {
       } else if (error instanceof NotFoundException) {
         res.status(404).json({ message: error.message });
       } else {
-        console.error('Error getting classification by season and category:', error);
+        console.error(
+          'Error getting classification by season and category:',
+          error
+        );
         res.status(500).json({ message: 'Erro interno do servidor' });
       }
     }
   }
 
-  private async getClassificationByChampionship(req: Request, res: Response): Promise<void> {
+  private async getClassificationByChampionship(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { championshipId } = req.params;
 
@@ -442,14 +488,17 @@ export class ChampionshipClassificationController extends BaseController {
         throw new BadRequestException('championshipId é obrigatório');
       }
 
-      const classification = await this.classificationService.getClassificationByChampionship(championshipId);
+      const classification =
+        await this.classificationService.getClassificationByChampionship(
+          championshipId
+        );
 
       // Converter Map para objeto para JSON
       const classificationObject = Object.fromEntries(classification);
 
       res.json({
         message: 'Classificação do campeonato recuperada com sucesso',
-        data: classificationObject
+        data: classificationObject,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -463,24 +512,36 @@ export class ChampionshipClassificationController extends BaseController {
     }
   }
 
-  private async getUserClassification(req: Request, res: Response): Promise<void> {
+  private async getUserClassification(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { userId, seasonId, categoryId } = req.params;
 
       if (!userId || !seasonId || !categoryId) {
-        throw new BadRequestException('userId, seasonId e categoryId são obrigatórios');
+        throw new BadRequestException(
+          'userId, seasonId e categoryId são obrigatórios'
+        );
       }
 
-      const classification = await this.classificationService.getUserClassification(userId, seasonId, categoryId);
+      const classification =
+        await this.classificationService.getUserClassification(
+          userId,
+          seasonId,
+          categoryId
+        );
 
       if (!classification) {
-        res.status(404).json({ message: 'Classificação não encontrada para este usuário' });
+        res
+          .status(404)
+          .json({ message: 'Classificação não encontrada para este usuário' });
         return;
       }
 
       res.json({
         message: 'Classificação do usuário recuperada com sucesso',
-        data: classification
+        data: classification,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -494,7 +555,10 @@ export class ChampionshipClassificationController extends BaseController {
     }
   }
 
-  private async recalculateSeasonClassification(req: Request, res: Response): Promise<void> {
+  private async recalculateSeasonClassification(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
       const userId = req.user?.id;
@@ -511,16 +575,23 @@ export class ChampionshipClassificationController extends BaseController {
       // await this.validateChampionshipPermission(championshipId, userId);
 
       // Executar o recálculo de forma assíncrona
-      this.classificationService.recalculateSeasonClassification(seasonId)
+      this.classificationService
+        .recalculateSeasonClassification(seasonId)
         .then(() => {
-          console.log(`[ASYNC] Classificação da temporada ${seasonId} recalculada em background.`);
+          console.log(
+            `[ASYNC] Classificação da temporada ${seasonId} recalculada em background.`
+          );
         })
-        .catch((err) => {
-          console.error(`[ASYNC] Erro ao recalcular classificação da temporada ${seasonId}:`, err);
+        .catch(err => {
+          console.error(
+            `[ASYNC] Erro ao recalcular classificação da temporada ${seasonId}:`,
+            err
+          );
         });
 
       res.json({
-        message: 'Recalculo da classificação da temporada iniciado em background'
+        message:
+          'Recalculo da classificação da temporada iniciado em background',
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -534,7 +605,10 @@ export class ChampionshipClassificationController extends BaseController {
     }
   }
 
-  private async getSeasonClassificationOptimized(req: Request, res: Response): Promise<void> {
+  private async getSeasonClassificationOptimized(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
 
@@ -542,11 +616,14 @@ export class ChampionshipClassificationController extends BaseController {
         throw new BadRequestException('seasonId é obrigatório');
       }
 
-      const classification = await this.classificationService.getSeasonClassificationOptimized(seasonId);
+      const classification =
+        await this.classificationService.getSeasonClassificationOptimized(
+          seasonId
+        );
 
       res.json({
         message: 'Classificação da temporada recuperada com sucesso',
-        data: classification
+        data: classification,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -560,7 +637,10 @@ export class ChampionshipClassificationController extends BaseController {
     }
   }
 
-  private async getSeasonClassificationFromRedis(req: Request, res: Response): Promise<void> {
+  private async getSeasonClassificationFromRedis(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
 
@@ -568,11 +648,14 @@ export class ChampionshipClassificationController extends BaseController {
         throw new BadRequestException('seasonId é obrigatório');
       }
 
-      const classification = await this.classificationService.getSeasonClassificationFromCache(seasonId);
+      const classification =
+        await this.classificationService.getSeasonClassificationFromCache(
+          seasonId
+        );
 
       res.json({
         message: 'Classificação da temporada recuperada do Redis',
-        data: classification
+        data: classification,
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -586,7 +669,10 @@ export class ChampionshipClassificationController extends BaseController {
     }
   }
 
-  private async updateSeasonClassificationCache(req: Request, res: Response): Promise<void> {
+  private async updateSeasonClassificationCache(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
       const userId = req.user?.id;
@@ -602,10 +688,12 @@ export class ChampionshipClassificationController extends BaseController {
       // TODO: Adicionar verificação de permissão (apenas admins/managers do campeonato)
       // await this.validateChampionshipPermission(championshipId, userId);
 
-      await this.classificationService.cacheSeasonClassificationInRedis(seasonId);
+      await this.classificationService.cacheSeasonClassificationInRedis(
+        seasonId
+      );
 
       res.json({
-        message: 'Cache da classificação da temporada atualizado com sucesso'
+        message: 'Cache da classificação da temporada atualizado com sucesso',
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -619,7 +707,10 @@ export class ChampionshipClassificationController extends BaseController {
     }
   }
 
-  private async recalculateStagePositions(req: Request, res: Response): Promise<void> {
+  private async recalculateStagePositions(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { stageId } = req.params;
       const { categoryId, batteryIndex } = req.body;
@@ -633,30 +724,31 @@ export class ChampionshipClassificationController extends BaseController {
 
       // Validar parâmetros obrigatórios
       if (!categoryId || batteryIndex === undefined) {
-        res.status(400).json({ 
-          message: 'Parâmetros obrigatórios: categoryId e batteryIndex' 
+        res.status(400).json({
+          message: 'Parâmetros obrigatórios: categoryId e batteryIndex',
         });
         return;
       }
 
       // Executar o recálculo de forma assíncrona
-      this.classificationService.recalculateStagePositions(
-        stageId,
-        categoryId,
-        batteryIndex
-      )
+      this.classificationService
+        .recalculateStagePositions(stageId, categoryId, batteryIndex)
         .then(() => {
-          console.log(`[ASYNC] Posições da etapa ${stageId} recalculadas em background.`);
+          console.log(
+            `[ASYNC] Posições da etapa ${stageId} recalculadas em background.`
+          );
         })
-        .catch((err) => {
-          console.error(`[ASYNC] Erro ao recalcular posições da etapa ${stageId}:`, err);
+        .catch(err => {
+          console.error(
+            `[ASYNC] Erro ao recalcular posições da etapa ${stageId}:`,
+            err
+          );
         });
 
-      res.json({ 
-        success: true, 
-        message: 'Recalculo das posições da etapa iniciado em background' 
+      res.json({
+        success: true,
+        message: 'Recalculo das posições da etapa iniciado em background',
       });
-
     } catch (error: any) {
       console.error('❌ [CONTROLLER] Erro ao recalcular posições:', error);
       if (error instanceof BadRequestException) {
@@ -668,4 +760,4 @@ export class ChampionshipClassificationController extends BaseController {
       }
     }
   }
-} 
+}

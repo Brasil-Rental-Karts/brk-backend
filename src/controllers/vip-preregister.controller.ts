@@ -1,9 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
-import { BaseController } from './base.controller';
-import { VipPreregisterService } from '../services/vip-preregister.service';
+import { NextFunction, Request, Response } from 'express';
+
 import { CreateVipPreregisterDto } from '../dtos/vip-preregister.dto';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { UserRole } from '../models/user.entity';
+import { VipPreregisterService } from '../services/vip-preregister.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -91,7 +92,12 @@ export class VipPreregisterController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.get('/list', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.getAllPreregisters.bind(this));
+    this.router.get(
+      '/list',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      this.getAllPreregisters.bind(this)
+    );
 
     /**
      * @swagger
@@ -135,59 +141,82 @@ export class VipPreregisterController extends BaseController {
      *       500:
      *         description: Internal server error
      */
-    this.router.get('/check/:email', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.checkEmail.bind(this));
+    this.router.get(
+      '/check/:email',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      this.checkEmail.bind(this)
+    );
   }
 
-  private async createPreregister(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async createPreregister(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      const { dto, errors } = await CreateVipPreregisterDto.validateDto(CreateVipPreregisterDto, req.body);
-      
+      const { dto, errors } = await CreateVipPreregisterDto.validateDto(
+        CreateVipPreregisterDto,
+        req.body
+      );
+
       if (errors.length > 0) {
         res.status(400).json({
           message: 'Falha na validação dos dados',
-          errors
+          errors,
         });
         return;
       }
 
-      const preregister = await this.vipPreregisterService.createPreregister(dto!);
-      
+      const preregister = await this.vipPreregisterService.createPreregister(
+        dto!
+      );
+
       res.status(201).json({
         message: 'Cadastro realizado com sucesso na lista VIP',
-        data: preregister
+        data: preregister,
       });
     } catch (error) {
       next(error);
     }
   }
 
-  private async getAllPreregisters(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async getAllPreregisters(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      const preregisters = await this.vipPreregisterService.getAllPreregisters();
-      
+      const preregisters =
+        await this.vipPreregisterService.getAllPreregisters();
+
       res.status(200).json({
         message: 'Lista VIP recuperada com sucesso',
-        data: preregisters
+        data: preregisters,
       });
     } catch (error) {
       next(error);
     }
   }
 
-  private async checkEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async checkEmail(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { email } = req.params;
       const preregister = await this.vipPreregisterService.findByEmail(email);
-      
+
       res.status(200).json({
         message: 'Verificação de e-mail concluída',
         data: {
           exists: !!preregister,
-          preregister: preregister || null
-        }
+          preregister: preregister || null,
+        },
       });
     } catch (error) {
       next(error);
     }
   }
-} 
+}

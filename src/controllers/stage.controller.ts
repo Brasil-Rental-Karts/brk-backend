@@ -1,16 +1,17 @@
-import { Router, Request, Response, NextFunction } from 'express';
 import { plainToInstance } from 'class-transformer';
-import { BaseController } from './base.controller';
-import { StageService } from '../services/stage.service';
+import { NextFunction, Request, Response } from 'express';
+
+import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
+import { BadRequestException } from '../exceptions/bad-request.exception';
+import { ConflictException } from '../exceptions/conflict.exception';
+import { NotFoundException } from '../exceptions/not-found.exception';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
-import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { UserRole } from '../models/user.entity';
-import { BadRequestException } from '../exceptions/bad-request.exception';
-import { NotFoundException } from '../exceptions/not-found.exception';
-import { ConflictException } from '../exceptions/conflict.exception';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { SeasonService } from '../services/season.service';
+import { StageService } from '../services/stage.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -192,7 +193,11 @@ export class StageController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/:id/with-participants', authMiddleware, this.getStageByIdWithParticipants.bind(this));
+    this.router.get(
+      '/:id/with-participants',
+      authMiddleware,
+      this.getStageByIdWithParticipants.bind(this)
+    );
 
     /**
      * @swagger
@@ -224,7 +229,11 @@ export class StageController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId', authMiddleware, this.getStagesBySeasonId.bind(this));
+    this.router.get(
+      '/season/:seasonId',
+      authMiddleware,
+      this.getStagesBySeasonId.bind(this)
+    );
 
     /**
      * @swagger
@@ -256,7 +265,11 @@ export class StageController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId/upcoming', authMiddleware, this.getUpcomingStagesBySeasonId.bind(this));
+    this.router.get(
+      '/season/:seasonId/upcoming',
+      authMiddleware,
+      this.getUpcomingStagesBySeasonId.bind(this)
+    );
 
     /**
      * @swagger
@@ -288,7 +301,11 @@ export class StageController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId/past', authMiddleware, this.getPastStagesBySeasonId.bind(this));
+    this.router.get(
+      '/season/:seasonId/past',
+      authMiddleware,
+      this.getPastStagesBySeasonId.bind(this)
+    );
 
     /**
      * @swagger
@@ -320,7 +337,11 @@ export class StageController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.get('/season/:seasonId/next', authMiddleware, this.getNextStageBySeasonId.bind(this));
+    this.router.get(
+      '/season/:seasonId/next',
+      authMiddleware,
+      this.getNextStageBySeasonId.bind(this)
+    );
 
     /**
      * @swagger
@@ -353,9 +374,9 @@ export class StageController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.post(
-      '/', 
-      authMiddleware, 
-      validationMiddleware(CreateStageDto), 
+      '/',
+      authMiddleware,
+      validationMiddleware(CreateStageDto),
       this.createStage.bind(this)
     );
 
@@ -400,9 +421,9 @@ export class StageController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.put(
-      '/:id', 
-      authMiddleware, 
-      validationMiddleware(UpdateStageDto), 
+      '/:id',
+      authMiddleware,
+      validationMiddleware(UpdateStageDto),
       this.updateStage.bind(this)
     );
 
@@ -435,9 +456,9 @@ export class StageController extends BaseController {
      *         description: Erro interno do servidor
      */
     this.router.delete(
-      '/:id', 
-      authMiddleware, 
-      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), 
+      '/:id',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]),
       this.deleteStage.bind(this)
     );
 
@@ -491,17 +512,38 @@ export class StageController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.put('/:id/schedule', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]), this.updateStageSchedule.bind(this));
+    this.router.put(
+      '/:id/schedule',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]),
+      this.updateStageSchedule.bind(this)
+    );
 
     // Salvar sorteio de karts
-    this.router.patch('/:id/kart-draw', authMiddleware, this.saveKartDrawAssignments.bind(this));
+    this.router.patch(
+      '/:id/kart-draw',
+      authMiddleware,
+      this.saveKartDrawAssignments.bind(this)
+    );
     // Buscar sorteio de karts
-    this.router.get('/:id/kart-draw', authMiddleware, this.getKartDrawAssignments.bind(this));
+    this.router.get(
+      '/:id/kart-draw',
+      authMiddleware,
+      this.getKartDrawAssignments.bind(this)
+    );
 
     // Salvar resultados da etapa
-    this.router.patch('/:id/stage-results', authMiddleware, this.saveStageResults.bind(this));
+    this.router.patch(
+      '/:id/stage-results',
+      authMiddleware,
+      this.saveStageResults.bind(this)
+    );
     // Buscar resultados da etapa
-    this.router.get('/:id/stage-results', authMiddleware, this.getStageResults.bind(this));
+    this.router.get(
+      '/:id/stage-results',
+      authMiddleware,
+      this.getStageResults.bind(this)
+    );
   }
 
   // Route handlers
@@ -528,7 +570,10 @@ export class StageController extends BaseController {
     }
   }
 
-  private async getStageByIdWithParticipants(req: Request, res: Response): Promise<void> {
+  private async getStageByIdWithParticipants(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const stage = await this.stageService.findByIdWithParticipants(id);
@@ -542,19 +587,25 @@ export class StageController extends BaseController {
     }
   }
 
-  private async getStagesBySeasonId(req: Request, res: Response): Promise<void> {
+  private async getStagesBySeasonId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
-      
+
       const stages = await this.stageService.findBySeasonId(seasonId);
-      
+
       res.json(stages);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   }
 
-  private async getUpcomingStagesBySeasonId(req: Request, res: Response): Promise<void> {
+  private async getUpcomingStagesBySeasonId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
       const stages = await this.stageService.findUpcomingBySeasonId(seasonId);
@@ -564,7 +615,10 @@ export class StageController extends BaseController {
     }
   }
 
-  private async getPastStagesBySeasonId(req: Request, res: Response): Promise<void> {
+  private async getPastStagesBySeasonId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
       const stages = await this.stageService.findPastBySeasonId(seasonId);
@@ -574,31 +628,43 @@ export class StageController extends BaseController {
     }
   }
 
-  private async getNextStageBySeasonId(req: Request, res: Response): Promise<void> {
+  private async getNextStageBySeasonId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
       const stage = await this.stageService.findNextBySeasonId(seasonId);
-      
+
       if (!stage) {
         res.status(404).json({ message: 'Nenhuma próxima etapa encontrada' });
         return;
       }
-      
+
       res.json(stage);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   }
 
-  private async createStage(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async createStage(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      const stageData: CreateStageDto = plainToInstance(CreateStageDto, req.body);
-      
+      const stageData: CreateStageDto = plainToInstance(
+        CreateStageDto,
+        req.body
+      );
+
       const userId = req.user?.id;
       if (!userId) {
-        throw new BadRequestException('ID do campeonato é obrigatório na criação da etapa.');
+        throw new BadRequestException(
+          'ID do campeonato é obrigatório na criação da etapa.'
+        );
       }
-      
+
       const seasonId = stageData.seasonId;
 
       // Buscar a season para obter o championshipId
@@ -609,10 +675,14 @@ export class StageController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para criar etapas neste campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para criar etapas neste campeonato'
+          message: 'Você não tem permissão para criar etapas neste campeonato',
         });
         return;
       }
@@ -628,11 +698,18 @@ export class StageController extends BaseController {
     }
   }
 
-  private async updateStage(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async updateStage(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
-      
-      const stageData: UpdateStageDto = plainToInstance(UpdateStageDto, req.body);
+
+      const stageData: UpdateStageDto = plainToInstance(
+        UpdateStageDto,
+        req.body
+      );
 
       const userId = req.user?.id;
       if (!userId) {
@@ -654,10 +731,14 @@ export class StageController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para editar etapas neste campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para editar esta etapa'
+          message: 'Você não tem permissão para editar esta etapa',
         });
         return;
       }
@@ -676,7 +757,11 @@ export class StageController extends BaseController {
     }
   }
 
-  private async deleteStage(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async deleteStage(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const userId = req.user!.id;
@@ -696,10 +781,14 @@ export class StageController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para deletar etapas neste campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para deletar esta etapa'
+          message: 'Você não tem permissão para deletar esta etapa',
         });
         return;
       }
@@ -718,7 +807,11 @@ export class StageController extends BaseController {
     }
   }
 
-  private async updateStageSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async updateStageSchedule(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const schedule = req.body.schedule;
@@ -743,10 +836,15 @@ export class StageController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para editar o cronograma da etapa
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para editar o cronograma desta etapa'
+          message:
+            'Você não tem permissão para editar o cronograma desta etapa',
         });
         return;
       }
@@ -765,18 +863,29 @@ export class StageController extends BaseController {
     }
   }
 
-  private async saveKartDrawAssignments(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async saveKartDrawAssignments(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const assignments = req.body;
-      const updatedStage = await this.stageService.updateKartDrawAssignments(id, assignments);
+      const updatedStage = await this.stageService.updateKartDrawAssignments(
+        id,
+        assignments
+      );
       res.json({ success: true, data: updatedStage.kart_draw_assignments });
     } catch (error) {
       next(error);
     }
   }
 
-  private async getKartDrawAssignments(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async getKartDrawAssignments(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const assignments = await this.stageService.getKartDrawAssignments(id);
@@ -786,11 +895,15 @@ export class StageController extends BaseController {
     }
   }
 
-  private async saveStageResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async saveStageResults(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const results = req.body;
-      
+
       // Verificar se o usuário está autenticado
       const userId = req.user?.id;
       if (!userId) {
@@ -813,22 +926,34 @@ export class StageController extends BaseController {
       }
 
       // Verificar se o usuário tem permissão para editar resultados da etapa
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para editar os resultados desta etapa'
+          message:
+            'Você não tem permissão para editar os resultados desta etapa',
         });
         return;
       }
 
-      const updatedStage = await this.stageService.updateStageResults(id, results);
+      const updatedStage = await this.stageService.updateStageResults(
+        id,
+        results
+      );
       res.json({ success: true, data: updatedStage.stage_results });
     } catch (error) {
       next(error);
     }
   }
 
-  private async getStageResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async getStageResults(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const results = await this.stageService.getStageResults(id);
@@ -837,4 +962,4 @@ export class StageController extends BaseController {
       next(error);
     }
   }
-} 
+}

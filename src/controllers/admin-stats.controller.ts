@@ -1,13 +1,14 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
+import { Request, Response } from 'express';
+
+import { AppDataSource } from '../config/database.config';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { MemberProfile } from '../models/member-profile.entity';
+import { User } from '../models/user.entity';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { UserRepository } from '../repositories/user.repository';
 import { AdminStatsService } from '../services/admin-stats.service';
 import { UserService } from '../services/user.service';
-import { UserRepository } from '../repositories/user.repository';
-import { MemberProfileRepository } from '../repositories/member-profile.repository';
-import { AppDataSource } from '../config/database.config';
-import { User } from '../models/user.entity';
-import { MemberProfile } from '../models/member-profile.entity';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -169,7 +170,11 @@ export class AdminStatsController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/cache/users/preload', authMiddleware, this.preloadUsersCache.bind(this));
+    this.router.post(
+      '/cache/users/preload',
+      authMiddleware,
+      this.preloadUsersCache.bind(this)
+    );
 
     /**
      * @swagger
@@ -213,7 +218,11 @@ export class AdminStatsController extends BaseController {
      *       500:
      *         description: Erro interno do servidor
      */
-    this.router.post('/cache/categories/update', authMiddleware, this.updateCategoriesCache.bind(this));
+    this.router.post(
+      '/cache/categories/update',
+      authMiddleware,
+      this.updateCategoriesCache.bind(this)
+    );
   }
 
   private async getAdminStats(req: Request, res: Response): Promise<void> {
@@ -221,7 +230,7 @@ export class AdminStatsController extends BaseController {
       // Verificar se o usuário é administrador
       if (req.user!.role !== 'Administrator') {
         res.status(403).json({
-          message: 'Acesso negado. Requer permissões de administrador.'
+          message: 'Acesso negado. Requer permissões de administrador.',
         });
         return;
       }
@@ -230,12 +239,12 @@ export class AdminStatsController extends BaseController {
 
       res.json({
         message: 'Estatísticas administrativas recuperadas com sucesso',
-        data: stats
+        data: stats,
       });
     } catch (error: any) {
       console.error('Error getting admin stats:', error);
       res.status(500).json({
-        message: error.message || 'Erro interno do servidor'
+        message: error.message || 'Erro interno do servidor',
       });
     }
   }
@@ -245,7 +254,7 @@ export class AdminStatsController extends BaseController {
       // Verificar se o usuário é administrador
       if (req.user!.role !== 'Administrator') {
         res.status(403).json({
-          message: 'Acesso negado. Requer permissões de administrador.'
+          message: 'Acesso negado. Requer permissões de administrador.',
         });
         return;
       }
@@ -254,33 +263,36 @@ export class AdminStatsController extends BaseController {
       await this.userService.preloadAllUsersToCache();
       const endTime = Date.now();
       const duration = ((endTime - startTime) / 1000).toFixed(1);
-      
+
       // Get total users for response
       const totalUsers = (await this.userService.getAllCachedUserIds()).length;
 
       const result = {
         totalUsers,
-        duration: `${duration}s`
+        duration: `${duration}s`,
       };
 
       res.json({
         message: 'Cache de usuários atualizado com sucesso',
-        data: result
+        data: result,
       });
     } catch (error: any) {
       console.error('Error preloading users cache:', error);
       res.status(500).json({
-        message: error.message || 'Erro interno do servidor'
+        message: error.message || 'Erro interno do servidor',
       });
     }
   }
 
-  private async updateCategoriesCache(req: Request, res: Response): Promise<void> {
+  private async updateCategoriesCache(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       // Verificar se o usuário é administrador
       if (req.user!.role !== 'Administrator') {
         res.status(403).json({
-          message: 'Acesso negado. Requer permissões de administrador.'
+          message: 'Acesso negado. Requer permissões de administrador.',
         });
         return;
       }
@@ -289,13 +301,13 @@ export class AdminStatsController extends BaseController {
 
       res.json({
         message: 'Cache de categorias atualizado com sucesso',
-        data: result
+        data: result,
       });
     } catch (error: any) {
       console.error('Error updating categories cache:', error);
       res.status(500).json({
-        message: error.message || 'Erro interno do servidor'
+        message: error.message || 'Erro interno do servidor',
       });
     }
   }
-} 
+}

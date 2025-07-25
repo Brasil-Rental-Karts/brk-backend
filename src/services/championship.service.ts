@@ -1,10 +1,10 @@
+import { ConflictException } from '../exceptions/conflict.exception';
 import { Championship } from '../models/championship.entity';
 import { ChampionshipRepository } from '../repositories/championship.repository';
 import { BaseService } from './base.service';
-import { RedisService } from './redis.service';
 import { GridTypeService } from './grid-type.service';
+import { RedisService } from './redis.service';
 import { ScoringSystemService } from './scoring-system.service';
-import { ConflictException } from '../exceptions/conflict.exception';
 
 export interface ChampionshipCacheData {
   id: string;
@@ -32,7 +32,7 @@ export class ChampionshipService extends BaseService<Championship> {
   async create(championshipData: Partial<Championship>): Promise<Championship> {
     try {
       const championship = await super.create(championshipData);
-      
+
       // Criar tipos de grid pré-configurados
       try {
         await this.gridTypeService.createPredefined(championship.id);
@@ -46,39 +46,46 @@ export class ChampionshipService extends BaseService<Championship> {
       } catch (error) {
         // console.error(`[CHAMPIONSHIP] Erro ao criar sistema de pontuação pré-configurado para o campeonato ${championship.id}:`, error);
       }
-      
+
       // O cache será atualizado via database events, não aqui
-      
+
       return championship;
     } catch (error: any) {
       if (error?.code === '23505' && error.detail?.includes('(slug)')) {
-        throw new ConflictException('Já existe um campeonato com este nome. Por favor, escolha outro.');
+        throw new ConflictException(
+          'Já existe um campeonato com este nome. Por favor, escolha outro.'
+        );
       }
       throw error;
     }
   }
 
-  async update(id: string, championshipData: Partial<Championship>): Promise<Championship | null> {
+  async update(
+    id: string,
+    championshipData: Partial<Championship>
+  ): Promise<Championship | null> {
     const championship = await super.update(id, championshipData);
-    
+
     // O cache será atualizado via database events, não aqui
-    
+
     return championship;
   }
 
   async delete(id: string): Promise<boolean> {
     const result = await super.delete(id);
-    
+
     // O cache será atualizado via database events, não aqui
     // Nota: Quando um campeonato é deletado, o database events service
     // também limpa automaticamente o índice de seasons relacionadas
-    
+
     return result;
   }
 
   async findById(id: string): Promise<Championship | null> {
     // Apenas busca no banco, sem interferir no cache
-    const championship = await this.championshipRepository['repository'].findOne({
+    const championship = await this.championshipRepository[
+      'repository'
+    ].findOne({
       where: { id },
       relations: ['seasons', 'seasons.categories'],
     });
@@ -86,8 +93,11 @@ export class ChampionshipService extends BaseService<Championship> {
   }
 
   async findBySlugOrId(slugOrId: string): Promise<Championship | null> {
-    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
-    
+    const isUUID =
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+        slugOrId
+      );
+
     let where: any;
     if (isUUID) {
       where = { id: slugOrId };
@@ -95,7 +105,9 @@ export class ChampionshipService extends BaseService<Championship> {
       where = { slug: slugOrId };
     }
 
-    const championship = await this.championshipRepository['repository'].findOne({
+    const championship = await this.championshipRepository[
+      'repository'
+    ].findOne({
       where,
       relations: ['seasons', 'seasons.categories'],
     });
@@ -112,20 +124,24 @@ export class ChampionshipService extends BaseService<Championship> {
   async findByOwnerId(ownerId: string): Promise<Championship[]> {
     // Apenas busca no banco, sem interferir no cache
     const championships = await this.championshipRepository['repository'].find({
-      where: { ownerId }
+      where: { ownerId },
     });
-    
+
     return championships;
   }
 
   // Método para buscar apenas dados em cache (para API cache)
-  async getChampionshipBasicInfo(id: string): Promise<ChampionshipCacheData | null> {
+  async getChampionshipBasicInfo(
+    id: string
+  ): Promise<ChampionshipCacheData | null> {
     const cachedData = await this.getCachedChampionshipData(id);
     return cachedData;
   }
 
   // Buscar múltiplos championships por IDs (alta performance)
-  async getMultipleChampionshipsBasicInfo(ids: string[]): Promise<ChampionshipCacheData[]> {
+  async getMultipleChampionshipsBasicInfo(
+    ids: string[]
+  ): Promise<ChampionshipCacheData[]> {
     try {
       // Usa o novo método otimizado com Redis pipeline
       return await this.redisService.getMultipleChampionshipsBasicInfo(ids);
@@ -136,11 +152,14 @@ export class ChampionshipService extends BaseService<Championship> {
   }
 
   // Buscar todas as temporadas de um campeonato no cache (alta performance)
-  async getChampionshipSeasonsBasicInfo(championshipId: string): Promise<any[]> {
+  async getChampionshipSeasonsBasicInfo(
+    championshipId: string
+  ): Promise<any[]> {
     try {
       // Busca a lista de IDs das temporadas do campeonato
-      const seasonIds = await this.redisService.getChampionshipSeasonIds(championshipId);
-      
+      const seasonIds =
+        await this.redisService.getChampionshipSeasonIds(championshipId);
+
       if (!seasonIds || seasonIds.length === 0) {
         return [];
       }
@@ -154,7 +173,9 @@ export class ChampionshipService extends BaseService<Championship> {
   }
 
   // Métodos privados para cache (usados apenas pelos database events)
-  private async getCachedChampionshipData(id: string): Promise<ChampionshipCacheData | null> {
+  private async getCachedChampionshipData(
+    id: string
+  ): Promise<ChampionshipCacheData | null> {
     try {
       const key = `championship:${id}`;
       return await this.redisService.getData(key);
@@ -167,7 +188,10 @@ export class ChampionshipService extends BaseService<Championship> {
   /**
    * Atualiza o Wallet ID do Asaas para um campeonato
    */
-  async updateAsaasWalletId(championshipId: string, walletId: string): Promise<Championship | null> {
+  async updateAsaasWalletId(
+    championshipId: string,
+    walletId: string
+  ): Promise<Championship | null> {
     try {
       const championship = await this.findById(championshipId);
       if (!championship) {
@@ -175,7 +199,9 @@ export class ChampionshipService extends BaseService<Championship> {
       }
 
       if (!championship.splitEnabled) {
-        throw new Error('Split payment não está habilitado para este campeonato');
+        throw new Error(
+          'Split payment não está habilitado para este campeonato'
+        );
       }
 
       if (!walletId || walletId.trim() === '') {
@@ -183,7 +209,7 @@ export class ChampionshipService extends BaseService<Championship> {
       }
 
       const updatedChampionship = await this.update(championshipId, {
-        asaasWalletId: walletId.trim()
+        asaasWalletId: walletId.trim(),
       });
 
       return updatedChampionship;
@@ -218,11 +244,11 @@ export class ChampionshipService extends BaseService<Championship> {
         asaasWalletId: championship.asaasWalletId,
         configured: isConfigured,
         document: championship.document,
-        personType: championship.personType
+        personType: championship.personType,
       };
     } catch (error) {
       // console.error('[CHAMPIONSHIP] Erro ao verificar status Asaas:', error);
       throw error;
     }
   }
-} 
+}

@@ -1,14 +1,18 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class MigrateLegacySeasonPaymentData1765000000000 implements MigrationInterface {
-    name = 'MigrateLegacySeasonPaymentData1765000000000'
+export class MigrateLegacySeasonPaymentData1765000000000
+  implements MigrationInterface
+{
+  name = 'MigrateLegacySeasonPaymentData1765000000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // 1. Adicionar coluna paymentConditions
-        await queryRunner.query(`ALTER TABLE "Seasons" ADD COLUMN "paymentConditions" jsonb`);
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // 1. Adicionar coluna paymentConditions
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" ADD COLUMN "paymentConditions" jsonb`
+    );
 
-        // 2. Migrar dados legados para paymentConditions
-        await queryRunner.query(`
+    // 2. Migrar dados legados para paymentConditions
+    await queryRunner.query(`
             UPDATE "Seasons"
             SET "paymentConditions" = jsonb_build_array(
                 jsonb_build_object(
@@ -25,8 +29,8 @@ export class MigrateLegacySeasonPaymentData1765000000000 implements MigrationInt
               AND "inscriptionType" IS NOT NULL AND "inscriptionValue" IS NOT NULL;
         `);
 
-        // 3. Garantir que todos os campos novos existam em paymentConditions
-        await queryRunner.query(`
+    // 3. Garantir que todos os campos novos existam em paymentConditions
+    await queryRunner.query(`
             UPDATE "Seasons"
             SET "paymentConditions" = (
                 SELECT jsonb_agg(
@@ -45,24 +49,44 @@ export class MigrateLegacySeasonPaymentData1765000000000 implements MigrationInt
             WHERE "paymentConditions" IS NOT NULL AND jsonb_array_length("paymentConditions") > 0;
         `);
 
-        // 4. Remover colunas legadas
-        await queryRunner.query(`ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "inscriptionType"`);
-        await queryRunner.query(`ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "inscriptionValue"`);
-        await queryRunner.query(`ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "paymentMethods"`);
-        await queryRunner.query(`ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "pixInstallments"`);
-        await queryRunner.query(`ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "creditCardInstallments"`);
-    }
+    // 4. Remover colunas legadas
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "inscriptionType"`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "inscriptionValue"`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "paymentMethods"`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "pixInstallments"`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "creditCardInstallments"`
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // 1. Recriar colunas legadas
-        await queryRunner.query(`ALTER TABLE "Seasons" ADD COLUMN "inscriptionType" varchar(20)`);
-        await queryRunner.query(`ALTER TABLE "Seasons" ADD COLUMN "inscriptionValue" decimal(10,2)`);
-        await queryRunner.query(`ALTER TABLE "Seasons" ADD COLUMN "paymentMethods" text`);
-        await queryRunner.query(`ALTER TABLE "Seasons" ADD COLUMN "pixInstallments" int DEFAULT 1`);
-        await queryRunner.query(`ALTER TABLE "Seasons" ADD COLUMN "creditCardInstallments" int DEFAULT 1`);
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // 1. Recriar colunas legadas
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" ADD COLUMN "inscriptionType" varchar(20)`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" ADD COLUMN "inscriptionValue" decimal(10,2)`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" ADD COLUMN "paymentMethods" text`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" ADD COLUMN "pixInstallments" int DEFAULT 1`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" ADD COLUMN "creditCardInstallments" int DEFAULT 1`
+    );
 
-        // 2. Popular colunas legadas a partir do primeiro paymentCondition ativo
-        await queryRunner.query(`
+    // 2. Popular colunas legadas a partir do primeiro paymentCondition ativo
+    await queryRunner.query(`
             UPDATE "Seasons"
             SET 
                 "inscriptionType" = (pc->>'type'),
@@ -79,7 +103,9 @@ export class MigrateLegacySeasonPaymentData1765000000000 implements MigrationInt
             WHERE "Seasons".id = subq.id;
         `);
 
-        // 3. Remover coluna paymentConditions
-        await queryRunner.query(`ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "paymentConditions"`);
-    }
-} 
+    // 3. Remover coluna paymentConditions
+    await queryRunner.query(
+      `ALTER TABLE "Seasons" DROP COLUMN IF EXISTS "paymentConditions"`
+    );
+  }
+}

@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { UserRole } from '../models/user.entity';
+
 import config from '../config/config';
+import { UserRole } from '../models/user.entity';
 
 // Extend Express Request type to include user
 declare global {
@@ -18,7 +19,11 @@ declare global {
 }
 
 // Verify JWT token
-export const authMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
+export const authMiddleware: RequestHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   try {
     const token = req.cookies?.accessToken;
     if (!token) {
@@ -51,7 +56,9 @@ export const roleMiddleware = (roles: UserRole[]): RequestHandler => {
     }
 
     if (!roles.includes(req.user.role)) {
-      res.status(403).json({ message: 'You do not have permission to access this resource' });
+      res.status(403).json({
+        message: 'You do not have permission to access this resource',
+      });
       return;
     }
 
@@ -61,5 +68,12 @@ export const roleMiddleware = (roles: UserRole[]): RequestHandler => {
 
 // Middleware shortcuts for specific roles
 export const requireAdmin = roleMiddleware([UserRole.ADMINISTRATOR]);
-export const requireMember = roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MEMBER, UserRole.MANAGER]);
-export const requireManager = roleMiddleware([UserRole.ADMINISTRATOR, UserRole.MANAGER]); 
+export const requireMember = roleMiddleware([
+  UserRole.ADMINISTRATOR,
+  UserRole.MEMBER,
+  UserRole.MANAGER,
+]);
+export const requireManager = roleMiddleware([
+  UserRole.ADMINISTRATOR,
+  UserRole.MANAGER,
+]);

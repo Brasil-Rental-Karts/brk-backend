@@ -1,4 +1,5 @@
-import { Entity, Column } from 'typeorm';
+import { Column, Entity } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 
 /**
@@ -33,7 +34,7 @@ export class VipPreregister extends BaseEntity {
   @Column({
     type: 'varchar',
     length: 255,
-    nullable: false
+    nullable: false,
   })
   name!: string;
 
@@ -41,7 +42,7 @@ export class VipPreregister extends BaseEntity {
     type: 'varchar',
     length: 255,
     nullable: false,
-    unique: true
+    unique: true,
   })
   email!: string;
-} 
+}

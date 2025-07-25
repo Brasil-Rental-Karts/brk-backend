@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
+
+import { StaffPermissions } from '../models/championship-staff.entity';
 import { UserRole } from '../models/user.entity';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
-import { StaffPermissions } from '../models/championship-staff.entity';
 
 interface StaffPermissionsRequest extends Request {
   championshipId?: string;
@@ -19,7 +20,11 @@ export const staffPermissionsMiddleware = (
   permission: keyof StaffPermissions,
   paramName: string = 'championshipId'
 ) => {
-  return async (req: StaffPermissionsRequest, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: StaffPermissionsRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       if (!req.user) {
         res.status(401).json({ message: 'Authentication required' });
@@ -40,10 +45,15 @@ export const staffPermissionsMiddleware = (
       }
 
       // Verificar se o usuário tem a permissão específica
-      const hasPermission = await championshipStaffService.hasSpecificPermission(req.user.id, championshipId, permission);
+      const hasPermission =
+        await championshipStaffService.hasSpecificPermission(
+          req.user.id,
+          championshipId,
+          permission
+        );
       if (!hasPermission) {
-        res.status(403).json({ 
-          message: `Você não tem permissão para acessar ${permission} neste campeonato` 
+        res.status(403).json({
+          message: `Você não tem permissão para acessar ${permission} neste campeonato`,
         });
         return;
       }
@@ -56,4 +66,4 @@ export const staffPermissionsMiddleware = (
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   };
-}; 
+};

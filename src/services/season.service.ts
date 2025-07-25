@@ -1,5 +1,8 @@
 import { Season } from '../models/season.entity';
-import { SeasonRepository, PaginatedResult } from '../repositories/season.repository';
+import {
+  PaginatedResult,
+  SeasonRepository,
+} from '../repositories/season.repository';
 import { BaseService } from './base.service';
 import { RedisService } from './redis.service';
 
@@ -25,23 +28,26 @@ export class SeasonService extends BaseService<Season> {
 
   async create(seasonData: Partial<Season>): Promise<Season> {
     const season = await super.create(seasonData);
-    
+
     // Adicionar nova temporada ao cache
     if (season) {
       await this.redisService.cacheSeasonBasicInfo(season.id, season);
     }
-    
+
     return season;
   }
 
-  async update(id: string, seasonData: Partial<Season>): Promise<Season | null> {
+  async update(
+    id: string,
+    seasonData: Partial<Season>
+  ): Promise<Season | null> {
     const season = await super.update(id, seasonData);
-    
+
     // Atualizar cache manualmente se a temporada foi encontrada e atualizada
     if (season) {
       await this.redisService.cacheSeasonBasicInfo(season.id, season);
     }
-    
+
     return season;
   }
 
@@ -49,13 +55,13 @@ export class SeasonService extends BaseService<Season> {
     // Buscar informações da temporada antes de deletar para limpar o cache
     const season = await this.findById(id);
     const result = await super.delete(id);
-    
+
     // Limpar cache se a temporada foi deletada com sucesso
     if (result && season) {
       await this.redisService.invalidateSeasonCache(id, season.championshipId);
       await this.redisService.invalidateSeasonIndexes(id);
     }
-    
+
     return result;
   }
 
@@ -68,27 +74,36 @@ export class SeasonService extends BaseService<Season> {
   async findBySlugOrId(slugOrId: string): Promise<Season | null> {
     try {
       // Verifica se é um UUID
-      const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slugOrId);
-      
+      const isUUID =
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+          slugOrId
+        );
+
       let season: Season | null = null;
-      
+
       if (isUUID) {
         season = await this.findById(slugOrId);
       } else {
         season = await this.seasonRepository.findBySlug(slugOrId);
       }
-      
+
       if (season) {
         // Garantir que paymentMethods nunca seja null ou vazio
-        const paymentMethods = season.getPaymentMethodsForCondition('por_temporada');
+        const paymentMethods =
+          season.getPaymentMethodsForCondition('por_temporada');
         if (!paymentMethods || paymentMethods.length === 0) {
-          console.warn(`⚠️ [BACKEND] Temporada ${season.id} sem métodos de pagamento válidos, usando PIX como padrão`);
+          console.warn(
+            `⚠️ [BACKEND] Temporada ${season.id} sem métodos de pagamento válidos, usando PIX como padrão`
+          );
         }
       }
-      
+
       return season;
     } catch (error) {
-      console.error(`❌ [BACKEND] Erro ao buscar temporada ${slugOrId}:`, error);
+      console.error(
+        `❌ [BACKEND] Erro ao buscar temporada ${slugOrId}:`,
+        error
+      );
       throw error;
     }
   }
@@ -99,12 +114,23 @@ export class SeasonService extends BaseService<Season> {
     return seasons;
   }
 
-  async findByChampionshipId(championshipId: string, page: number = 1, limit: number = 10): Promise<PaginatedResult<Season>> {
+  async findByChampionshipId(
+    championshipId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<PaginatedResult<Season>> {
     // Apenas busca no banco, sem interferir no cache
-    return await this.seasonRepository.findByChampionshipId(championshipId, page, limit);
+    return await this.seasonRepository.findByChampionshipId(
+      championshipId,
+      page,
+      limit
+    );
   }
 
-  async findAllPaginated(page: number = 1, limit: number = 10): Promise<PaginatedResult<Season>> {
+  async findAllPaginated(
+    page: number = 1,
+    limit: number = 10
+  ): Promise<PaginatedResult<Season>> {
     // Apenas busca no banco, sem interferir no cache
     return await this.seasonRepository.findAllPaginated(page, limit);
   }
@@ -116,11 +142,14 @@ export class SeasonService extends BaseService<Season> {
   }
 
   // Buscar todas as temporadas de um campeonato no cache (alta performance)
-  async getChampionshipSeasonsBasicInfo(championshipId: string): Promise<SeasonCacheData[]> {
+  async getChampionshipSeasonsBasicInfo(
+    championshipId: string
+  ): Promise<SeasonCacheData[]> {
     try {
       // Busca a lista de IDs das seasons do campeonato
-      const seasonIds = await this.redisService.getChampionshipSeasonIds(championshipId);
-      
+      const seasonIds =
+        await this.redisService.getChampionshipSeasonIds(championshipId);
+
       if (!seasonIds || seasonIds.length === 0) {
         return [];
       }
@@ -128,7 +157,7 @@ export class SeasonService extends BaseService<Season> {
       // Busca os dados de todas as seasons em paralelo
       const seasonsPromises = seasonIds.map(id => this.getCachedSeasonData(id));
       const seasons = await Promise.all(seasonsPromises);
-      
+
       // Filtra apenas as seasons que foram encontradas no cache
       return seasons.filter(season => season !== null) as SeasonCacheData[];
     } catch (error) {
@@ -162,7 +191,9 @@ export class SeasonService extends BaseService<Season> {
   }
 
   // Métodos privados para cache (usados apenas pelos database events)
-  private async getCachedSeasonData(id: string): Promise<SeasonCacheData | null> {
+  private async getCachedSeasonData(
+    id: string
+  ): Promise<SeasonCacheData | null> {
     try {
       const key = `season:${id}`;
       return await this.redisService.getData(key);
@@ -170,4 +201,4 @@ export class SeasonService extends BaseService<Season> {
       return null;
     }
   }
-} 
+}

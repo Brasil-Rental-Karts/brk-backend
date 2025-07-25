@@ -1,4 +1,9 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableForeignKey,
+} from 'typeorm';
 
 export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -15,7 +20,13 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
           {
             name: 'type',
             type: 'enum',
-            enum: ['disqualification', 'time_penalty', 'position_penalty', 'suspension', 'warning'],
+            enum: [
+              'disqualification',
+              'time_penalty',
+              'position_penalty',
+              'suspension',
+              'warning',
+            ],
             enumName: 'penalties_type_enum',
           },
           {
@@ -190,4 +201,4 @@ export class CreatePenaltiesTable1766000000000 implements MigrationInterface {
 
     await queryRunner.dropTable('penalties');
   }
-} 
+}

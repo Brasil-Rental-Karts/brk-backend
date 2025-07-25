@@ -1,8 +1,9 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { SeasonRegistrationService } from '../services/season-registration.service';
-import { authMiddleware, requireAdmin } from '../middleware/auth.middleware';
+import { Request, Response } from 'express';
+
 import { BadRequestException } from '../exceptions/bad-request.exception';
+import { authMiddleware, requireAdmin } from '../middleware/auth.middleware';
+import { SeasonRegistrationService } from '../services/season-registration.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -21,9 +22,7 @@ import { BadRequestException } from '../exceptions/bad-request.exception';
  */
 
 export class PaymentManagementController extends BaseController {
-  constructor(
-    private seasonRegistrationService: SeasonRegistrationService
-  ) {
+  constructor(private seasonRegistrationService: SeasonRegistrationService) {
     super('/payment-management');
     this.initializeRoutes();
   }
@@ -86,8 +85,9 @@ export class PaymentManagementController extends BaseController {
      *       403:
      *         description: Sem permissão
      */
-    this.router.get('/overdue-payments', 
-      authMiddleware, 
+    this.router.get(
+      '/overdue-payments',
+      authMiddleware,
       requireAdmin,
       this.getAllOverduePayments.bind(this)
     );
@@ -141,8 +141,9 @@ export class PaymentManagementController extends BaseController {
      *       403:
      *         description: Sem permissão
      */
-    this.router.get('/overdue-payments/:registrationId', 
-      authMiddleware, 
+    this.router.get(
+      '/overdue-payments/:registrationId',
+      authMiddleware,
       requireAdmin,
       this.getOverduePayments.bind(this)
     );
@@ -200,7 +201,8 @@ export class PaymentManagementController extends BaseController {
      *       403:
      *         description: Sem permissão
      */
-    this.router.post('/reactivate-payment/:paymentId',
+    this.router.post(
+      '/reactivate-payment/:paymentId',
       authMiddleware,
       requireAdmin,
       this.reactivateOverduePayment.bind(this)
@@ -222,20 +224,25 @@ export class PaymentManagementController extends BaseController {
      *       403:
      *         description: Sem permissão
      */
-    this.router.get('/test-asaas',
+    this.router.get(
+      '/test-asaas',
       authMiddleware,
       requireAdmin,
       this.testAsaasConnection.bind(this)
     );
   }
 
-  private async getAllOverduePayments(req: Request, res: Response): Promise<void> {
+  private async getAllOverduePayments(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
-      const overduePayments = await this.seasonRegistrationService.getAllOverduePayments();
-      
+      const overduePayments =
+        await this.seasonRegistrationService.getAllOverduePayments();
+
       res.json({
         success: true,
-        data: overduePayments
+        data: overduePayments,
       });
     } catch (error: any) {
       throw new BadRequestException(error.message);
@@ -245,19 +252,23 @@ export class PaymentManagementController extends BaseController {
   private async getOverduePayments(req: Request, res: Response): Promise<void> {
     try {
       const { registrationId } = req.params;
-      
-      const overduePayments = await this.seasonRegistrationService.getOverduePayments(registrationId);
-      
+
+      const overduePayments =
+        await this.seasonRegistrationService.getOverduePayments(registrationId);
+
       res.json({
         success: true,
-        data: overduePayments
+        data: overduePayments,
       });
     } catch (error: any) {
       throw new BadRequestException(error.message);
     }
   }
 
-  private async reactivateOverduePayment(req: Request, res: Response): Promise<void> {
+  private async reactivateOverduePayment(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { paymentId } = req.params;
       const { newDueDate } = req.body;
@@ -272,36 +283,43 @@ export class PaymentManagementController extends BaseController {
         throw new BadRequestException('Data deve estar no formato YYYY-MM-DD');
       }
 
-      const reactivatedPayment = await this.seasonRegistrationService.reactivateOverduePayment(
-        paymentId,
-        newDueDate
-      );
-      
+      const reactivatedPayment =
+        await this.seasonRegistrationService.reactivateOverduePayment(
+          paymentId,
+          newDueDate
+        );
+
       res.json({
         success: true,
         data: reactivatedPayment,
-        message: 'Fatura reativada com sucesso'
+        message: 'Fatura reativada com sucesso',
       });
     } catch (error: any) {
       throw new BadRequestException(error.message);
     }
   }
 
-  private async testAsaasConnection(req: Request, res: Response): Promise<void> {
+  private async testAsaasConnection(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
-      const isConnected = await this.seasonRegistrationService.testAsaasConnection();
-      
+      const isConnected =
+        await this.seasonRegistrationService.testAsaasConnection();
+
       res.json({
         success: true,
         connected: isConnected,
-        message: isConnected ? 'Conexão com Asaas OK' : 'Falha na conexão com Asaas'
+        message: isConnected
+          ? 'Conexão com Asaas OK'
+          : 'Falha na conexão com Asaas',
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
         connected: false,
-        message: error.message
+        message: error.message,
       });
     }
   }
-} 
+}

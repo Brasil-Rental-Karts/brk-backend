@@ -1,8 +1,9 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { SeasonRegistrationService } from '../services/season-registration.service';
-import { AsaasService } from '../services/asaas.service';
+import { Request, Response } from 'express';
+
 import { BadRequestException } from '../exceptions/bad-request.exception';
+import { AsaasService } from '../services/asaas.service';
+import { SeasonRegistrationService } from '../services/season-registration.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -164,11 +165,14 @@ export class AsaasWebhookController extends BaseController {
       }
 
       // Validar autenticidade do webhook (implementação básica)
-      const isValid = this.asaasService.validateWebhook(webhookData, req.headers['x-asaas-signature'] as string);
+      const isValid = this.asaasService.validateWebhook(
+        webhookData,
+        req.headers['x-asaas-signature'] as string
+      );
       if (!isValid) {
         res.status(400).json({
           success: false,
-          message: 'Assinatura do webhook inválida'
+          message: 'Assinatura do webhook inválida',
         });
         return;
       }
@@ -178,15 +182,15 @@ export class AsaasWebhookController extends BaseController {
 
       res.json({
         success: true,
-        message: 'Webhook processado com sucesso'
+        message: 'Webhook processado com sucesso',
       });
-
     } catch (error) {
       // Responder com erro mas não falhar completamente para evitar reenvios desnecessários
       const statusCode = error instanceof BadRequestException ? 400 : 500;
       res.status(statusCode).json({
         success: false,
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
@@ -197,14 +201,13 @@ export class AsaasWebhookController extends BaseController {
         success: true,
         message: 'Teste de webhook realizado com sucesso',
         receivedData: req.body,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Erro no teste de webhook'
+        message: 'Erro no teste de webhook',
       });
     }
   }
-} 
+}

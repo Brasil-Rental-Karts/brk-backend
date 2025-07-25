@@ -1,15 +1,7 @@
-import { Entity, Column, JoinColumn, OneToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
-import { 
-  Gender, 
-  KartExperienceYears, 
-  RaceFrequency, 
-  ChampionshipParticipation, 
-  CompetitiveLevel, 
-  AttendsEvents,
-  InterestCategory
-} from './member-profile-enums';
 
 /**
  * @swagger
@@ -143,7 +135,11 @@ export class MemberProfile extends BaseEntity {
   @JoinColumn({ name: 'id' })
   user!: User;
 
-  @Column({ type: 'timestamp', nullable: false, default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: 'timestamp',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   lastLoginAt!: Date;
 
   @Column({ length: 100, nullable: false, default: '' })
@@ -199,4 +195,4 @@ export class MemberProfile extends BaseEntity {
 
   @Column({ nullable: false, default: false })
   profileCompleted!: boolean;
-} 
+}

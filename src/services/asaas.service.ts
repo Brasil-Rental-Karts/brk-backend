@@ -1,6 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+
 import { BadRequestException } from '../exceptions/bad-request.exception';
-import { removeDocumentMask, isValidDocumentLength } from '../utils/document.util';
+import {
+  isValidDocumentLength,
+  removeDocumentMask,
+} from '../utils/document.util';
 
 export interface AsaasCustomer {
   id?: string;
@@ -80,7 +84,11 @@ export interface AsaasPayment {
   remoteIp?: string;
 }
 
-export interface AsaasInstallment extends Omit<AsaasPayment, 'billingType' | 'value' | 'installmentCount' | 'installmentValue'> {
+export interface AsaasInstallment
+  extends Omit<
+    AsaasPayment,
+    'billingType' | 'value' | 'installmentCount' | 'installmentValue'
+  > {
   billingType: 'PIX'; // Parcelamento só para PIX
   installmentCount: number;
   totalValue: number;
@@ -151,7 +159,8 @@ export class AsaasService {
   private apiClient: AxiosInstance;
 
   constructor() {
-    let baseURL = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
+    let baseURL =
+      process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
     const apiKey = process.env.ASAAS_API_KEY;
 
     // Verificar se a URL está correta
@@ -166,7 +175,7 @@ export class AsaasService {
     this.apiClient = axios.create({
       baseURL,
       headers: {
-        'access_token': apiKey,
+        access_token: apiKey,
         'Content-Type': 'application/json',
         'User-Agent': 'BRK-Backend/1.0.0',
       },
@@ -189,70 +198,93 @@ export class AsaasService {
   /**
    * Cria ou atualiza um cliente no Asaas
    */
-  async createOrUpdateCustomer(customerData: AsaasCustomer): Promise<AsaasCustomer> {
+  async createOrUpdateCustomer(
+    customerData: AsaasCustomer
+  ): Promise<AsaasCustomer> {
     const maxRetries = process.env.NODE_ENV === 'production' ? 3 : 1;
     let lastError: any;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await this._createOrUpdateCustomer(customerData);
       } catch (error: any) {
         lastError = error;
-        
+
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     }
-    
+
     throw lastError;
   }
 
   /**
    * Método interno para criar ou atualizar cliente
    */
-  private async _createOrUpdateCustomer(customerData: AsaasCustomer): Promise<AsaasCustomer> {
+  private async _createOrUpdateCustomer(
+    customerData: AsaasCustomer
+  ): Promise<AsaasCustomer> {
     try {
       // Testar conectividade primeiro
       const isConnected = await this.testConnection();
       if (!isConnected) {
-        throw new BadRequestException('Não foi possível conectar com a API do Asaas');
+        throw new BadRequestException(
+          'Não foi possível conectar com a API do Asaas'
+        );
       }
 
       // Remove máscara do CPF/CNPJ antes de enviar
       const cleanCustomerData = {
         ...customerData,
-        cpfCnpj: removeDocumentMask(customerData.cpfCnpj)
+        cpfCnpj: removeDocumentMask(customerData.cpfCnpj),
       };
-      
+
       // Validar se o CPF/CNPJ tem tamanho correto
-      if (!cleanCustomerData.cpfCnpj || !isValidDocumentLength(cleanCustomerData.cpfCnpj)) {
-        throw new BadRequestException('CPF/CNPJ inválido. Deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ).');
+      if (
+        !cleanCustomerData.cpfCnpj ||
+        !isValidDocumentLength(cleanCustomerData.cpfCnpj)
+      ) {
+        throw new BadRequestException(
+          'CPF/CNPJ inválido. Deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ).'
+        );
       }
-      
+
       // Primeiro, tenta buscar o cliente por CPF/CNPJ
-      const existingCustomer = await this.findCustomerByCpfCnpj(cleanCustomerData.cpfCnpj);
-      
+      const existingCustomer = await this.findCustomerByCpfCnpj(
+        cleanCustomerData.cpfCnpj
+      );
+
       if (existingCustomer) {
         // Se encontrou, atualiza o cliente
         const response: AxiosResponse<any> = await this.apiClient.put(
           `/customers/${existingCustomer.id}`,
           cleanCustomerData
         );
-        
+
         // Verificar se a resposta veio como lista em vez de objeto
         let customerData = response.data;
         if (Array.isArray(response.data)) {
           customerData = response.data[0];
-        } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        } else if (
+          response.data &&
+          response.data.data &&
+          Array.isArray(response.data.data)
+        ) {
           customerData = response.data.data[0];
         }
-        
+
         // Verificar se a resposta tem a estrutura esperada
-        if (response.data && response.data.object === 'list' && response.data.totalCount === 0) {
-          throw new BadRequestException('API retornou lista vazia em vez de criar cliente. Verifique URL e autenticação.');
+        if (
+          response.data &&
+          response.data.object === 'list' &&
+          response.data.totalCount === 0
+        ) {
+          throw new BadRequestException(
+            'API retornou lista vazia em vez de criar cliente. Verifique URL e autenticação.'
+          );
         }
-        
+
         return customerData;
       } else {
         // Se não encontrou, cria um novo cliente
@@ -260,25 +292,37 @@ export class AsaasService {
           '/customers',
           cleanCustomerData
         );
-        
+
         // Verificar se o status indica sucesso
         if (response.status !== 200 && response.status !== 201) {
-          throw new BadRequestException(`Status de resposta inesperado: ${response.status}`);
+          throw new BadRequestException(
+            `Status de resposta inesperado: ${response.status}`
+          );
         }
-        
+
         // Verificar se a resposta veio como lista em vez de objeto
         let customerData = response.data;
         if (Array.isArray(response.data)) {
           customerData = response.data[0];
-        } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        } else if (
+          response.data &&
+          response.data.data &&
+          Array.isArray(response.data.data)
+        ) {
           customerData = response.data.data[0];
         }
-        
+
         // Verificar se a resposta tem a estrutura esperada
-        if (response.data && response.data.object === 'list' && response.data.totalCount === 0) {
-          throw new BadRequestException('API retornou lista vazia em vez de criar cliente. Verifique URL e autenticação.');
+        if (
+          response.data &&
+          response.data.object === 'list' &&
+          response.data.totalCount === 0
+        ) {
+          throw new BadRequestException(
+            'API retornou lista vazia em vez de criar cliente. Verifique URL e autenticação.'
+          );
         }
-        
+
         return customerData;
       }
     } catch (error: any) {
@@ -295,11 +339,10 @@ export class AsaasService {
     try {
       // Remove máscara do CPF/CNPJ antes de buscar
       const cleanCpfCnpj = removeDocumentMask(cpfCnpj);
-      
-      const response: AxiosResponse<{ data: AsaasCustomer[] }> = await this.apiClient.get(
-        `/customers?cpfCnpj=${cleanCpfCnpj}`
-      );
-      
+
+      const response: AxiosResponse<{ data: AsaasCustomer[] }> =
+        await this.apiClient.get(`/customers?cpfCnpj=${cleanCpfCnpj}`);
+
       return response.data.data.length > 0 ? response.data.data[0] : null;
     } catch (error: any) {
       return null;
@@ -309,17 +352,18 @@ export class AsaasService {
   /**
    * Cria uma cobrança no Asaas
    */
-  async createPayment(paymentData: AsaasPayment): Promise<AsaasPaymentResponse> {
+  async createPayment(
+    paymentData: AsaasPayment
+  ): Promise<AsaasPaymentResponse> {
     try {
-      const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.post(
-        '/payments',
-        paymentData
-      );
-      
+      const response: AxiosResponse<AsaasPaymentResponse> =
+        await this.apiClient.post('/payments', paymentData);
+
       return response.data;
     } catch (error: any) {
       throw new BadRequestException(
-        error.response?.data?.errors?.[0]?.description || 'Erro ao criar cobrança no Asaas.'
+        error.response?.data?.errors?.[0]?.description ||
+          'Erro ao criar cobrança no Asaas.'
       );
     }
   }
@@ -329,9 +373,8 @@ export class AsaasService {
    */
   async getPayment(paymentId: string): Promise<AsaasPaymentResponse> {
     try {
-      const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.get(
-        `/payments/${paymentId}`
-      );
+      const response: AxiosResponse<AsaasPaymentResponse> =
+        await this.apiClient.get(`/payments/${paymentId}`);
       return response.data;
     } catch (error: any) {
       throw new BadRequestException(
@@ -345,9 +388,8 @@ export class AsaasService {
    */
   async cancelPayment(paymentId: string): Promise<AsaasPaymentResponse> {
     try {
-      const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.delete(
-        `/payments/${paymentId}`
-      );
+      const response: AxiosResponse<AsaasPaymentResponse> =
+        await this.apiClient.delete(`/payments/${paymentId}`);
       return response.data;
     } catch (error: any) {
       throw new BadRequestException(
@@ -359,24 +401,34 @@ export class AsaasService {
   /**
    * Gera QR Code PIX para uma cobrança
    */
-  async getPixQrCode(paymentId: string): Promise<{ encodedImage: string; payload: string; expirationDate: string }> {
+  async getPixQrCode(paymentId: string): Promise<{
+    encodedImage: string;
+    payload: string;
+    expirationDate: string;
+  }> {
     const maxRetries = 3;
     let lastError: any;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const response: AxiosResponse<{ encodedImage: string; payload: string; expirationDate: string }> = 
-          await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
-        
+        const response: AxiosResponse<{
+          encodedImage: string;
+          payload: string;
+          expirationDate: string;
+        }> = await this.apiClient.get(`/payments/${paymentId}/pixQrCode`);
+
         return response.data;
       } catch (error: any) {
         lastError = error;
-        console.error(`[ASAAS] Erro na tentativa ${attempt} ao buscar QR Code PIX:`, {
-          paymentId,
-          error: error.message,
-          response: error.response?.data
-        });
-        
+        console.error(
+          `[ASAAS] Erro na tentativa ${attempt} ao buscar QR Code PIX:`,
+          {
+            paymentId,
+            error: error.message,
+            response: error.response?.data,
+          }
+        );
+
         if (attempt < maxRetries) {
           // Aguardar antes da próxima tentativa (backoff exponencial)
           const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
@@ -384,64 +436,74 @@ export class AsaasService {
         }
       }
     }
-    
-    console.error('[ASAAS] Todas as tentativas falharam ao buscar QR Code PIX:', {
-      paymentId,
-      finalError: lastError.message
-    });
-    
+
+    console.error(
+      '[ASAAS] Todas as tentativas falharam ao buscar QR Code PIX:',
+      {
+        paymentId,
+        finalError: lastError.message,
+      }
+    );
+
     throw new BadRequestException(
-      lastError.response?.data?.errors?.[0]?.description || 
-      `Erro ao gerar QR Code PIX após ${maxRetries} tentativas: ${lastError.message}`
+      lastError.response?.data?.errors?.[0]?.description ||
+        `Erro ao gerar QR Code PIX após ${maxRetries} tentativas: ${lastError.message}`
     );
   }
 
   /**
    * Atualiza a data de vencimento de uma cobrança
    */
-  async updatePaymentDueDate(paymentId: string, newDueDate: string): Promise<AsaasPaymentResponse> {
-
-    
+  async updatePaymentDueDate(
+    paymentId: string,
+    newDueDate: string
+  ): Promise<AsaasPaymentResponse> {
     try {
-      const response: AxiosResponse<AsaasPaymentResponse> = await this.apiClient.put(
-        `/payments/${paymentId}`,
-        { dueDate: newDueDate }
-      );
-      
+      const response: AxiosResponse<AsaasPaymentResponse> =
+        await this.apiClient.put(`/payments/${paymentId}`, {
+          dueDate: newDueDate,
+        });
 
-      
       return response.data;
     } catch (error: any) {
-      console.error('[ASAAS DEBUG] Erro detalhado ao atualizar data de vencimento:', {
-        error: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        headers: error.response?.headers,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data
+      console.error(
+        '[ASAAS DEBUG] Erro detalhado ao atualizar data de vencimento:',
+        {
+          error: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          headers: error.response?.headers,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            data: error.config?.data,
+          },
         }
-      });
-      
+      );
+
       // Se for erro 400, tentar obter mais detalhes
       if (error.response?.status === 400) {
         const errorDetails = error.response?.data;
         if (errorDetails?.errors && Array.isArray(errorDetails.errors)) {
-          const errorMessage = errorDetails.errors.map((err: any) => 
-            `${err.code}: ${err.description}`
-          ).join(', ');
+          const errorMessage = errorDetails.errors
+            .map((err: any) => `${err.code}: ${err.description}`)
+            .join(', ');
           throw new BadRequestException(`Erro 400 do Asaas: ${errorMessage}`);
         } else if (errorDetails?.message) {
-          throw new BadRequestException(`Erro 400 do Asaas: ${errorDetails.message}`);
+          throw new BadRequestException(
+            `Erro 400 do Asaas: ${errorDetails.message}`
+          );
         } else {
-          throw new BadRequestException(`Erro 400 do Asaas: ${JSON.stringify(errorDetails)}`);
+          throw new BadRequestException(
+            `Erro 400 do Asaas: ${JSON.stringify(errorDetails)}`
+          );
         }
       }
-      
+
       throw new BadRequestException(
-        error.response?.data?.errors?.[0]?.description || 'Erro ao atualizar data de vencimento no Asaas.'
+        error.response?.data?.errors?.[0]?.description ||
+          'Erro ao atualizar data de vencimento no Asaas.'
       );
     }
   }
@@ -449,35 +511,38 @@ export class AsaasService {
   /**
    * Reativa uma fatura vencida atualizando a data de vencimento e gerando novo QR Code PIX
    */
-  async reactivateOverduePayment(paymentId: string, newDueDate: string): Promise<{
+  async reactivateOverduePayment(
+    paymentId: string,
+    newDueDate: string
+  ): Promise<{
     payment: AsaasPaymentResponse;
     qrCode: { encodedImage: string; payload: string; expirationDate: string };
   }> {
-
-    
     try {
       // 1. Atualizar a data de vencimento
 
-      const updatedPayment = await this.updatePaymentDueDate(paymentId, newDueDate);
-      
-      
+      const updatedPayment = await this.updatePaymentDueDate(
+        paymentId,
+        newDueDate
+      );
+
       // 2. Gerar novo QR Code PIX
-      
+
       const qrCode = await this.getPixQrCode(paymentId);
-      
-      
+
       return {
         payment: updatedPayment,
-        qrCode
+        qrCode,
       };
     } catch (error: any) {
       console.error('[ASAAS DEBUG] Erro durante reativação:', {
         error: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
       });
       throw new BadRequestException(
-        error.response?.data?.errors?.[0]?.description || 'Erro ao reativar fatura vencida.'
+        error.response?.data?.errors?.[0]?.description ||
+          'Erro ao reativar fatura vencida.'
       );
     }
   }
@@ -487,8 +552,8 @@ export class AsaasService {
    */
   mapPaymentMethodToAsaas(paymentMethod: string): 'CREDIT_CARD' | 'PIX' {
     const mapping: Record<string, 'CREDIT_CARD' | 'PIX'> = {
-      'cartao_credito': 'CREDIT_CARD',
-      'pix': 'PIX'
+      cartao_credito: 'CREDIT_CARD',
+      pix: 'PIX',
     };
 
     return mapping[paymentMethod] || 'PIX';
@@ -503,15 +568,15 @@ export class AsaasService {
       if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return date;
       }
-      
+
       // Se é uma string, tenta converter para Date
       const dateObj = typeof date === 'string' ? new Date(date) : date;
-      
+
       // Verifica se é uma data válida
       if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
         throw new Error('Data inválida');
       }
-      
+
       return dateObj.toISOString().split('T')[0];
     } catch (error) {
       // Fallback: retorna data atual
@@ -533,17 +598,18 @@ export class AsaasService {
    * Para PIX parcelado, usa o endpoint /installments que cria um parcelamento
    * onde todas as parcelas são PIX
    */
-  async createInstallmentPlan(paymentData: AsaasInstallment): Promise<AsaasInstallmentResponse> {
+  async createInstallmentPlan(
+    paymentData: AsaasInstallment
+  ): Promise<AsaasInstallmentResponse> {
     try {
-      const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.post(
-        '/installments',
-        paymentData
-      );
-      
+      const response: AxiosResponse<AsaasInstallmentResponse> =
+        await this.apiClient.post('/installments', paymentData);
+
       return response.data;
     } catch (error: any) {
       throw new BadRequestException(
-        error.response?.data?.errors?.[0]?.description || 'Erro ao criar parcelamento no Asaas.'
+        error.response?.data?.errors?.[0]?.description ||
+          'Erro ao criar parcelamento no Asaas.'
       );
     }
   }
@@ -553,7 +619,9 @@ export class AsaasService {
    * Este é o endpoint correto conforme documentação do Asaas:
    * GET /installments/{installment_id}/payments
    */
-  async getInstallmentPayments(installmentId: string): Promise<AsaasPaymentResponse[]> {
+  async getInstallmentPayments(
+    installmentId: string
+  ): Promise<AsaasPaymentResponse[]> {
     try {
       const response: AxiosResponse<{
         object: string;
@@ -563,27 +631,31 @@ export class AsaasService {
         offset: number;
         data: AsaasPaymentResponse[];
       }> = await this.apiClient.get(`/installments/${installmentId}/payments`);
-      
+
       return response.data.data || [];
     } catch (error: any) {
-      throw new Error(`Erro ao buscar parcelas do plano de parcelamento: ${error.response?.data?.errors?.[0]?.description || error.message}`);
+      throw new Error(
+        `Erro ao buscar parcelas do plano de parcelamento: ${error.response?.data?.errors?.[0]?.description || error.message}`
+      );
     }
   }
 
   /**
    * Busca informações de um plano de parcelamento
    */
-  async getInstallmentPlan(installmentId: string): Promise<AsaasInstallmentResponse> {
+  async getInstallmentPlan(
+    installmentId: string
+  ): Promise<AsaasInstallmentResponse> {
     try {
-      const response: AxiosResponse<AsaasInstallmentResponse> = await this.apiClient.get(
-        `/installments/${installmentId}`
-      );
-      
+      const response: AxiosResponse<AsaasInstallmentResponse> =
+        await this.apiClient.get(`/installments/${installmentId}`);
+
       return response.data;
     } catch (error: any) {
       throw new BadRequestException(
-        error.response?.data?.errors?.[0]?.description || 'Erro ao buscar plano de parcelamento.'
+        error.response?.data?.errors?.[0]?.description ||
+          'Erro ao buscar plano de parcelamento.'
       );
     }
   }
-} 
+}

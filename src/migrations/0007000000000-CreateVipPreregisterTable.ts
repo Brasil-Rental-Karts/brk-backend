@@ -1,11 +1,13 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateVipPreregisterTable0007000000000 implements MigrationInterface {
-    name = 'CreateVipPreregisterTable0007000000000'
+export class CreateVipPreregisterTable0007000000000
+  implements MigrationInterface
+{
+  name = 'CreateVipPreregisterTable0007000000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create vip_preregister table
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create vip_preregister table
+    await queryRunner.query(`
             CREATE TABLE "vip_preregister" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
@@ -17,29 +19,37 @@ export class CreateVipPreregisterTable0007000000000 implements MigrationInterfac
             )
         `);
 
-        // Create indexes for better performance
-        await queryRunner.query(`CREATE INDEX "IDX_vip_preregister_email" ON "vip_preregister" ("email")`);
-        await queryRunner.query(`CREATE INDEX "IDX_vip_preregister_name" ON "vip_preregister" ("name")`);
-        await queryRunner.query(`CREATE INDEX "IDX_vip_preregister_createdAt" ON "vip_preregister" ("createdAt")`);
-        
-        // Create trigger for the vip_preregister table
-        await queryRunner.query(`
+    // Create indexes for better performance
+    await queryRunner.query(
+      `CREATE INDEX "IDX_vip_preregister_email" ON "vip_preregister" ("email")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_vip_preregister_name" ON "vip_preregister" ("name")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_vip_preregister_createdAt" ON "vip_preregister" ("createdAt")`
+    );
+
+    // Create trigger for the vip_preregister table
+    await queryRunner.query(`
             CREATE TRIGGER vip_preregister_notify_trigger
             AFTER INSERT OR UPDATE OR DELETE ON "vip_preregister"
             FOR EACH ROW EXECUTE FUNCTION notify_database_events();
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Remove trigger from vip_preregister table
-        await queryRunner.query(`DROP TRIGGER IF EXISTS vip_preregister_notify_trigger ON "vip_preregister"`);
-        
-        // Drop indexes
-        await queryRunner.query(`DROP INDEX "IDX_vip_preregister_createdAt"`);
-        await queryRunner.query(`DROP INDEX "IDX_vip_preregister_name"`);
-        await queryRunner.query(`DROP INDEX "IDX_vip_preregister_email"`);
-        
-        // Drop vip_preregister table
-        await queryRunner.query(`DROP TABLE "vip_preregister"`);
-    }
-} 
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Remove trigger from vip_preregister table
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS vip_preregister_notify_trigger ON "vip_preregister"`
+    );
+
+    // Drop indexes
+    await queryRunner.query(`DROP INDEX "IDX_vip_preregister_createdAt"`);
+    await queryRunner.query(`DROP INDEX "IDX_vip_preregister_name"`);
+    await queryRunner.query(`DROP INDEX "IDX_vip_preregister_email"`);
+
+    // Drop vip_preregister table
+    await queryRunner.query(`DROP TABLE "vip_preregister"`);
+  }
+}

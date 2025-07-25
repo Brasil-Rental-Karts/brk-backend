@@ -1,25 +1,34 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToMany, BeforeInsert, BeforeUpdate } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { Championship } from './championship.entity';
-import { Category } from './category.entity';
-import { Regulation } from './regulation.entity';
+import {
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+} from 'typeorm';
+
 import { slugify } from '../utils/slugify';
+import { BaseEntity } from './base.entity';
+import { Category } from './category.entity';
+import { Championship } from './championship.entity';
+import { Regulation } from './regulation.entity';
 
 export enum SeasonStatus {
   AGENDADO = 'agendado',
-  EM_ANDAMENTO = 'em_andamento', 
+  EM_ANDAMENTO = 'em_andamento',
   CANCELADO = 'cancelado',
-  FINALIZADO = 'finalizado'
+  FINALIZADO = 'finalizado',
 }
 
 export enum InscriptionType {
   POR_TEMPORADA = 'por_temporada',
-  POR_ETAPA = 'por_etapa'
+  POR_ETAPA = 'por_etapa',
 }
 
 export enum PaymentMethod {
   PIX = 'pix',
-  CARTAO_CREDITO = 'cartao_credito'
+  CARTAO_CREDITO = 'cartao_credito',
 }
 
 export interface PaymentCondition {
@@ -50,11 +59,11 @@ export class Season extends BaseEntity {
   @Column({ type: 'timestamptz', nullable: false })
   endDate: Date;
 
-  @Column({ 
-    type: 'enum', 
-    enum: SeasonStatus, 
+  @Column({
+    type: 'enum',
+    enum: SeasonStatus,
     default: SeasonStatus.AGENDADO,
-    nullable: false
+    nullable: false,
   })
   status: SeasonStatus;
 
@@ -74,14 +83,14 @@ export class Season extends BaseEntity {
   @Column({ nullable: false })
   championshipId: string;
 
-  @ManyToOne(() => Championship, (championship) => championship.seasons)
+  @ManyToOne(() => Championship, championship => championship.seasons)
   @JoinColumn({ name: 'championshipId' })
   championship: Championship;
 
-  @OneToMany(() => Category, (category) => category.season)
+  @OneToMany(() => Category, category => category.season)
   categories: Category[];
 
-  @OneToMany(() => Regulation, (regulation) => regulation.season)
+  @OneToMany(() => Regulation, regulation => regulation.season)
   regulations: Regulation[];
 
   @BeforeInsert()
@@ -96,7 +105,9 @@ export class Season extends BaseEntity {
   getInscriptionValue(): number {
     if (this.paymentConditions && this.paymentConditions.length > 0) {
       // Retorna o valor da primeira condição ativa por temporada
-      const tempCondition = this.paymentConditions.find(c => c.type === 'por_temporada' && c.enabled);
+      const tempCondition = this.paymentConditions.find(
+        c => c.type === 'por_temporada' && c.enabled
+      );
       return tempCondition ? tempCondition.value : 0;
     }
     return 0;
@@ -105,22 +116,32 @@ export class Season extends BaseEntity {
   getInscriptionType(): InscriptionType {
     if (this.paymentConditions && this.paymentConditions.length > 0) {
       // Se há condições por etapa ativas, retorna por_etapa
-      const hasStageConditions = this.paymentConditions.some(c => c.type === 'por_etapa' && c.enabled);
-      return hasStageConditions ? InscriptionType.POR_ETAPA : InscriptionType.POR_TEMPORADA;
+      const hasStageConditions = this.paymentConditions.some(
+        c => c.type === 'por_etapa' && c.enabled
+      );
+      return hasStageConditions
+        ? InscriptionType.POR_ETAPA
+        : InscriptionType.POR_TEMPORADA;
     }
     return InscriptionType.POR_TEMPORADA;
   }
 
   hasPaymentCondition(type: 'por_temporada' | 'por_etapa'): boolean {
-    return this.paymentConditions?.some(c => c.type === type && c.enabled) || false;
+    return (
+      this.paymentConditions?.some(c => c.type === type && c.enabled) || false
+    );
   }
 
-  getPaymentCondition(type: 'por_temporada' | 'por_etapa'): PaymentCondition | undefined {
+  getPaymentCondition(
+    type: 'por_temporada' | 'por_etapa'
+  ): PaymentCondition | undefined {
     return this.paymentConditions?.find(c => c.type === type && c.enabled);
   }
 
   // Métodos auxiliares para métodos de pagamento por condição
-  getPaymentMethodsForCondition(type: 'por_temporada' | 'por_etapa'): PaymentMethod[] {
+  getPaymentMethodsForCondition(
+    type: 'por_temporada' | 'por_etapa'
+  ): PaymentMethod[] {
     const condition = this.getPaymentCondition(type);
     return condition?.paymentMethods || [];
   }
@@ -130,8 +151,10 @@ export class Season extends BaseEntity {
     return condition?.pixInstallments || 1;
   }
 
-  getCreditCardInstallmentsForCondition(type: 'por_temporada' | 'por_etapa'): number {
+  getCreditCardInstallmentsForCondition(
+    type: 'por_temporada' | 'por_etapa'
+  ): number {
     const condition = this.getPaymentCondition(type);
     return condition?.creditCardInstallments || 1;
   }
-} 
+}

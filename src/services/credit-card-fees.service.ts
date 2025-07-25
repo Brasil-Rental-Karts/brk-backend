@@ -1,7 +1,10 @@
-import { CreditCardFeesRepository, CreditCardFeesRepositoryImpl } from '../repositories/credit-card-fees.repository';
-import { CreditCardFees } from '../models/credit-card-fees.entity';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { CreditCardFees } from '../models/credit-card-fees.entity';
+import {
+  CreditCardFeesRepository,
+  CreditCardFeesRepositoryImpl,
+} from '../repositories/credit-card-fees.repository';
 
 export interface CreateCreditCardFeesData {
   championshipId: string;
@@ -35,7 +38,9 @@ export class CreditCardFeesService {
     return this.repository.findById(id);
   }
 
-  async findByChampionshipId(championshipId: string): Promise<CreditCardFees[]> {
+  async findByChampionshipId(
+    championshipId: string
+  ): Promise<CreditCardFees[]> {
     return this.repository.findByChampionshipId(championshipId);
   }
 
@@ -46,19 +51,28 @@ export class CreditCardFeesService {
     this.validateFixedFee(data.fixedFee);
 
     // Verificar se já existe uma configuração para este range no campeonato
-    const existingFees = await this.repository.findByChampionshipId(data.championshipId);
-    const hasConflict = existingFees.some(fee => 
-      fee.installmentRange === data.installmentRange && fee.id !== data.championshipId
+    const existingFees = await this.repository.findByChampionshipId(
+      data.championshipId
+    );
+    const hasConflict = existingFees.some(
+      fee =>
+        fee.installmentRange === data.installmentRange &&
+        fee.id !== data.championshipId
     );
 
     if (hasConflict) {
-      throw new BadRequestException(`Já existe uma configuração para o range de parcelas '${data.installmentRange}' neste campeonato`);
+      throw new BadRequestException(
+        `Já existe uma configuração para o range de parcelas '${data.installmentRange}' neste campeonato`
+      );
     }
 
     return this.repository.create(data);
   }
 
-  async update(id: string, data: UpdateCreditCardFeesData): Promise<CreditCardFees | null> {
+  async update(
+    id: string,
+    data: UpdateCreditCardFeesData
+  ): Promise<CreditCardFees | null> {
     const existingFee = await this.repository.findById(id);
     if (!existingFee) {
       throw new NotFoundException('Configuração de taxa não encontrada');
@@ -76,14 +90,21 @@ export class CreditCardFeesService {
     }
 
     // Verificar conflitos se o range foi alterado
-    if (data.installmentRange && data.installmentRange !== existingFee.installmentRange) {
-      const existingFees = await this.repository.findByChampionshipId(existingFee.championshipId);
-      const hasConflict = existingFees.some(fee => 
-        fee.installmentRange === data.installmentRange && fee.id !== id
+    if (
+      data.installmentRange &&
+      data.installmentRange !== existingFee.installmentRange
+    ) {
+      const existingFees = await this.repository.findByChampionshipId(
+        existingFee.championshipId
+      );
+      const hasConflict = existingFees.some(
+        fee => fee.installmentRange === data.installmentRange && fee.id !== id
       );
 
       if (hasConflict) {
-        throw new BadRequestException(`Já existe uma configuração para o range de parcelas '${data.installmentRange}' neste campeonato`);
+        throw new BadRequestException(
+          `Já existe uma configuração para o range de parcelas '${data.installmentRange}' neste campeonato`
+        );
       }
     }
 
@@ -99,13 +120,21 @@ export class CreditCardFeesService {
     return this.repository.delete(id);
   }
 
-  async getRateForInstallments(championshipId: string, installments: number): Promise<{ percentageRate: number; fixedFee: number } | null> {
+  async getRateForInstallments(
+    championshipId: string,
+    installments: number
+  ): Promise<{ percentageRate: number; fixedFee: number } | null> {
     return this.repository.getRateForInstallments(championshipId, installments);
   }
 
-  async getDefaultRateForInstallments(installments: number): Promise<{ percentageRate: number; fixedFee: number }> {
+  async getDefaultRateForInstallments(
+    installments: number
+  ): Promise<{ percentageRate: number; fixedFee: number }> {
     // Taxas padrão hardcoded como fallback
-    const defaultRates: Record<number, { percentageRate: number; fixedFee: number }> = {
+    const defaultRates: Record<
+      number,
+      { percentageRate: number; fixedFee: number }
+    > = {
       1: { percentageRate: 1.99, fixedFee: 0.49 },
       2: { percentageRate: 2.49, fixedFee: 0.49 },
       3: { percentageRate: 2.49, fixedFee: 0.49 },
@@ -125,7 +154,9 @@ export class CreditCardFeesService {
       return { percentageRate: 3.29, fixedFee: 0.49 };
     }
 
-    return defaultRates[installments] || { percentageRate: 3.29, fixedFee: 0.49 };
+    return (
+      defaultRates[installments] || { percentageRate: 3.29, fixedFee: 0.49 }
+    );
   }
 
   private validateInstallmentRange(range: string): void {
@@ -136,13 +167,17 @@ export class CreditCardFeesService {
     // Validar formato: '1' ou '2-6' ou '7-12' etc.
     const rangePattern = /^(\d+)(-\d+)?$/;
     if (!rangePattern.test(range)) {
-      throw new BadRequestException('Range de parcelas deve estar no formato "1" ou "2-6"');
+      throw new BadRequestException(
+        'Range de parcelas deve estar no formato "1" ou "2-6"'
+      );
     }
 
     if (range.includes('-')) {
       const [min, max] = range.split('-').map(Number);
       if (min >= max) {
-        throw new BadRequestException('O valor mínimo deve ser menor que o valor máximo no range de parcelas');
+        throw new BadRequestException(
+          'O valor mínimo deve ser menor que o valor máximo no range de parcelas'
+        );
       }
     }
   }
@@ -158,4 +193,4 @@ export class CreditCardFeesService {
       throw new BadRequestException('Taxa fixa não pode ser negativa');
     }
   }
-} 
+}

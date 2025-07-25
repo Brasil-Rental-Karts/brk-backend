@@ -1,10 +1,10 @@
-import { OAuth2Client } from 'google-auth-library';
-import { User, UserRole } from '../models/user.entity';
-import { MemberProfile } from '../models/member-profile.entity';
-import { UserRepository } from '../repositories/user.repository';
-import { MemberProfileRepository } from '../repositories/member-profile.repository';
-import config from '../config/config';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
+
+import config from '../config/config';
+import { User, UserRole } from '../models/user.entity';
+import { MemberProfileRepository } from '../repositories/member-profile.repository';
+import { UserRepository } from '../repositories/user.repository';
 
 export class GoogleAuthService {
   private oAuth2Client: OAuth2Client;
@@ -28,9 +28,9 @@ export class GoogleAuthService {
       access_type: 'offline',
       scope: [
         'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile'
+        'https://www.googleapis.com/auth/userinfo.profile',
       ],
-      prompt: 'consent'
+      prompt: 'consent',
     });
   }
 
@@ -46,7 +46,7 @@ export class GoogleAuthService {
       // Get user info using the access token
       const ticket = await this.oAuth2Client.verifyIdToken({
         idToken: tokens.id_token!,
-        audience: config.google.clientId
+        audience: config.google.clientId,
       });
 
       const payload = ticket.getPayload();
@@ -55,12 +55,7 @@ export class GoogleAuthService {
       }
 
       // Extract user data from payload
-      const {
-        sub: googleId,
-        email,
-        name,
-        picture: profilePicture
-      } = payload;
+      const { sub: googleId, email, name, picture: profilePicture } = payload;
 
       if (!email) {
         throw new Error('Email not provided by Google');
@@ -87,7 +82,7 @@ export class GoogleAuthService {
           profilePicture,
           role: UserRole.MEMBER,
           registrationDate: new Date(),
-          active: true
+          active: true,
         });
       }
 
@@ -105,7 +100,7 @@ export class GoogleAuthService {
     try {
       const ticket = await this.oAuth2Client.verifyIdToken({
         idToken,
-        audience: config.google.clientId
+        audience: config.google.clientId,
       });
 
       const payload = ticket.getPayload();
@@ -113,12 +108,7 @@ export class GoogleAuthService {
         throw new Error('Failed to get user info from Google');
       }
 
-      const {
-        sub: googleId,
-        email,
-        name,
-        picture: profilePicture
-      } = payload;
+      const { sub: googleId, email, name, picture: profilePicture } = payload;
 
       if (!email) {
         throw new Error('Email not provided by Google');
@@ -145,7 +135,7 @@ export class GoogleAuthService {
           profilePicture,
           role: UserRole.MEMBER,
           registrationDate: new Date(),
-          active: true
+          active: true,
         });
       }
 
@@ -155,4 +145,4 @@ export class GoogleAuthService {
       throw new Error('Failed to verify Google ID token');
     }
   }
-} 
+}

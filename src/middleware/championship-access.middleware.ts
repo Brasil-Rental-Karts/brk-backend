@@ -1,4 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
+
 import { UserRole } from '../models/user.entity';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 
@@ -17,7 +18,11 @@ export const championshipAccessMiddleware = (
   championshipStaffService: ChampionshipStaffService,
   paramName: string = 'championshipId'
 ) => {
-  return async (req: ChampionshipAccessRequest, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: ChampionshipAccessRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       if (!req.user) {
         res.status(401).json({ message: 'Authentication required' });
@@ -38,9 +43,15 @@ export const championshipAccessMiddleware = (
       }
 
       // Verificar se o usuário tem permissão para este campeonato específico
-      const hasPermission = await championshipStaffService.hasChampionshipPermission(req.user.id, championshipId);
+      const hasPermission =
+        await championshipStaffService.hasChampionshipPermission(
+          req.user.id,
+          championshipId
+        );
       if (!hasPermission) {
-        res.status(403).json({ message: 'Você não tem permissão para acessar este campeonato' });
+        res.status(403).json({
+          message: 'Você não tem permissão para acessar este campeonato',
+        });
         return;
       }
 
@@ -63,7 +74,11 @@ export const seasonAccessMiddleware = (
   seasonService: any, // Seria melhor ter uma interface definida
   paramName: string = 'seasonId'
 ) => {
-  return async (req: ChampionshipAccessRequest, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: ChampionshipAccessRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       if (!req.user) {
         res.status(401).json({ message: 'Authentication required' });
@@ -91,9 +106,15 @@ export const seasonAccessMiddleware = (
       }
 
       // Verificar se o usuário tem permissão para este campeonato
-      const hasPermission = await championshipStaffService.hasChampionshipPermission(req.user.id, season.championshipId);
+      const hasPermission =
+        await championshipStaffService.hasChampionshipPermission(
+          req.user.id,
+          season.championshipId
+        );
       if (!hasPermission) {
-        res.status(403).json({ message: 'Você não tem permissão para acessar esta temporada' });
+        res.status(403).json({
+          message: 'Você não tem permissão para acessar esta temporada',
+        });
         return;
       }
 
@@ -105,4 +126,4 @@ export const seasonAccessMiddleware = (
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   };
-}; 
+};

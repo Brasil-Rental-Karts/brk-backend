@@ -1,11 +1,12 @@
-import { Entity, Column, OneToOne } from 'typeorm';
+import { Column, Entity, OneToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 import { MemberProfile } from './member-profile.entity';
 
 export enum UserRole {
   MEMBER = 'Member',
   ADMINISTRATOR = 'Administrator',
-  MANAGER = 'Manager'
+  MANAGER = 'Manager',
 }
 
 @Entity('Users')
@@ -22,10 +23,10 @@ export class User extends BaseEntity {
   @Column({ length: 100, nullable: false })
   password: string = '';
 
-  @Column({ 
-    type: 'enum', 
-    enum: UserRole, 
-    default: UserRole.MEMBER 
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.MEMBER,
   })
   role: UserRole = UserRole.MEMBER;
 
@@ -34,16 +35,16 @@ export class User extends BaseEntity {
 
   @Column({ default: true })
   active: boolean = true;
-  
+
   @Column({ type: 'varchar', length: 100, nullable: true })
   resetPasswordToken?: string;
-  
+
   @Column({ type: 'timestamp', nullable: true })
   resetPasswordExpires?: Date;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   googleId?: string;
-  
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   profilePicture?: string;
 
@@ -59,4 +60,4 @@ export class User extends BaseEntity {
   // Relations
   @OneToOne(() => MemberProfile, memberProfile => memberProfile.user)
   memberProfile?: MemberProfile;
-} 
+}

@@ -1,4 +1,5 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 import { SeasonRegistration } from './season-registration.entity';
 import { Stage } from './stage.entity';
@@ -20,4 +21,4 @@ export class SeasonRegistrationStage extends BaseEntity {
   @ManyToOne(() => Stage)
   @JoinColumn({ name: 'stageId' })
   stage: Stage;
-} 
+}

@@ -1,6 +1,10 @@
 import { Repository } from 'typeorm';
+
 import { AppDataSource } from '../config/database.config';
-import { SeasonRegistration, RegistrationStatus } from '../models/season-registration.entity';
+import {
+  RegistrationStatus,
+  SeasonRegistration,
+} from '../models/season-registration.entity';
 import { User } from '../models/user.entity';
 
 export interface UserStats {
@@ -32,7 +36,8 @@ export class UserStatsService {
   private userRepository: Repository<User>;
 
   constructor() {
-    this.registrationRepository = AppDataSource.getRepository(SeasonRegistration);
+    this.registrationRepository =
+      AppDataSource.getRepository(SeasonRegistration);
     this.userRepository = AppDataSource.getRepository(User);
   }
 
@@ -50,16 +55,20 @@ export class UserStatsService {
     const registrations = await this.registrationRepository.find({
       where: { userId },
       relations: ['season'],
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
 
     // Calcular estatísticas
     const memberSince = new Date(user.createdAt).getFullYear().toString();
     const totalRegistrations = registrations.length;
-    const confirmedRegistrations = registrations.filter(r => r.status === RegistrationStatus.CONFIRMED).length;
+    const confirmedRegistrations = registrations.filter(
+      r => r.status === RegistrationStatus.CONFIRMED
+    ).length;
 
     // Contar campeonatos únicos
-    const championshipIds = new Set(registrations.map(r => r.season.championshipId));
+    const championshipIds = new Set(
+      registrations.map(r => r.season.championshipId)
+    );
     const totalChampionships = championshipIds.size;
 
     // Contar temporadas únicas
@@ -73,21 +82,34 @@ export class UserStatsService {
 
     // Estatísticas por status de inscrição
     const registrationsByStatus = {
-      confirmed: registrations.filter(r => r.status === RegistrationStatus.CONFIRMED).length,
-      payment_pending: registrations.filter(r => r.status === RegistrationStatus.PAYMENT_PENDING).length,
-      pending: registrations.filter(r => r.status === RegistrationStatus.PENDING).length,
-      cancelled: registrations.filter(r => r.status === RegistrationStatus.CANCELLED).length,
-      expired: registrations.filter(r => r.status === RegistrationStatus.EXPIRED).length,
+      confirmed: registrations.filter(
+        r => r.status === RegistrationStatus.CONFIRMED
+      ).length,
+      payment_pending: registrations.filter(
+        r => r.status === RegistrationStatus.PAYMENT_PENDING
+      ).length,
+      pending: registrations.filter(
+        r => r.status === RegistrationStatus.PENDING
+      ).length,
+      cancelled: registrations.filter(
+        r => r.status === RegistrationStatus.CANCELLED
+      ).length,
+      expired: registrations.filter(
+        r => r.status === RegistrationStatus.EXPIRED
+      ).length,
     };
 
     // Estatísticas por status de pagamento
     const paymentsByStatus = {
       paid: registrations.filter(r => r.paymentStatus === 'paid').length,
       pending: registrations.filter(r => r.paymentStatus === 'pending').length,
-      processing: registrations.filter(r => r.paymentStatus === 'processing').length,
+      processing: registrations.filter(r => r.paymentStatus === 'processing')
+        .length,
       failed: registrations.filter(r => r.paymentStatus === 'failed').length,
-      cancelled: registrations.filter(r => r.paymentStatus === 'cancelled').length,
-      refunded: registrations.filter(r => r.paymentStatus === 'refunded').length,
+      cancelled: registrations.filter(r => r.paymentStatus === 'cancelled')
+        .length,
+      refunded: registrations.filter(r => r.paymentStatus === 'refunded')
+        .length,
     };
 
     return {
@@ -98,7 +120,7 @@ export class UserStatsService {
       totalSeasons,
       totalUpcomingRaces,
       registrationsByStatus,
-      paymentsByStatus
+      paymentsByStatus,
     };
   }
 
@@ -114,14 +136,14 @@ export class UserStatsService {
 
     // Buscar contagem de inscrições
     const totalRegistrations = await this.registrationRepository.count({
-      where: { userId }
+      where: { userId },
     });
 
     const confirmedRegistrations = await this.registrationRepository.count({
-      where: { 
+      where: {
         userId,
-        status: RegistrationStatus.CONFIRMED
-      }
+        status: RegistrationStatus.CONFIRMED,
+      },
     });
 
     // Para campeonatos únicos, precisamos fazer uma query mais complexa
@@ -129,11 +151,17 @@ export class UserStatsService {
     const registrationsWithSeasons = await this.registrationRepository
       .createQueryBuilder('registration')
       .leftJoinAndSelect('registration.season', 'season')
-      .select(['registration.id', 'registration.seasonId', 'season.championshipId'])
+      .select([
+        'registration.id',
+        'registration.seasonId',
+        'season.championshipId',
+      ])
       .where('registration.userId = :userId', { userId })
       .getMany();
 
-    const championshipIds = new Set(registrationsWithSeasons.map(r => r.season.championshipId));
+    const championshipIds = new Set(
+      registrationsWithSeasons.map(r => r.season.championshipId)
+    );
     const seasonIds = new Set(registrationsWithSeasons.map(r => r.seasonId));
 
     return {
@@ -142,7 +170,7 @@ export class UserStatsService {
       confirmedRegistrations,
       totalChampionships: championshipIds.size,
       totalSeasons: seasonIds.size,
-      totalUpcomingRaces: confirmedRegistrations // Simplificado
+      totalUpcomingRaces: confirmedRegistrations, // Simplificado
     };
   }
-} 
+}

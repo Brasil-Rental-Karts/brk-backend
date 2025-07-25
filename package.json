@@ -23,7 +23,12 @@
     "check-regulations": "ts-node src/scripts/check-regulations.ts",
     "swagger:update": "curl -s http://localhost:3000/api-docs.json > swagger-spec.json && echo 'Swagger documentation updated successfully'",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "lint:fix": "eslint . --ext ts,tsx --fix"
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "lint:fix-imports": "eslint . --fix --config eslint.imports.config.js",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:fix": "npm run format && npm run lint:fix",
+    "clean": "npm run lint:fix && npm run format"
   },
   "keywords": [
     "typescript",
@@ -69,8 +74,14 @@
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
     "eslint": "^9.31.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.3",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-unused-imports": "^4.1.4",
     "globals": "^16.3.0",
     "nodemon": "^3.1.9",
+    "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"

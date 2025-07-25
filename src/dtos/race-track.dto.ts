@@ -1,7 +1,22 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray, ValidateNested, IsNumber, Min, IsUrl } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+
+import {
+  DefaultFleets,
+  TrackLayouts,
+  validateDefaultFleets,
+  validateTrackLayouts,
+} from '../types/race-track.types';
 import { BaseDto } from './base.dto';
-import { TrackLayouts, DefaultFleets, validateTrackLayouts, validateDefaultFleets } from '../types/race-track.types';
 
 export class TrackLayoutDto extends BaseDto {
   @IsString()
@@ -133,4 +148,4 @@ export class RaceTrackResponseDto {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-} 
+}

@@ -1,11 +1,13 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class OptimizeStageNotifications1759500000000 implements MigrationInterface {
-    name = 'OptimizeStageNotifications1759500000000'
+export class OptimizeStageNotifications1759500000000
+  implements MigrationInterface
+{
+  name = 'OptimizeStageNotifications1759500000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Update the database events notification function to handle large payloads more efficiently
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Update the database events notification function to handle large payloads more efficiently
+    await queryRunner.query(`
             CREATE OR REPLACE FUNCTION notify_database_events() RETURNS TRIGGER AS $$
             DECLARE
                 payload JSON;
@@ -77,11 +79,11 @@ export class OptimizeStageNotifications1759500000000 implements MigrationInterfa
             END;
             $$ LANGUAGE plpgsql;
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Revert to the previous function
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Revert to the previous function
+    await queryRunner.query(`
             CREATE OR REPLACE FUNCTION notify_database_events() RETURNS TRIGGER AS $$
             DECLARE
                 payload JSON;
@@ -132,5 +134,5 @@ export class OptimizeStageNotifications1759500000000 implements MigrationInterfa
             END;
             $$ LANGUAGE plpgsql;
         `);
-    }
-} 
+  }
+}

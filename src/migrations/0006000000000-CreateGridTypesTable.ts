@@ -1,11 +1,11 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateGridTypesTable0006000000000 implements MigrationInterface {
-    name = 'CreateGridTypesTable0006000000000'
+  name = 'CreateGridTypesTable0006000000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create GridTypes table with all current fields including qualifyingDuration
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create GridTypes table with all current fields including qualifyingDuration
+    await queryRunner.query(`
             CREATE TABLE "GridTypes" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(), 
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(), 
@@ -21,37 +21,47 @@ export class CreateGridTypesTable0006000000000 implements MigrationInterface {
                 CONSTRAINT "PK_GridTypes" PRIMARY KEY ("id")
             )
         `);
-        
-        // Add foreign key constraint to Championships
-        await queryRunner.query(`
+
+    // Add foreign key constraint to Championships
+    await queryRunner.query(`
             ALTER TABLE "GridTypes" 
             ADD CONSTRAINT "FK_GridTypes_championshipId" 
             FOREIGN KEY ("championshipId") REFERENCES "Championships"("id") ON DELETE CASCADE
         `);
-        
-        // Add unique constraint for championship + name
-        await queryRunner.query(`
+
+    // Add unique constraint for championship + name
+    await queryRunner.query(`
             ALTER TABLE "GridTypes" 
             ADD CONSTRAINT "UQ_GridTypes_championship_name" 
             UNIQUE ("championshipId", "name")
         `);
-        
-        // Create indexes for better query performance
-        await queryRunner.query(`CREATE INDEX "IDX_GridTypes_championshipId" ON "GridTypes" ("championshipId")`);
-        await queryRunner.query(`CREATE INDEX "IDX_GridTypes_type" ON "GridTypes" ("type")`);
-        await queryRunner.query(`CREATE INDEX "IDX_GridTypes_isActive" ON "GridTypes" ("isActive")`);
-        await queryRunner.query(`CREATE INDEX "IDX_GridTypes_isDefault" ON "GridTypes" ("isDefault")`);
-        await queryRunner.query(`CREATE INDEX "IDX_GridTypes_name" ON "GridTypes" ("name")`);
-        
-        // Create trigger for the GridTypes table
-        await queryRunner.query(`
+
+    // Create indexes for better query performance
+    await queryRunner.query(
+      `CREATE INDEX "IDX_GridTypes_championshipId" ON "GridTypes" ("championshipId")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_GridTypes_type" ON "GridTypes" ("type")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_GridTypes_isActive" ON "GridTypes" ("isActive")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_GridTypes_isDefault" ON "GridTypes" ("isDefault")`
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_GridTypes_name" ON "GridTypes" ("name")`
+    );
+
+    // Create trigger for the GridTypes table
+    await queryRunner.query(`
             CREATE TRIGGER grid_types_notify_trigger
             AFTER INSERT OR UPDATE OR DELETE ON "GridTypes"
             FOR EACH ROW EXECUTE FUNCTION notify_database_events();
         `);
 
-        // Insert default grid types for existing championships
-        await queryRunner.query(`
+    // Insert default grid types for existing championships
+    await queryRunner.query(`
             INSERT INTO "GridTypes" ("name", "description", "type", "isActive", "isDefault", "championshipId", "createdAt", "updatedAt")
             SELECT 
                 'Super Pole' as "name",
@@ -65,7 +75,7 @@ export class CreateGridTypesTable0006000000000 implements MigrationInterface {
             FROM "Championships" c
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             INSERT INTO "GridTypes" ("name", "description", "type", "isActive", "isDefault", "championshipId", "createdAt", "updatedAt")
             SELECT 
                 'Invertido' as "name",
@@ -79,7 +89,7 @@ export class CreateGridTypesTable0006000000000 implements MigrationInterface {
             FROM "Championships" c
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             INSERT INTO "GridTypes" ("name", "description", "type", "isActive", "isDefault", "invertedPositions", "championshipId", "createdAt", "updatedAt")
             SELECT 
                 'Invertido + 10' as "name",
@@ -94,7 +104,7 @@ export class CreateGridTypesTable0006000000000 implements MigrationInterface {
             FROM "Championships" c
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             INSERT INTO "GridTypes" ("name", "description", "type", "isActive", "isDefault", "qualifyingDuration", "championshipId", "createdAt", "updatedAt")
             SELECT 
                 'Classificação 5min' as "name",
@@ -108,24 +118,30 @@ export class CreateGridTypesTable0006000000000 implements MigrationInterface {
                 NOW() as "updatedAt"
             FROM "Championships" c
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Remove trigger from GridTypes table
-        await queryRunner.query(`DROP TRIGGER IF EXISTS grid_types_notify_trigger ON "GridTypes"`);
-        
-        // Drop indexes
-        await queryRunner.query(`DROP INDEX "IDX_GridTypes_name"`);
-        await queryRunner.query(`DROP INDEX "IDX_GridTypes_isDefault"`);
-        await queryRunner.query(`DROP INDEX "IDX_GridTypes_isActive"`);
-        await queryRunner.query(`DROP INDEX "IDX_GridTypes_type"`);
-        await queryRunner.query(`DROP INDEX "IDX_GridTypes_championshipId"`);
-        
-        // Drop constraints
-        await queryRunner.query(`ALTER TABLE "GridTypes" DROP CONSTRAINT "UQ_GridTypes_championship_name"`);
-        await queryRunner.query(`ALTER TABLE "GridTypes" DROP CONSTRAINT "FK_GridTypes_championshipId"`);
-        
-        // Drop GridTypes table
-        await queryRunner.query(`DROP TABLE "GridTypes"`);
-    }
-} 
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Remove trigger from GridTypes table
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS grid_types_notify_trigger ON "GridTypes"`
+    );
+
+    // Drop indexes
+    await queryRunner.query(`DROP INDEX "IDX_GridTypes_name"`);
+    await queryRunner.query(`DROP INDEX "IDX_GridTypes_isDefault"`);
+    await queryRunner.query(`DROP INDEX "IDX_GridTypes_isActive"`);
+    await queryRunner.query(`DROP INDEX "IDX_GridTypes_type"`);
+    await queryRunner.query(`DROP INDEX "IDX_GridTypes_championshipId"`);
+
+    // Drop constraints
+    await queryRunner.query(
+      `ALTER TABLE "GridTypes" DROP CONSTRAINT "UQ_GridTypes_championship_name"`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "GridTypes" DROP CONSTRAINT "FK_GridTypes_championshipId"`
+    );
+
+    // Drop GridTypes table
+    await queryRunner.query(`DROP TABLE "GridTypes"`);
+  }
+}

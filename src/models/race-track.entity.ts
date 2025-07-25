@@ -1,6 +1,7 @@
-import { Entity, Column } from 'typeorm';
+import { Column, Entity } from 'typeorm';
+
+import { DefaultFleets, TrackLayouts } from '../types/race-track.types';
 import { BaseEntity } from './base.entity';
-import { TrackLayouts, DefaultFleets } from '../types/race-track.types';
 
 @Entity('RaceTracks')
 export class RaceTrack extends BaseEntity {
@@ -27,4 +28,4 @@ export class RaceTrack extends BaseEntity {
 
   @Column({ default: true })
   isActive: boolean;
-} 
+}

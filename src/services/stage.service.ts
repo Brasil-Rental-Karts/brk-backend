@@ -1,13 +1,17 @@
 import { Repository } from 'typeorm';
-import { Stage } from '../models/stage.entity';
-import { StageParticipation, ParticipationStatus } from '../models/stage-participation.entity';
-import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
-import { NotFoundException } from '../exceptions/not-found.exception';
-import { BadRequestException } from '../exceptions/bad-request.exception';
-import { RedisService } from './redis.service';
+
 import { AppDataSource } from '../config/database.config';
+import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
+import { BadRequestException } from '../exceptions/bad-request.exception';
 import { ConflictException } from '../exceptions/conflict.exception';
-import { ChampionshipClassificationService, StageResultData } from './championship-classification.service';
+import { NotFoundException } from '../exceptions/not-found.exception';
+import { Stage } from '../models/stage.entity';
+import {
+  ParticipationStatus,
+  StageParticipation,
+} from '../models/stage-participation.entity';
+import { ChampionshipClassificationService } from './championship-classification.service';
+import { RedisService } from './redis.service';
 import { ScoringSystemService } from './scoring-system.service';
 
 export interface StageWithParticipants extends Stage {
@@ -34,7 +38,8 @@ export class StageService {
 
   constructor() {
     this.stageRepository = AppDataSource.getRepository(Stage);
-    this.participationRepository = AppDataSource.getRepository(StageParticipation);
+    this.participationRepository =
+      AppDataSource.getRepository(StageParticipation);
     this.redisService = RedisService.getInstance();
     this.classificationService = new ChampionshipClassificationService();
     this.scoringSystemService = new ScoringSystemService();
@@ -59,9 +64,9 @@ export class StageService {
    */
   async findAll(): Promise<Stage[]> {
     const stages = await this.stageRepository.find({
-      order: { date: 'ASC', time: 'ASC' }
+      order: { date: 'ASC', time: 'ASC' },
     });
-    
+
     return stages.map(stage => this.formatTimeFields(stage));
   }
 
@@ -70,7 +75,7 @@ export class StageService {
    */
   async findById(id: string): Promise<Stage> {
     const stage = await this.stageRepository.findOne({
-      where: { id }
+      where: { id },
     });
 
     if (!stage) {
@@ -87,18 +92,18 @@ export class StageService {
     const stage = await this.findById(id);
 
     const participants = await this.participationRepository.find({
-      where: { 
-        stageId: id, 
-        status: ParticipationStatus.CONFIRMED 
+      where: {
+        stageId: id,
+        status: ParticipationStatus.CONFIRMED,
       },
       relations: ['user', 'category'],
-      order: { confirmedAt: 'ASC' }
+      order: { confirmedAt: 'ASC' },
     });
 
     return {
       ...this.formatTimeFields(stage),
       participants,
-      participantCount: participants.length
+      participantCount: participants.length,
     };
   }
 
@@ -108,9 +113,9 @@ export class StageService {
   async findBySeasonId(seasonId: string): Promise<Stage[]> {
     const stages = await this.stageRepository.find({
       where: { seasonId },
-      order: { date: 'ASC', time: 'ASC' }
+      order: { date: 'ASC', time: 'ASC' },
     });
-    
+
     return stages.map(stage => this.formatTimeFields(stage));
   }
 
@@ -120,7 +125,7 @@ export class StageService {
   async findByRaceTrackId(raceTrackId: string): Promise<Stage[]> {
     const stages = await this.stageRepository.find({
       where: { raceTrackId },
-      order: { date: 'ASC', time: 'ASC' }
+      order: { date: 'ASC', time: 'ASC' },
     });
     return stages.map(stage => this.formatTimeFields(stage));
   }
@@ -131,7 +136,7 @@ export class StageService {
   async findByDate(date: Date): Promise<Stage[]> {
     const stages = await this.stageRepository.find({
       where: { date },
-      order: { time: 'ASC' }
+      order: { time: 'ASC' },
     });
     return stages.map(stage => this.formatTimeFields(stage));
   }
@@ -150,7 +155,7 @@ export class StageService {
       .orderBy('stage.date', 'ASC')
       .addOrderBy('stage.time', 'ASC')
       .getMany();
-    
+
     return stages.map(stage => this.formatTimeFields(stage));
   }
 
@@ -168,7 +173,7 @@ export class StageService {
       .orderBy('stage.date', 'DESC')
       .addOrderBy('stage.time', 'DESC')
       .getMany();
-    
+
     return stages.map(stage => this.formatTimeFields(stage));
   }
 
@@ -177,47 +182,49 @@ export class StageService {
    */
   async create(createStageDto: CreateStageDto): Promise<Stage> {
     const dateObj = new Date(createStageDto.date);
-    
+
     const existingStage = await this.stageRepository.findOne({
       where: {
         seasonId: createStageDto.seasonId,
-        date: dateObj
-      }
+        date: dateObj,
+      },
     });
 
     if (existingStage) {
-      throw new ConflictException('Já existe uma etapa cadastrada para esta data nesta temporada.');
+      throw new ConflictException(
+        'Já existe uma etapa cadastrada para esta data nesta temporada.'
+      );
     }
-    
+
     let briefingTime = createStageDto.briefingTime;
     if (!briefingTime) {
       const stageHour = parseInt(createStageDto.time.split(':')[0]);
       const stageMinute = parseInt(createStageDto.time.split(':')[1]);
-      
+
       let briefingHour = stageHour;
       let briefingMinute = stageMinute - 30;
-      
+
       if (briefingMinute < 0) {
         briefingMinute += 60;
         briefingHour -= 1;
       }
-      
+
       if (briefingHour < 0) {
         briefingHour = 0;
         briefingMinute = 0;
       }
-      
+
       briefingTime = `${briefingHour.toString().padStart(2, '0')}:${briefingMinute.toString().padStart(2, '0')}`;
     }
 
     const stage = this.stageRepository.create({
       ...createStageDto,
       date: dateObj,
-      briefingTime
+      briefingTime,
     });
 
     const savedStage = await this.stageRepository.save(stage);
-    
+
     return this.formatTimeFields(savedStage);
   }
 
@@ -242,7 +249,9 @@ export class StageService {
         .getOne();
 
       if (existingStage) {
-        throw new BadRequestException('Já existe uma etapa agendada para esta data e horário');
+        throw new BadRequestException(
+          'Já existe uma etapa agendada para esta data e horário'
+        );
       }
     }
 
@@ -254,10 +263,10 @@ export class StageService {
       const [year, month, day] = isoDateString.split('-').map(Number);
       updateData.date = new Date(Date.UTC(year, month - 1, day));
     }
-    
+
     const updatedStage = this.stageRepository.merge(stage, updateData);
     const savedStage = await this.stageRepository.save(updatedStage);
-    
+
     await this.redisService.invalidateStageCache(id, savedStage.seasonId);
 
     return this.formatTimeFields(savedStage);
@@ -268,15 +277,15 @@ export class StageService {
    */
   async updateSchedule(id: string, schedule: any): Promise<Stage> {
     const stage = await this.findById(id);
-    
+
     stage.schedule = schedule;
-    
+
     const updatedStage = await this.stageRepository.save(stage);
-    
+
     // Limpar cache relacionado
     await this.redisService.deleteData(`stage:${id}`);
     await this.redisService.deleteData(`stages:season:${stage.seasonId}`);
-    
+
     return this.formatTimeFields(updatedStage);
   }
 
@@ -298,7 +307,7 @@ export class StageService {
    */
   async findDoublePointsBySeasonId(seasonId: string): Promise<Stage[]> {
     return this.stageRepository.find({
-      where: { seasonId, doublePoints: true }
+      where: { seasonId, doublePoints: true },
     });
   }
 
@@ -328,7 +337,10 @@ export class StageService {
   /**
    * Atualizar sorteio de karts da etapa
    */
-  async updateKartDrawAssignments(id: string, assignments: any): Promise<Stage> {
+  async updateKartDrawAssignments(
+    id: string,
+    assignments: any
+  ): Promise<Stage> {
     const stage = await this.findById(id);
     stage.kart_draw_assignments = assignments;
     const updatedStage = await this.stageRepository.save(stage);
@@ -351,24 +363,27 @@ export class StageService {
     const stage = await this.findById(id);
     stage.stage_results = results;
     const updatedStage = await this.stageRepository.save(stage);
-    
+
     // Invalidar cache da etapa
     await this.redisService.invalidateStageCache(id, stage.seasonId);
-    
+
     // AUTOMATICAMENTE recalcular toda a classificação da temporada
     try {
-      
       // Recalcular classificação completa da temporada
-      await this.classificationService.recalculateSeasonClassification(stage.seasonId);
-      
+      await this.classificationService.recalculateSeasonClassification(
+        stage.seasonId
+      );
+
       // Persistir resultado no Redis usando o hash season:{seasonId}
       await this.persistClassificationToRedis(stage.seasonId);
-      
     } catch (error) {
-      console.error('❌ [TRIGGER] Erro ao recalcular classificação da temporada:', error);
+      console.error(
+        '❌ [TRIGGER] Erro ao recalcular classificação da temporada:',
+        error
+      );
       // Não bloquear o salvamento dos resultados se houver erro na classificação
     }
-    
+
     return this.formatTimeFields(updatedStage);
   }
 
@@ -378,15 +393,23 @@ export class StageService {
   private async persistClassificationToRedis(seasonId: string): Promise<void> {
     try {
       // Buscar classificação completa da temporada
-      const classificationData = await this.classificationService.getSeasonClassificationOptimized(seasonId);
-      
+      const classificationData =
+        await this.classificationService.getSeasonClassificationOptimized(
+          seasonId
+        );
+
       if (classificationData) {
         // Persistir no Redis usando o método existente
-        await this.redisService.cacheSeasonClassification(seasonId, classificationData);
-        
+        await this.redisService.cacheSeasonClassification(
+          seasonId,
+          classificationData
+        );
       }
     } catch (error) {
-      console.error('❌ [REDIS] Erro ao persistir classificação no Redis:', error);
+      console.error(
+        '❌ [REDIS] Erro ao persistir classificação no Redis:',
+        error
+      );
       throw error;
     }
   }
@@ -396,8 +419,13 @@ export class StageService {
   /**
    * Calcular pontos baseado na posição e sistema de pontuação
    */
-  private calculatePointsForPosition(position: number, scoringPositions: Array<{ position: number; points: number }>): number {
-    const scoringPosition = scoringPositions.find(sp => sp.position === position);
+  private calculatePointsForPosition(
+    position: number,
+    scoringPositions: Array<{ position: number; points: number }>
+  ): number {
+    const scoringPosition = scoringPositions.find(
+      sp => sp.position === position
+    );
     return scoringPosition ? scoringPosition.points : 0;
   }
 

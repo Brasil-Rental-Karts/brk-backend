@@ -1,7 +1,17 @@
-import { IsString, IsNotEmpty, MaxLength, IsBoolean, IsOptional, IsEnum, IsInt, Min, IsUUID } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { BaseDto } from './base.dto';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
+
 import { GridTypeEnum } from '../models/grid-type.entity';
+import { BaseDto } from './base.dto';
 
 /**
  * @swagger
@@ -52,7 +62,9 @@ import { GridTypeEnum } from '../models/grid-type.entity';
 export class CreateGridTypeDto extends BaseDto {
   @IsString()
   @IsNotEmpty({ message: 'Nome do tipo de grid é obrigatório' })
-  @MaxLength(100, { message: 'Nome do tipo de grid deve ter no máximo 100 caracteres' })
+  @MaxLength(100, {
+    message: 'Nome do tipo de grid deve ter no máximo 100 caracteres',
+  })
   name: string;
 
   @IsString()
@@ -73,13 +85,15 @@ export class CreateGridTypeDto extends BaseDto {
   isDefault?: boolean = false;
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
-  @IsInt({ message: 'Número de posições invertidas deve ser um número inteiro' })
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
+  @IsInt({
+    message: 'Número de posições invertidas deve ser um número inteiro',
+  })
   @Min(1, { message: 'Número de posições invertidas deve ser maior que 0' })
   invertedPositions?: number;
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Duração da classificação deve ser um número inteiro' })
   @Min(1, { message: 'Duração da classificação deve ser maior que 0' })
   qualifyingDuration?: number;
@@ -128,7 +142,9 @@ export class CreateGridTypeDto extends BaseDto {
 export class UpdateGridTypeDto extends BaseDto {
   @IsOptional()
   @IsString()
-  @MaxLength(100, { message: 'Nome do tipo de grid deve ter no máximo 100 caracteres' })
+  @MaxLength(100, {
+    message: 'Nome do tipo de grid deve ter no máximo 100 caracteres',
+  })
   name?: string;
 
   @IsOptional()
@@ -150,14 +166,16 @@ export class UpdateGridTypeDto extends BaseDto {
   isDefault?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
-  @IsInt({ message: 'Número de posições invertidas deve ser um número inteiro' })
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
+  @IsInt({
+    message: 'Número de posições invertidas deve ser um número inteiro',
+  })
   @Min(1, { message: 'Número de posições invertidas deve ser maior que 0' })
   invertedPositions?: number;
 
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? parseInt(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
   @IsInt({ message: 'Duração da classificação deve ser um número inteiro' })
   @Min(1, { message: 'Duração da classificação deve ser maior que 0' })
   qualifyingDuration?: number;
-} 
+}

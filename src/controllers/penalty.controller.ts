@@ -1,13 +1,17 @@
 import { Request, Response } from 'express';
-import { PenaltyService } from '../services/penalty.service';
-import { PenaltyRepositoryImpl } from '../repositories/penalty.repository.impl';
-import { CreatePenaltyDto, UpdatePenaltyDto, AppealPenaltyDto } from '../dtos/penalty.dto';
-import { PenaltyType, PenaltyStatus } from '../models/penalty.entity';
-import { BaseController } from './base.controller';
+
+import {
+  AppealPenaltyDto,
+  CreatePenaltyDto,
+  UpdatePenaltyDto,
+} from '../dtos/penalty.dto';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
+import { PenaltyStatus, PenaltyType } from '../models/penalty.entity';
 import { UserRole } from '../models/user.entity';
+import { PenaltyService } from '../services/penalty.service';
+import { BaseController } from './base.controller';
 
 export class PenaltyController extends BaseController {
   private penaltyService: PenaltyService;
@@ -57,7 +61,11 @@ export class PenaltyController extends BaseController {
     this.router.post(
       '/:id/appeal',
       authMiddleware,
-      roleMiddleware([UserRole.MEMBER, UserRole.ADMINISTRATOR, UserRole.MANAGER]),
+      roleMiddleware([
+        UserRole.MEMBER,
+        UserRole.ADMINISTRATOR,
+        UserRole.MANAGER,
+      ]),
       validationMiddleware(AppealPenaltyDto),
       this.appealPenalty.bind(this)
     );
@@ -160,7 +168,10 @@ export class PenaltyController extends BaseController {
         throw new BadRequestException('User not authenticated');
       }
 
-      const penalty = await this.penaltyService.createPenalty(data, appliedByUserId);
+      const penalty = await this.penaltyService.createPenalty(
+        data,
+        appliedByUserId
+      );
       res.status(201).json(penalty);
     } catch (error) {
       console.error('Error creating penalty:', error);
@@ -219,7 +230,11 @@ export class PenaltyController extends BaseController {
         throw new BadRequestException('User not authenticated');
       }
 
-      const penalty = await this.penaltyService.appealPenalty(id, data, appealedByUserId);
+      const penalty = await this.penaltyService.appealPenalty(
+        id,
+        data,
+        appealedByUserId
+      );
       res.status(200).json(penalty);
     } catch (error) {
       console.error('Error appealing penalty:', error);
@@ -251,15 +266,21 @@ export class PenaltyController extends BaseController {
     }
   }
 
-  async getPenaltiesByChampionshipId(req: Request, res: Response): Promise<void> {
+  async getPenaltiesByChampionshipId(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { championshipId } = req.params;
 
-      const penalties = await this.penaltyService.getPenaltiesByChampionshipId(championshipId);
+      const penalties =
+        await this.penaltyService.getPenaltiesByChampionshipId(championshipId);
       res.status(200).json(penalties);
     } catch (error) {
       console.error('Error getting penalties by championship:', error);
-      res.status(500).json({ message: 'Failed to get penalties by championship' });
+      res
+        .status(500)
+        .json({ message: 'Failed to get penalties by championship' });
     }
   }
 
@@ -267,7 +288,8 @@ export class PenaltyController extends BaseController {
     try {
       const { seasonId } = req.params;
 
-      const penalties = await this.penaltyService.getPenaltiesBySeasonId(seasonId);
+      const penalties =
+        await this.penaltyService.getPenaltiesBySeasonId(seasonId);
       res.status(200).json(penalties);
     } catch (error) {
       console.error('Error getting penalties by season:', error);
@@ -279,7 +301,8 @@ export class PenaltyController extends BaseController {
     try {
       const { stageId } = req.params;
 
-      const penalties = await this.penaltyService.getPenaltiesByStageId(stageId);
+      const penalties =
+        await this.penaltyService.getPenaltiesByStageId(stageId);
       res.status(200).json(penalties);
     } catch (error) {
       console.error('Error getting penalties by stage:', error);
@@ -291,7 +314,8 @@ export class PenaltyController extends BaseController {
     try {
       const { categoryId } = req.params;
 
-      const penalties = await this.penaltyService.getPenaltiesByCategoryId(categoryId);
+      const penalties =
+        await this.penaltyService.getPenaltiesByCategoryId(categoryId);
       res.status(200).json(penalties);
     } catch (error) {
       console.error('Error getting penalties by category:', error);
@@ -303,7 +327,10 @@ export class PenaltyController extends BaseController {
     try {
       const { userId, championshipId } = req.params;
 
-      const penalties = await this.penaltyService.getActivePenalties(userId, championshipId);
+      const penalties = await this.penaltyService.getActivePenalties(
+        userId,
+        championshipId
+      );
       res.status(200).json(penalties);
     } catch (error) {
       console.error('Error getting active penalties:', error);
@@ -329,7 +356,9 @@ export class PenaltyController extends BaseController {
         throw new BadRequestException('Invalid penalty type');
       }
 
-      const penalties = await this.penaltyService.getPenaltiesByType(type as PenaltyType);
+      const penalties = await this.penaltyService.getPenaltiesByType(
+        type as PenaltyType
+      );
       res.status(200).json(penalties);
     } catch (error) {
       console.error('Error getting penalties by type:', error);
@@ -345,7 +374,9 @@ export class PenaltyController extends BaseController {
         throw new BadRequestException('Invalid penalty status');
       }
 
-      const penalties = await this.penaltyService.getPenaltiesByStatus(status as PenaltyStatus);
+      const penalties = await this.penaltyService.getPenaltiesByStatus(
+        status as PenaltyStatus
+      );
       res.status(200).json(penalties);
     } catch (error) {
       console.error('Error getting penalties by status:', error);
@@ -368,4 +399,4 @@ export class PenaltyController extends BaseController {
       res.status(500).json({ message: 'Failed to delete penalty' });
     }
   }
-} 
+}

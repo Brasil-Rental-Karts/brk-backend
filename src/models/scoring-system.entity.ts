@@ -1,4 +1,5 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from './base.entity';
 import { Championship } from './championship.entity';
 
@@ -34,4 +35,4 @@ export class ScoringSystem extends BaseEntity {
   @ManyToOne(() => Championship, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'championshipId' })
   championship: Championship;
-} 
+}

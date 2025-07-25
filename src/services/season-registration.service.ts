@@ -1,21 +1,30 @@
-import { Repository, In } from 'typeorm';
+import { In, Repository } from 'typeorm';
+
 import { AppDataSource } from '../config/database.config';
-import { SeasonRegistration, RegistrationStatus, PaymentStatus } from '../models/season-registration.entity';
-import { AsaasPayment, AsaasPaymentStatus, AsaasBillingType } from '../models/asaas-payment.entity';
-import { User } from '../models/user.entity';
-import { Season } from '../models/season.entity';
-import { Championship } from '../models/championship.entity';
-import { Category } from '../models/category.entity';
-import { Stage } from '../models/stage.entity';
-import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
-import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
-import { AsaasService, AsaasCustomer, AsaasPayment as AsaasPaymentData } from './asaas.service';
-import { CreditCardFeesService } from './credit-card-fees.service';
-import { RedisService } from './redis.service';
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import {
+  AsaasBillingType,
+  AsaasPayment,
+  AsaasPaymentStatus,
+} from '../models/asaas-payment.entity';
+import { Category } from '../models/category.entity';
+import { Championship } from '../models/championship.entity';
+import { Season } from '../models/season.entity';
+import {
+  PaymentStatus,
+  RegistrationStatus,
+  SeasonRegistration,
+} from '../models/season-registration.entity';
+import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
+import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
+import { Stage } from '../models/stage.entity';
+import { User } from '../models/user.entity';
 import { removeDocumentMask } from '../utils/document.util';
 import { isValidDocumentLength } from '../utils/document.util';
+import { AsaasCustomer, AsaasService } from './asaas.service';
+import { CreditCardFeesService } from './credit-card-fees.service';
+import { RedisService } from './redis.service';
 
 export interface CreateRegistrationData {
   userId: string;
@@ -37,8 +46,6 @@ export interface CreateAdminRegistrationData {
   amount: number;
   notes?: string;
 }
-
-
 
 export interface RegistrationPaymentData {
   id: string; // AsaasPayment ID
@@ -71,15 +78,20 @@ export class SeasonRegistrationService {
   private redisService: RedisService;
 
   constructor() {
-    this.registrationRepository = AppDataSource.getRepository(SeasonRegistration);
+    this.registrationRepository =
+      AppDataSource.getRepository(SeasonRegistration);
     this.paymentRepository = AppDataSource.getRepository(AsaasPayment);
     this.userRepository = AppDataSource.getRepository(User);
     this.seasonRepository = AppDataSource.getRepository(Season);
     this.championshipRepository = AppDataSource.getRepository(Championship);
     this.categoryRepository = AppDataSource.getRepository(Category);
     this.stageRepository = AppDataSource.getRepository(Stage);
-    this.registrationCategoryRepository = AppDataSource.getRepository(SeasonRegistrationCategory);
-    this.registrationStageRepository = AppDataSource.getRepository(SeasonRegistrationStage);
+    this.registrationCategoryRepository = AppDataSource.getRepository(
+      SeasonRegistrationCategory
+    );
+    this.registrationStageRepository = AppDataSource.getRepository(
+      SeasonRegistrationStage
+    );
     this.asaasService = new AsaasService();
     this.creditCardFeesService = new CreditCardFeesService();
     this.redisService = RedisService.getInstance();
@@ -90,7 +102,9 @@ export class SeasonRegistrationService {
    * Quando queremos que X% fiquem com a plataforma, o percentual para o split é: X / (1 + X/100)
    * Exemplo: Para 10% ficarem com a plataforma: 10 / (1 + 10/100) = 10 / 1.1 = 9.09%
    */
-  private calculateSplitPercentage(platformCommissionPercentage: number): number {
+  private calculateSplitPercentage(
+    platformCommissionPercentage: number
+  ): number {
     const commission = platformCommissionPercentage / 100;
     const splitPercentage = (commission / (1 + commission)) * 100;
     return Math.round(splitPercentage * 100) / 100; // Arredondar para 2 casas decimais
@@ -99,16 +113,23 @@ export class SeasonRegistrationService {
   /**
    * Atualiza o cache do Redis para as categorias quando um usuário se inscreve
    */
-  private async updateCategoryPilotsCache(userId: string, categoryIds: string[]): Promise<void> {
+  private async updateCategoryPilotsCache(
+    userId: string,
+    categoryIds: string[]
+  ): Promise<void> {
     try {
       for (const categoryId of categoryIds) {
         // Buscar pilotos atuais da categoria no cache
-        const currentPilots = await this.redisService.getCachedCategoryPilots(categoryId);
-        
+        const currentPilots =
+          await this.redisService.getCachedCategoryPilots(categoryId);
+
         // Adicionar o novo usuário se não estiver na lista
         if (!currentPilots.includes(userId)) {
           const updatedPilots = [...currentPilots, userId];
-          await this.redisService.cacheCategoryPilots(categoryId, updatedPilots.map(pilotId => ({ userId: pilotId })));
+          await this.redisService.cacheCategoryPilots(
+            categoryId,
+            updatedPilots.map(pilotId => ({ userId: pilotId }))
+          );
         }
       }
     } catch (error) {
@@ -120,20 +141,32 @@ export class SeasonRegistrationService {
   /**
    * Remove um usuário do cache do Redis para categorias específicas
    */
-  private async removeUserFromCategoryPilotsCache(userId: string, categoryIds: string[]): Promise<void> {
+  private async removeUserFromCategoryPilotsCache(
+    userId: string,
+    categoryIds: string[]
+  ): Promise<void> {
     try {
       for (const categoryId of categoryIds) {
         // Buscar pilotos atuais da categoria no cache
-        const currentPilots = await this.redisService.getCachedCategoryPilots(categoryId);
-        
+        const currentPilots =
+          await this.redisService.getCachedCategoryPilots(categoryId);
+
         // Remover o usuário se estiver na lista
         if (currentPilots.includes(userId)) {
-          const updatedPilots = currentPilots.filter(pilotId => pilotId !== userId);
-          await this.redisService.cacheCategoryPilots(categoryId, updatedPilots.map(pilotId => ({ userId: pilotId })));
+          const updatedPilots = currentPilots.filter(
+            pilotId => pilotId !== userId
+          );
+          await this.redisService.cacheCategoryPilots(
+            categoryId,
+            updatedPilots.map(pilotId => ({ userId: pilotId }))
+          );
         }
       }
     } catch (error) {
-      console.error('[REDIS] Erro ao remover usuário do cache das categorias:', error);
+      console.error(
+        '[REDIS] Erro ao remover usuário do cache das categorias:',
+        error
+      );
       // Não lançar erro para não interromper o fluxo principal
     }
   }
@@ -141,7 +174,11 @@ export class SeasonRegistrationService {
   /**
    * Calcula as taxas do cartão de crédito baseado nas configurações do campeonato
    */
-  async calculateCreditCardFees(championshipId: string, baseAmount: number, installments: number): Promise<{
+  async calculateCreditCardFees(
+    championshipId: string,
+    baseAmount: number,
+    installments: number
+  ): Promise<{
     percentageRate: number;
     fixedFee: number;
     totalFees: number;
@@ -149,34 +186,41 @@ export class SeasonRegistrationService {
     isDefault: boolean;
   }> {
     // Tentar buscar taxas configuradas para o campeonato
-    const configuredRate = await this.creditCardFeesService.getRateForInstallments(championshipId, installments);
-    
+    const configuredRate =
+      await this.creditCardFeesService.getRateForInstallments(
+        championshipId,
+        installments
+      );
+
     if (configuredRate) {
       const percentageFee = (baseAmount * configuredRate.percentageRate) / 100;
       const totalFees = percentageFee + configuredRate.fixedFee;
       const totalAmount = baseAmount + totalFees;
-      
+
       return {
         percentageRate: configuredRate.percentageRate,
         fixedFee: configuredRate.fixedFee,
         totalFees: Math.round(totalFees * 100) / 100, // Arredondar para 2 casas decimais
         totalAmount: Math.round(totalAmount * 100) / 100, // Arredondar para 2 casas decimais
-        isDefault: false
+        isDefault: false,
       };
     }
-    
+
     // Se não encontrar configuração, usar taxas padrão
-    const defaultRate = await this.creditCardFeesService.getDefaultRateForInstallments(installments);
+    const defaultRate =
+      await this.creditCardFeesService.getDefaultRateForInstallments(
+        installments
+      );
     const percentageFee = (baseAmount * defaultRate.percentageRate) / 100;
     const totalFees = percentageFee + defaultRate.fixedFee;
     const totalAmount = baseAmount + totalFees;
-    
+
     return {
       percentageRate: defaultRate.percentageRate,
       fixedFee: defaultRate.fixedFee,
       totalFees: Math.round(totalFees * 100) / 100, // Arredondar para 2 casas decimais
       totalAmount: Math.round(totalAmount * 100) / 100, // Arredondar para 2 casas decimais
-      isDefault: true
+      isDefault: true,
     };
   }
 
@@ -188,80 +232,105 @@ export class SeasonRegistrationService {
     paymentData: RegistrationPaymentData;
   }> {
     // Validar se o usuário existe
-    const user = await this.userRepository.findOne({ where: { id: data.userId } });
+    const user = await this.userRepository.findOne({
+      where: { id: data.userId },
+    });
     if (!user) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
     // Validar se a temporada existe
-    const season = await this.seasonRepository.findOne({ where: { id: data.seasonId } });
+    const season = await this.seasonRepository.findOne({
+      where: { id: data.seasonId },
+    });
     if (!season) {
       throw new NotFoundException('Temporada não encontrada');
     }
 
     // Verificar se as inscrições estão abertas para esta temporada
     if (!season.registrationOpen) {
-      throw new BadRequestException('As inscrições para esta temporada não estão abertas');
+      throw new BadRequestException(
+        'As inscrições para esta temporada não estão abertas'
+      );
     }
 
     // Validar se o CPF/CNPJ foi fornecido
     if (!data.userDocument || data.userDocument.trim() === '') {
-      throw new BadRequestException('CPF/CNPJ é obrigatório para realizar a inscrição');
+      throw new BadRequestException(
+        'CPF/CNPJ é obrigatório para realizar a inscrição'
+      );
     }
 
     // Determinar o tipo de inscrição baseado nos dados recebidos
-    const inscriptionType = data.stageIds && data.stageIds.length > 0 ? 'por_etapa' : 'por_temporada';
+    const inscriptionType =
+      data.stageIds && data.stageIds.length > 0 ? 'por_etapa' : 'por_temporada';
 
     // Validar se o parcelamento é permitido e se o número de parcelas é válido
     if (data.installments && data.installments > 1) {
       let maxInstallments = 1;
-      
+
       // Verificar o número máximo de parcelas baseado no método de pagamento
       switch (data.paymentMethod) {
         case 'pix':
-          maxInstallments = season.getPixInstallmentsForCondition(inscriptionType);
+          maxInstallments =
+            season.getPixInstallmentsForCondition(inscriptionType);
           break;
         case 'cartao_credito':
-          maxInstallments = season.getCreditCardInstallmentsForCondition(inscriptionType);
+          maxInstallments =
+            season.getCreditCardInstallmentsForCondition(inscriptionType);
           break;
       }
-      
+
       if (data.installments > maxInstallments) {
-        throw new BadRequestException(`O número máximo de parcelas para ${data.paymentMethod} nesta temporada é ${maxInstallments}.`);
+        throw new BadRequestException(
+          `O número máximo de parcelas para ${data.paymentMethod} nesta temporada é ${maxInstallments}.`
+        );
       }
     }
 
     // Validar se as categorias existem e pertencem à temporada
     if (!data.categoryIds || data.categoryIds.length === 0) {
-      throw new BadRequestException('Pelo menos uma categoria deve ser selecionada');
+      throw new BadRequestException(
+        'Pelo menos uma categoria deve ser selecionada'
+      );
     }
 
     const categories = await this.categoryRepository.find({
-      where: { 
+      where: {
         id: In(data.categoryIds),
-        seasonId: data.seasonId
-      }
+        seasonId: data.seasonId,
+      },
     });
 
     if (categories.length !== data.categoryIds.length) {
-      throw new BadRequestException('Uma ou mais categorias são inválidas ou não pertencem a esta temporada');
+      throw new BadRequestException(
+        'Uma ou mais categorias são inválidas ou não pertencem a esta temporada'
+      );
     }
 
     // Buscar o campeonato para verificar configurações de split payment
-    const championship = await this.championshipRepository.findOne({ where: { id: season.championshipId } });
+    const championship = await this.championshipRepository.findOne({
+      where: { id: season.championshipId },
+    });
     if (!championship) {
       throw new NotFoundException('Campeonato não encontrado');
     }
 
     // Verificar se o split payment está configurado corretamente
-    if (championship.splitEnabled && championship.commissionAbsorbedByChampionship && !championship.asaasWalletId) {
-      throw new BadRequestException('Campeonato com split habilitado deve ter um Wallet ID configurado. Entre em contato com o organizador do campeonato.');
+    if (
+      championship.splitEnabled &&
+      championship.commissionAbsorbedByChampionship &&
+      !championship.asaasWalletId
+    ) {
+      throw new BadRequestException(
+        'Campeonato com split habilitado deve ter um Wallet ID configurado. Entre em contato com o organizador do campeonato.'
+      );
     }
 
     // Verificar se já existe uma inscrição para este usuário nesta temporada
     const existingRegistration = await this.registrationRepository.findOne({
       where: { userId: data.userId, seasonId: data.seasonId },
-      relations: ['stages', 'stages.stage']
+      relations: ['stages', 'stages.stage'],
     });
 
     // Para temporadas por temporada, não permitir inscrição duplicada
@@ -270,57 +339,76 @@ export class SeasonRegistrationService {
     }
 
     // Para temporadas por etapa, verificar se as etapas já estão inscritas
-    if (inscriptionType === 'por_etapa' && existingRegistration && data.stageIds && data.stageIds.length > 0) {
-      const existingStageIds = existingRegistration.stages.map(stage => stage.stageId);
-      const duplicateStageIds = data.stageIds.filter(stageId => existingStageIds.includes(stageId));
-      
+    if (
+      inscriptionType === 'por_etapa' &&
+      existingRegistration &&
+      data.stageIds &&
+      data.stageIds.length > 0
+    ) {
+      const existingStageIds = existingRegistration.stages.map(
+        stage => stage.stageId
+      );
+      const duplicateStageIds = data.stageIds.filter(stageId =>
+        existingStageIds.includes(stageId)
+      );
+
       if (duplicateStageIds.length > 0) {
         const duplicateStages = await this.stageRepository.find({
-          where: { id: In(duplicateStageIds) }
+          where: { id: In(duplicateStageIds) },
         });
         const stageNames = duplicateStages.map(stage => stage.name).join(', ');
-        throw new BadRequestException(`Você já está inscrito nas seguintes etapas: ${stageNames}`);
+        throw new BadRequestException(
+          `Você já está inscrito nas seguintes etapas: ${stageNames}`
+        );
       }
     }
 
     // Verificar se a temporada aceita o método de pagamento solicitado
-    const asaasBillingType = this.asaasService.mapPaymentMethodToAsaas(data.paymentMethod);
-    const seasonPaymentMethods = season.getPaymentMethodsForCondition(inscriptionType).map(pm => this.asaasService.mapPaymentMethodToAsaas(pm));
-    
+    const asaasBillingType = this.asaasService.mapPaymentMethodToAsaas(
+      data.paymentMethod
+    );
+    const seasonPaymentMethods = season
+      .getPaymentMethodsForCondition(inscriptionType)
+      .map(pm => this.asaasService.mapPaymentMethodToAsaas(pm));
+
     if (!seasonPaymentMethods.includes(asaasBillingType)) {
-      throw new BadRequestException(`Método de pagamento ${data.paymentMethod} não aceito para esta temporada`);
+      throw new BadRequestException(
+        `Método de pagamento ${data.paymentMethod} não aceito para esta temporada`
+      );
     }
 
     // Buscar etapas se for inscrição por etapa
     let stages: Stage[] = [];
-    
 
-    
-    if (inscriptionType === 'por_etapa' && data.stageIds && data.stageIds.length > 0) {
+    if (
+      inscriptionType === 'por_etapa' &&
+      data.stageIds &&
+      data.stageIds.length > 0
+    ) {
       stages = await this.stageRepository.find({
-        where: { 
+        where: {
           id: In(data.stageIds),
-          seasonId: data.seasonId
-        }
+          seasonId: data.seasonId,
+        },
       });
 
       if (stages.length !== data.stageIds.length) {
-        throw new BadRequestException('Uma ou mais etapas são inválidas ou não pertencem a esta temporada');
+        throw new BadRequestException(
+          'Uma ou mais etapas são inválidas ou não pertencem a esta temporada'
+        );
       }
     }
 
     // Calcular o valor total baseado no tipo de inscrição
     let totalAmount: number;
-    
 
-    
     // Se o frontend forneceu o valor total (incluindo taxas), usar ele
     if (data.totalAmount && data.totalAmount > 0) {
       totalAmount = data.totalAmount;
     } else {
       // Calcular automaticamente se não foi fornecido
       let baseAmount = 0;
-      
+
       // Usar nova estrutura de paymentConditions se disponível
       if (season.paymentConditions && season.paymentConditions.length > 0) {
         // Calcular valor baseado nas condições ativas
@@ -337,18 +425,22 @@ export class SeasonRegistrationService {
         // Usar campos legados para compatibilidade
         if (inscriptionType === 'por_etapa' && stages.length > 0) {
           // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
-          baseAmount = Number(season.getInscriptionValue()) * categories.length * stages.length;
+          baseAmount =
+            Number(season.getInscriptionValue()) *
+            categories.length *
+            stages.length;
         } else {
           // Por temporada: quantidade de categorias x valor da inscrição
           baseAmount = Number(season.getInscriptionValue()) * categories.length;
         }
       }
-      
+
       totalAmount = baseAmount;
 
       // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
       if (!championship.commissionAbsorbedByChampionship) {
-        const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+        const platformCommission =
+          Number(championship.platformCommissionPercentage) || 10;
         const commissionAmount = totalAmount * (platformCommission / 100);
         totalAmount += commissionAmount;
       }
@@ -360,14 +452,15 @@ export class SeasonRegistrationService {
     if (season.hasPaymentCondition('por_etapa') && existingRegistration) {
       // Atualizar o valor total (adicionar ao valor existente)
       const newTotalAmount = Number(existingRegistration.amount) + totalAmount;
-      
+
       // Atualizar a inscrição existente
       existingRegistration.amount = newTotalAmount;
       existingRegistration.paymentMethod = data.paymentMethod;
       existingRegistration.status = RegistrationStatus.PAYMENT_PENDING;
       existingRegistration.paymentStatus = PaymentStatus.PENDING;
-      
-      savedRegistration = await this.registrationRepository.save(existingRegistration);
+
+      savedRegistration =
+        await this.registrationRepository.save(existingRegistration);
     } else {
       // Criar nova inscrição
       const registration = this.registrationRepository.create({
@@ -376,7 +469,7 @@ export class SeasonRegistrationService {
         amount: totalAmount,
         paymentMethod: data.paymentMethod,
         status: RegistrationStatus.PAYMENT_PENDING,
-        paymentStatus: PaymentStatus.PENDING
+        paymentStatus: PaymentStatus.PENDING,
       });
 
       savedRegistration = await this.registrationRepository.save(registration);
@@ -384,29 +477,29 @@ export class SeasonRegistrationService {
 
     // Para inscrições novas, salvar as categorias selecionadas
     if (!existingRegistration) {
-      const registrationCategories = categories.map(category => 
+      const registrationCategories = categories.map(category =>
         this.registrationCategoryRepository.create({
           registrationId: savedRegistration.id,
-          categoryId: category.id
+          categoryId: category.id,
         })
       );
-      
+
       await this.registrationCategoryRepository.save(registrationCategories);
-      
+
       // Atualizar cache do Redis com os novos pilotos nas categorias
       await this.updateCategoryPilotsCache(data.userId, data.categoryIds);
     }
 
     // Salvar as etapas selecionadas (se for inscrição por etapa)
-    
+
     if (season.hasPaymentCondition('por_etapa') && stages.length > 0) {
-      const registrationStages = stages.map(stage => 
+      const registrationStages = stages.map(stage =>
         this.registrationStageRepository.create({
           registrationId: savedRegistration.id,
-          stageId: stage.id
+          stageId: stage.id,
         })
       );
-      
+
       await this.registrationStageRepository.save(registrationStages);
     }
 
@@ -416,29 +509,37 @@ export class SeasonRegistrationService {
         name: user.name,
         email: user.email,
         cpfCnpj: data.userDocument ? removeDocumentMask(data.userDocument) : '',
-        notificationDisabled: false
+        notificationDisabled: false,
       };
 
       // Validar se temos um CPF/CNPJ válido
-      if (!asaasCustomerData.cpfCnpj || !isValidDocumentLength(asaasCustomerData.cpfCnpj)) {
-        throw new BadRequestException('CPF/CNPJ é obrigatório e deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ).');
+      if (
+        !asaasCustomerData.cpfCnpj ||
+        !isValidDocumentLength(asaasCustomerData.cpfCnpj)
+      ) {
+        throw new BadRequestException(
+          'CPF/CNPJ é obrigatório e deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ).'
+        );
       }
 
-      const asaasCustomer = await this.asaasService.createOrUpdateCustomer(asaasCustomerData);
-      
+      const asaasCustomer =
+        await this.asaasService.createOrUpdateCustomer(asaasCustomerData);
+
       if (!asaasCustomer.id) {
         throw new Error('Cliente Asaas não possui ID válido');
       }
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 7); // 7 dias de vencimento para PIX
-      
+
       // Garantir que o vencimento seja exatamente 7 dias, considerando timezone
       const now = new Date();
-      const sevenDaysFromNow = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+      const sevenDaysFromNow = new Date(
+        now.getTime() + 7 * 24 * 60 * 60 * 1000
+      );
       // Definir o horário para 23:59:59 para garantir que seja o último momento do dia
       sevenDaysFromNow.setHours(23, 59, 59, 999);
-      
+
       const categoriesNames = categories.map(c => c.name).join(', ');
       const description = `Inscrição de ${user.name} na temporada: ${season.name} - Categorias: ${categoriesNames}`;
 
@@ -459,30 +560,37 @@ export class SeasonRegistrationService {
         };
 
         if (championship.splitEnabled && championship.asaasWalletId) {
-          const platformCommission = Number(championship.platformCommissionPercentage) || 10;
-          const splitPercentage = this.calculateSplitPercentage(platformCommission);
-          installmentPayload.split = [{
-            walletId: championship.asaasWalletId,
-            percentualValue: 100 - splitPercentage,
-          }];
+          const platformCommission =
+            Number(championship.platformCommissionPercentage) || 10;
+          const splitPercentage =
+            this.calculateSplitPercentage(platformCommission);
+          installmentPayload.split = [
+            {
+              walletId: championship.asaasWalletId,
+              percentualValue: 100 - splitPercentage,
+            },
+          ];
         }
 
-        const installmentPlan = await this.asaasService.createInstallmentPlan(installmentPayload);
-        
+        const installmentPlan =
+          await this.asaasService.createInstallmentPlan(installmentPayload);
+
         if (!installmentPlan || !installmentPlan.id) {
           throw new Error('Plano de parcelamento não foi criado corretamente');
         }
-        
+
         // Buscar as parcelas individuais criadas pelo plano
-        const installmentPayments = await this.asaasService.getInstallmentPayments(installmentPlan.id);
-        
+        const installmentPayments =
+          await this.asaasService.getInstallmentPayments(installmentPlan.id);
+
         if (!installmentPayments || installmentPayments.length === 0) {
           // Fallback: usar dados do plano como primeira parcela
           asaasPaymentResponse = {
             id: installmentPlan.id,
             status: 'PENDING',
             value: installmentPlan.paymentValue,
-            netValue: installmentPlan.netValue / installmentPlan.installmentCount,
+            netValue:
+              installmentPlan.netValue / installmentPlan.installmentCount,
             dueDate: `2025-06-27`,
             description: installmentPlan.description,
             billingType: installmentPlan.billingType,
@@ -490,7 +598,8 @@ export class SeasonRegistrationService {
             invoiceUrl: null,
             bankSlipUrl: null,
             paymentLink: null,
-            externalReference: installmentPlan.externalReference || savedRegistration.id
+            externalReference:
+              installmentPlan.externalReference || savedRegistration.id,
           };
         } else {
           // Ordenar parcelas por installmentNumber antes de processar
@@ -499,7 +608,7 @@ export class SeasonRegistrationService {
             const bNum = b.installmentNumber || 999;
             return aNum - bNum;
           });
-          
+
           // Salvar TODAS as parcelas no banco de dados (já ordenadas)
           await this.saveAllInstallmentPayments(
             savedRegistration.id,
@@ -507,10 +616,10 @@ export class SeasonRegistrationService {
             asaasCustomer.id!,
             sortedPayments
           );
-          
+
           // Usar a primeira parcela (installmentNumber = 1)
           const firstPayment = sortedPayments[0];
-          
+
           asaasPaymentResponse = {
             id: firstPayment.id,
             status: firstPayment.status,
@@ -524,7 +633,8 @@ export class SeasonRegistrationService {
             invoiceUrl: firstPayment.invoiceUrl,
             bankSlipUrl: firstPayment.bankSlipUrl,
             paymentLink: firstPayment.paymentLink,
-            externalReference: firstPayment.externalReference || savedRegistration.id
+            externalReference:
+              firstPayment.externalReference || savedRegistration.id,
           };
         }
       } else {
@@ -553,42 +663,49 @@ export class SeasonRegistrationService {
 
           callbackUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/webhook/asaas`;
           successUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/season-registrations/${savedRegistration.id}/payment-callback`;
-          
+
           paymentPayload.callback = {
             url: callbackUrl,
             successUrl: successUrl,
-            autoRedirect: true
+            autoRedirect: true,
           };
         }
 
         // Aplicar split para pagamentos únicos e cartão de crédito
         if (championship.splitEnabled && championship.asaasWalletId) {
-          const platformCommission = Number(championship.platformCommissionPercentage) || 10;
-          const splitPercentage = this.calculateSplitPercentage(platformCommission);
-          paymentPayload.split = [{
-            walletId: championship.asaasWalletId,
-            percentualValue: 100 - splitPercentage,
-          }];
+          const platformCommission =
+            Number(championship.platformCommissionPercentage) || 10;
+          const splitPercentage =
+            this.calculateSplitPercentage(platformCommission);
+          paymentPayload.split = [
+            {
+              walletId: championship.asaasWalletId,
+              percentualValue: 100 - splitPercentage,
+            },
+          ];
         }
 
-        asaasPaymentResponse = await this.asaasService.createPayment(paymentPayload);
+        asaasPaymentResponse =
+          await this.asaasService.createPayment(paymentPayload);
       }
 
       // Para PIX parcelado, as parcelas já foram salvas pelo método saveAllInstallmentPayments
       // Não precisamos salvar novamente. Para outros tipos de pagamento, salvar normalmente.
       let savedAsaasPayment;
-      
+
       if (isInstallment && asaasBillingType === 'PIX') {
         // Buscar a primeira parcela que já foi salva
         savedAsaasPayment = await this.paymentRepository.findOne({
-          where: { 
+          where: {
             registrationId: savedRegistration.id,
-            asaasPaymentId: asaasPaymentResponse.id 
-          }
+            asaasPaymentId: asaasPaymentResponse.id,
+          },
         });
-        
+
         if (!savedAsaasPayment) {
-          throw new Error('Erro: Primeira parcela não encontrada no banco após salvar installment payments');
+          throw new Error(
+            'Erro: Primeira parcela não encontrada no banco após salvar installment payments'
+          );
         }
       } else {
         // Para pagamentos únicos ou cartão parcelado
@@ -608,7 +725,9 @@ export class SeasonRegistrationService {
 
         if (asaasBillingType === 'PIX') {
           try {
-            const pixQrCode = await this.asaasService.getPixQrCode(asaasPaymentResponse.id);
+            const pixQrCode = await this.asaasService.getPixQrCode(
+              asaasPaymentResponse.id
+            );
             asaasPayment.pixQrCode = pixQrCode.encodedImage;
             asaasPayment.pixCopyPaste = pixQrCode.payload;
           } catch (error) {
@@ -617,35 +736,40 @@ export class SeasonRegistrationService {
         }
 
         savedAsaasPayment = await this.paymentRepository.save(asaasPayment);
-        
+
         // Atualizar o status da inscrição após criar o pagamento
         await this.updateSeasonRegistrationStatus(savedRegistration.id);
       }
 
-        const paymentData: RegistrationPaymentData = {
-          id: savedAsaasPayment.id,
-          registrationId: savedRegistration.id,
-          billingType: asaasBillingType,
-          value: asaasPaymentResponse.value, // Usar o valor da resposta (150 para PIX parcelado, totalAmount para outros)
-          dueDate: this.asaasService.formatDateForAsaas(sevenDaysFromNow),
-          status: asaasPaymentResponse.status,
-          installmentNumber: asaasPaymentResponse.installmentNumber,
-          installmentCount: isInstallment ? data.installments : null,
-          invoiceUrl: asaasPaymentResponse.invoiceUrl,
-          bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
-          paymentLink: asaasPaymentResponse.paymentLink || (asaasBillingType === 'CREDIT_CARD' ? asaasPaymentResponse.invoiceUrl : null),
-          pixQrCode: savedAsaasPayment.pixQrCode || undefined,
-          pixCopyPaste: savedAsaasPayment.pixCopyPaste || undefined
-        };
+      const paymentData: RegistrationPaymentData = {
+        id: savedAsaasPayment.id,
+        registrationId: savedRegistration.id,
+        billingType: asaasBillingType,
+        value: asaasPaymentResponse.value, // Usar o valor da resposta (150 para PIX parcelado, totalAmount para outros)
+        dueDate: this.asaasService.formatDateForAsaas(sevenDaysFromNow),
+        status: asaasPaymentResponse.status,
+        installmentNumber: asaasPaymentResponse.installmentNumber,
+        installmentCount: isInstallment ? data.installments : null,
+        invoiceUrl: asaasPaymentResponse.invoiceUrl,
+        bankSlipUrl: asaasPaymentResponse.bankSlipUrl,
+        paymentLink:
+          asaasPaymentResponse.paymentLink ||
+          (asaasBillingType === 'CREDIT_CARD'
+            ? asaasPaymentResponse.invoiceUrl
+            : null),
+        pixQrCode: savedAsaasPayment.pixQrCode || undefined,
+        pixCopyPaste: savedAsaasPayment.pixCopyPaste || undefined,
+      };
 
-        return {
-          registration: savedRegistration,
-          paymentData
-        };
-
+      return {
+        registration: savedRegistration,
+        paymentData,
+      };
     } catch (error) {
       // Se houve erro na criação do pagamento, remover a inscrição
-      await this.registrationCategoryRepository.delete({ registrationId: savedRegistration.id });
+      await this.registrationCategoryRepository.delete({
+        registrationId: savedRegistration.id,
+      });
       await this.registrationRepository.delete(savedRegistration.id);
       throw error;
     }
@@ -654,17 +778,21 @@ export class SeasonRegistrationService {
   /**
    * Verifica se um campeonato tem configuração de split válida
    */
-  async validateChampionshipSplitConfiguration(championshipId: string): Promise<{
+  async validateChampionshipSplitConfiguration(
+    championshipId: string
+  ): Promise<{
     isValid: boolean;
     errors: string[];
     championship?: Championship;
   }> {
-    const championship = await this.championshipRepository.findOne({ where: { id: championshipId } });
-    
+    const championship = await this.championshipRepository.findOne({
+      where: { id: championshipId },
+    });
+
     if (!championship) {
       return {
         isValid: false,
-        errors: ['Campeonato não encontrado']
+        errors: ['Campeonato não encontrado'],
       };
     }
 
@@ -674,7 +802,7 @@ export class SeasonRegistrationService {
       if (!championship.asaasWalletId) {
         errors.push('Wallet ID não configurado (asaasWalletId ausente)');
       }
-      
+
       if (!championship.document) {
         errors.push('Documento (CPF/CNPJ) não informado');
       }
@@ -683,7 +811,7 @@ export class SeasonRegistrationService {
     return {
       isValid: errors.length === 0,
       errors,
-      championship
+      championship,
     };
   }
 
@@ -693,7 +821,15 @@ export class SeasonRegistrationService {
   async findById(id: string): Promise<SeasonRegistration | null> {
     const registration = await this.registrationRepository.findOne({
       where: { id },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage']
+      relations: [
+        'user',
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+      ],
     });
 
     return registration;
@@ -705,8 +841,16 @@ export class SeasonRegistrationService {
   async findByUserId(userId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { userId },
-      relations: ['season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
-      order: { createdAt: 'DESC' }
+      relations: [
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+        'payments',
+      ],
+      order: { createdAt: 'DESC' },
     });
   }
 
@@ -716,8 +860,17 @@ export class SeasonRegistrationService {
   async findBySeasonId(seasonId: string): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { seasonId },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
-      order: { createdAt: 'DESC' }
+      relations: [
+        'user',
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+        'payments',
+      ],
+      order: { createdAt: 'DESC' },
     });
   }
 
@@ -743,10 +896,14 @@ export class SeasonRegistrationService {
 
     // Buscar todos os perfis dos usuários dessas inscrições
     const userIds = registrations.map(reg => reg.userId);
-    const profiles = await this.userRepository.manager.getRepository('MemberProfile').find({
-      where: { id: In(userIds) },
-    });
-    const profileMap = new Map(profiles.map((profile: any) => [profile.id, profile]));
+    const profiles = await this.userRepository.manager
+      .getRepository('MemberProfile')
+      .find({
+        where: { id: In(userIds) },
+      });
+    const profileMap = new Map(
+      profiles.map((profile: any) => [profile.id, profile])
+    );
 
     // Montar o retorno incluindo nickname e state
     return registrations.map(reg => {
@@ -766,11 +923,22 @@ export class SeasonRegistrationService {
   /**
    * Lista inscrições de um usuário em uma temporada específica
    */
-  async findByUserIdAndSeasonId(userId: string, seasonId: string): Promise<SeasonRegistration[]> {
+  async findByUserIdAndSeasonId(
+    userId: string,
+    seasonId: string
+  ): Promise<SeasonRegistration[]> {
     return await this.registrationRepository.find({
       where: { userId, seasonId },
-      relations: ['season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments'],
-      order: { createdAt: 'DESC' }
+      relations: [
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+        'payments',
+      ],
+      order: { createdAt: 'DESC' },
     });
   }
 
@@ -782,11 +950,14 @@ export class SeasonRegistrationService {
       .createQueryBuilder('regCategory')
       .innerJoin('regCategory.registration', 'registration')
       .where('regCategory.categoryId = :categoryId', { categoryId })
-      .andWhere('registration.status NOT IN (:...excludedStatuses)', { 
-        excludedStatuses: [RegistrationStatus.CANCELLED, RegistrationStatus.EXPIRED] 
+      .andWhere('registration.status NOT IN (:...excludedStatuses)', {
+        excludedStatuses: [
+          RegistrationStatus.CANCELLED,
+          RegistrationStatus.EXPIRED,
+        ],
       })
       .getCount();
-    
+
     return result;
   }
 
@@ -795,7 +966,7 @@ export class SeasonRegistrationService {
    */
   async processAsaasWebhook(webhookData: any): Promise<void> {
     const { event, payment } = webhookData;
-    
+
     if (!payment || !payment.id) {
       throw new BadRequestException('Dados de pagamento inválidos no webhook');
     }
@@ -803,7 +974,7 @@ export class SeasonRegistrationService {
     // Buscar o pagamento no banco
     const asaasPayment = await this.paymentRepository.findOne({
       where: { asaasPaymentId: payment.id },
-      relations: ['registration']
+      relations: ['registration'],
     });
 
     if (!asaasPayment) {
@@ -814,10 +985,10 @@ export class SeasonRegistrationService {
     if (event === 'PAYMENT_DELETED') {
       // Deletar o pagamento do banco de dados
       await this.paymentRepository.remove(asaasPayment);
-      
+
       // Atualizar o status da inscrição
       await this.updateSeasonRegistrationStatus(asaasPayment.registrationId);
-      
+
       return;
     }
 
@@ -849,50 +1020,61 @@ export class SeasonRegistrationService {
     isUpdate: boolean;
   }> {
     // Verificar se o usuário existe
-    const user = await this.userRepository.findOne({ where: { id: data.userId } });
+    const user = await this.userRepository.findOne({
+      where: { id: data.userId },
+    });
     if (!user) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
     // Verificar se a temporada existe
-    const season = await this.seasonRepository.findOne({ where: { id: data.seasonId } });
+    const season = await this.seasonRepository.findOne({
+      where: { id: data.seasonId },
+    });
     if (!season) {
       throw new NotFoundException('Temporada não encontrada');
     }
 
     // Verificar se já existe uma inscrição para este usuário nesta temporada
     const existingRegistration = await this.registrationRepository.findOne({
-      where: { userId: data.userId, seasonId: data.seasonId }
+      where: { userId: data.userId, seasonId: data.seasonId },
     });
 
     if (existingRegistration) {
       // Se já existe inscrição, fazer update
-      const updatedRegistration = await this.updateAdminRegistration(existingRegistration.id, data);
+      const updatedRegistration = await this.updateAdminRegistration(
+        existingRegistration.id,
+        data
+      );
       return {
         registration: updatedRegistration,
-        isUpdate: true
+        isUpdate: true,
       };
     }
 
     // Verificar se as categorias existem
     if (data.categoryIds && data.categoryIds.length > 0) {
       const categories = await this.categoryRepository.find({
-        where: { id: In(data.categoryIds) }
+        where: { id: In(data.categoryIds) },
       });
-      
+
       if (categories.length !== data.categoryIds.length) {
-        throw new BadRequestException('Uma ou mais categorias não foram encontradas');
+        throw new BadRequestException(
+          'Uma ou mais categorias não foram encontradas'
+        );
       }
     }
 
     // Verificar se as etapas existem
     if (data.stageIds && data.stageIds.length > 0) {
       const stages = await this.stageRepository.find({
-        where: { id: In(data.stageIds) }
+        where: { id: In(data.stageIds) },
       });
-      
+
       if (stages.length !== data.stageIds.length) {
-        throw new BadRequestException('Uma ou mais etapas não foram encontradas');
+        throw new BadRequestException(
+          'Uma ou mais etapas não foram encontradas'
+        );
       }
     }
 
@@ -902,15 +1084,23 @@ export class SeasonRegistrationService {
     registration.seasonId = data.seasonId;
     registration.amount = data.amount;
     registration.paymentStatus = data.paymentStatus as PaymentStatus;
-    registration.status = (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
-    registration.paymentMethod = data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
-    
+    registration.status =
+      data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment'
+        ? RegistrationStatus.CONFIRMED
+        : RegistrationStatus.PAYMENT_PENDING;
+    registration.paymentMethod =
+      data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
+
     // Definir datas baseadas no status
-    if (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') {
+    if (
+      data.paymentStatus === 'exempt' ||
+      data.paymentStatus === 'direct_payment'
+    ) {
       registration.confirmedAt = new Date();
     }
 
-    const savedRegistration = await this.registrationRepository.save(registration);
+    const savedRegistration =
+      await this.registrationRepository.save(registration);
 
     // Criar registros de categorias
     if (data.categoryIds && data.categoryIds.length > 0) {
@@ -922,7 +1112,7 @@ export class SeasonRegistrationService {
       });
 
       await this.registrationCategoryRepository.save(categoryRegistrations);
-      
+
       // Atualizar cache do Redis com os novos pilotos nas categorias
       await this.updateCategoryPilotsCache(data.userId, data.categoryIds);
     }
@@ -942,7 +1132,15 @@ export class SeasonRegistrationService {
     // Buscar a inscrição completa com relacionamentos
     const completeRegistration = await this.registrationRepository.findOne({
       where: { id: savedRegistration.id },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage']
+      relations: [
+        'user',
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+      ],
     });
 
     if (!completeRegistration) {
@@ -951,14 +1149,17 @@ export class SeasonRegistrationService {
 
     return {
       registration: completeRegistration,
-      isUpdate: false
+      isUpdate: false,
     };
   }
 
   /**
    * Atualiza uma inscrição administrativa existente
    */
-  async updateAdminRegistration(registrationId: string, data: CreateAdminRegistrationData): Promise<SeasonRegistration> {
+  async updateAdminRegistration(
+    registrationId: string,
+    data: CreateAdminRegistrationData
+  ): Promise<SeasonRegistration> {
     // Verificar se a inscrição existe
     const existingRegistration = await this.findById(registrationId);
     if (!existingRegistration) {
@@ -968,40 +1169,53 @@ export class SeasonRegistrationService {
     // Verificar se as categorias existem
     if (data.categoryIds && data.categoryIds.length > 0) {
       const categories = await this.categoryRepository.find({
-        where: { id: In(data.categoryIds) }
+        where: { id: In(data.categoryIds) },
       });
-      
+
       if (categories.length !== data.categoryIds.length) {
-        throw new BadRequestException('Uma ou mais categorias não foram encontradas');
+        throw new BadRequestException(
+          'Uma ou mais categorias não foram encontradas'
+        );
       }
     }
 
     // Verificar se as etapas existem
     if (data.stageIds && data.stageIds.length > 0) {
       const stages = await this.stageRepository.find({
-        where: { id: In(data.stageIds) }
+        where: { id: In(data.stageIds) },
       });
-      
+
       if (stages.length !== data.stageIds.length) {
-        throw new BadRequestException('Uma ou mais etapas não foram encontradas');
+        throw new BadRequestException(
+          'Uma ou mais etapas não foram encontradas'
+        );
       }
     }
 
     // Obter IDs das categorias antigas para atualizar o cache
-    const oldCategoryIds = existingRegistration.categories?.map(cat => cat.categoryId) || [];
+    const oldCategoryIds =
+      existingRegistration.categories?.map(cat => cat.categoryId) || [];
 
     // Atualizar dados da inscrição
     existingRegistration.amount = data.amount;
     existingRegistration.paymentStatus = data.paymentStatus as PaymentStatus;
-    existingRegistration.status = (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') ? RegistrationStatus.CONFIRMED : RegistrationStatus.PAYMENT_PENDING;
-    existingRegistration.paymentMethod = data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
-    
+    existingRegistration.status =
+      data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment'
+        ? RegistrationStatus.CONFIRMED
+        : RegistrationStatus.PAYMENT_PENDING;
+    existingRegistration.paymentMethod =
+      data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
+
     // Definir datas baseadas no status
-    if (data.paymentStatus === 'exempt' || data.paymentStatus === 'direct_payment') {
+    if (
+      data.paymentStatus === 'exempt' ||
+      data.paymentStatus === 'direct_payment'
+    ) {
       existingRegistration.confirmedAt = new Date();
     }
 
-    const updatedRegistration = await this.registrationRepository.save(existingRegistration);
+    const updatedRegistration =
+      await this.registrationRepository.save(existingRegistration);
 
     // Remover categorias e etapas antigas
     await this.registrationCategoryRepository.delete({ registrationId });
@@ -1009,7 +1223,10 @@ export class SeasonRegistrationService {
 
     // Remover usuário do cache das categorias antigas
     if (oldCategoryIds.length > 0) {
-      await this.removeUserFromCategoryPilotsCache(existingRegistration.userId, oldCategoryIds);
+      await this.removeUserFromCategoryPilotsCache(
+        existingRegistration.userId,
+        oldCategoryIds
+      );
     }
 
     // Criar novos registros de categorias
@@ -1022,9 +1239,12 @@ export class SeasonRegistrationService {
       });
 
       await this.registrationCategoryRepository.save(categoryRegistrations);
-      
+
       // Atualizar cache do Redis com os novos pilotos nas categorias
-      await this.updateCategoryPilotsCache(existingRegistration.userId, data.categoryIds);
+      await this.updateCategoryPilotsCache(
+        existingRegistration.userId,
+        data.categoryIds
+      );
     }
 
     // Criar novos registros de etapas
@@ -1042,7 +1262,15 @@ export class SeasonRegistrationService {
     // Buscar a inscrição completa com relacionamentos
     const completeRegistration = await this.registrationRepository.findOne({
       where: { id: updatedRegistration.id },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage']
+      relations: [
+        'user',
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+      ],
     });
 
     if (!completeRegistration) {
@@ -1055,7 +1283,10 @@ export class SeasonRegistrationService {
   /**
    * Cancela uma inscrição
    */
-  async cancelRegistration(registrationId: string, reason: string): Promise<SeasonRegistration> {
+  async cancelRegistration(
+    registrationId: string,
+    reason: string
+  ): Promise<SeasonRegistration> {
     const registration = await this.findById(registrationId);
     if (!registration) {
       throw new NotFoundException('Inscrição não encontrada');
@@ -1063,12 +1294,14 @@ export class SeasonRegistrationService {
 
     // Verificar se a inscrição pode ser cancelada
     if (registration.status === RegistrationStatus.CONFIRMED) {
-      throw new BadRequestException('Não é possível cancelar uma inscrição já confirmada');
+      throw new BadRequestException(
+        'Não é possível cancelar uma inscrição já confirmada'
+      );
     }
 
     // Buscar pagamento associado
     const asaasPayment = await this.paymentRepository.findOne({
-      where: { registrationId }
+      where: { registrationId },
     });
 
     // Se existe pagamento pendente, tentar cancelar no Asaas
@@ -1077,7 +1310,7 @@ export class SeasonRegistrationService {
         await this.asaasService.cancelPayment(asaasPayment.asaasPaymentId);
         asaasPayment.status = AsaasPaymentStatus.PENDING; // Status será atualizado via webhook
         await this.paymentRepository.save(asaasPayment);
-        
+
         // Atualizar o status da inscrição após cancelar o pagamento
         await this.updateSeasonRegistrationStatus(registrationId);
       } catch (error) {
@@ -1092,7 +1325,8 @@ export class SeasonRegistrationService {
     registration.cancellationReason = reason;
 
     // Obter IDs das categorias antes de remover para atualizar o cache
-    const categoryIds = registration.categories?.map(cat => cat.categoryId) || [];
+    const categoryIds =
+      registration.categories?.map(cat => cat.categoryId) || [];
 
     await this.registrationRepository.save(registration);
     // Remover categorias e etapas vinculadas
@@ -1101,7 +1335,10 @@ export class SeasonRegistrationService {
 
     // Remover usuário do cache das categorias
     if (categoryIds.length > 0) {
-      await this.removeUserFromCategoryPilotsCache(registration.userId, categoryIds);
+      await this.removeUserFromCategoryPilotsCache(
+        registration.userId,
+        categoryIds
+      );
     }
 
     return registration;
@@ -1110,11 +1347,13 @@ export class SeasonRegistrationService {
   /**
    * Sincroniza manualmente o status de pagamentos de uma inscrição com o Asaas
    */
-  async syncPaymentStatusFromAsaas(registrationId: string): Promise<RegistrationPaymentData[] | null> {
+  async syncPaymentStatusFromAsaas(
+    registrationId: string
+  ): Promise<RegistrationPaymentData[] | null> {
     // Buscar todos os pagamentos da inscrição no banco de dados
-    const localPayments = await this.paymentRepository.find({ 
+    const localPayments = await this.paymentRepository.find({
       where: { registrationId },
-      order: { dueDate: 'ASC' } 
+      order: { dueDate: 'ASC' },
     });
 
     if (!localPayments || localPayments.length === 0) {
@@ -1123,48 +1362,58 @@ export class SeasonRegistrationService {
 
     // Verificar se é um PIX parcelado (installment plan)
     const firstPayment = localPayments[0];
-    const isInstallmentPlan = firstPayment.asaasInstallmentId && firstPayment.billingType === 'PIX';
-    
+    const isInstallmentPlan =
+      firstPayment.asaasInstallmentId && firstPayment.billingType === 'PIX';
+
     if (isInstallmentPlan && firstPayment.asaasInstallmentId) {
-      return await this.syncInstallmentPayments(registrationId, firstPayment.asaasInstallmentId);
+      return await this.syncInstallmentPayments(
+        registrationId,
+        firstPayment.asaasInstallmentId
+      );
     }
 
     // Para pagamentos únicos ou cartão, usar o método existente
     const updatedPayments: RegistrationPaymentData[] = [];
-    
+
     for (const localPayment of localPayments) {
       try {
         // Buscar dados atualizados do Asaas
-        const asaasPayment = await this.asaasService.getPayment(localPayment.asaasPaymentId);
-        
+        const asaasPayment = await this.asaasService.getPayment(
+          localPayment.asaasPaymentId
+        );
+
         // Atualizar apenas se o status mudou
         if (asaasPayment.status !== localPayment.status) {
           localPayment.status = asaasPayment.status as AsaasPaymentStatus;
-          localPayment.webhookData = { 
+          localPayment.webhookData = {
             lastSync: new Date().toISOString(),
             syncSource: 'manual',
-            previousStatus: localPayment.status 
+            previousStatus: localPayment.status,
           };
-          
+
           if (asaasPayment.paymentDate) {
             localPayment.paymentDate = new Date(asaasPayment.paymentDate);
           }
-          
+
           if (asaasPayment.clientPaymentDate) {
-            localPayment.clientPaymentDate = new Date(asaasPayment.clientPaymentDate);
+            localPayment.clientPaymentDate = new Date(
+              asaasPayment.clientPaymentDate
+            );
           }
-          
+
           // Atualizar outras informações que podem ter mudado
           if (asaasPayment.invoiceUrl) {
             localPayment.invoiceUrl = asaasPayment.invoiceUrl;
           }
-          
+
           // Salvar as mudanças
           await this.paymentRepository.save(localPayment);
-          
+
           // Atualizar o status da inscrição após atualizar o pagamento
-          await this.updateSeasonRegistrationStatus(localPayment.registrationId);
-          
+          await this.updateSeasonRegistrationStatus(
+            localPayment.registrationId
+          );
+
           // Adicionar à lista de resultados
           const paymentData: RegistrationPaymentData = {
             id: localPayment.id,
@@ -1174,16 +1423,16 @@ export class SeasonRegistrationService {
             dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
             status: localPayment.status,
             installmentNumber: asaasPayment.installmentNumber,
-            installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
+            installmentCount:
+              (localPayment.rawResponse as any)?.installmentCount || null,
             invoiceUrl: localPayment.invoiceUrl,
             bankSlipUrl: localPayment.bankSlipUrl,
             paymentLink: asaasPayment.paymentLink || localPayment.invoiceUrl,
             pixQrCode: localPayment.pixQrCode,
             pixCopyPaste: localPayment.pixCopyPaste,
           };
-          
+
           updatedPayments.push(paymentData);
-          
         }
       } catch (error) {
         // Em caso de erro, retornar os dados locais
@@ -1194,22 +1443,26 @@ export class SeasonRegistrationService {
           value: localPayment.value,
           dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
           status: localPayment.status,
-          installmentNumber: (localPayment.rawResponse as any)?.installmentNumber,
-          installmentCount: (localPayment.rawResponse as any)?.installmentCount || null,
+          installmentNumber: (localPayment.rawResponse as any)
+            ?.installmentNumber,
+          installmentCount:
+            (localPayment.rawResponse as any)?.installmentCount || null,
           invoiceUrl: localPayment.invoiceUrl,
           bankSlipUrl: localPayment.bankSlipUrl,
-          paymentLink: (localPayment.rawResponse as any)?.paymentLink || localPayment.invoiceUrl,
+          paymentLink:
+            (localPayment.rawResponse as any)?.paymentLink ||
+            localPayment.invoiceUrl,
           pixQrCode: localPayment.pixQrCode,
           pixCopyPaste: localPayment.pixCopyPaste,
         };
-        
+
         updatedPayments.push(fallbackData);
       }
     }
 
     // Atualizar o status da inscrição após sincronizar todos os pagamentos
     await this.updateSeasonRegistrationStatus(registrationId);
-    
+
     return updatedPayments;
   }
 
@@ -1217,19 +1470,23 @@ export class SeasonRegistrationService {
    * Sincroniza pagamentos de um plano de parcelamento PIX
    * Usa o endpoint correto: GET /installments/{installment_id}/payments
    */
-  private async syncInstallmentPayments(registrationId: string, installmentId: string): Promise<RegistrationPaymentData[]> {
+  private async syncInstallmentPayments(
+    registrationId: string,
+    installmentId: string
+  ): Promise<RegistrationPaymentData[]> {
     try {
       // Buscar TODAS as parcelas do plano diretamente do Asaas via endpoint correto
-      const asaasInstallmentPayments = await this.asaasService.getInstallmentPayments(installmentId);
-      
+      const asaasInstallmentPayments =
+        await this.asaasService.getInstallmentPayments(installmentId);
+
       const updatedPayments: RegistrationPaymentData[] = [];
-      
+
       // Para cada parcela do Asaas, verificar se existe no banco local
       for (const asaasPayment of asaasInstallmentPayments) {
         let localPayment = await this.paymentRepository.findOne({
-          where: { asaasPaymentId: asaasPayment.id }
+          where: { asaasPaymentId: asaasPayment.id },
         });
-        
+
         if (!localPayment) {
           // Parcela não existe no banco local - criar nova entrada
           localPayment = new AsaasPayment();
@@ -1248,33 +1505,43 @@ export class SeasonRegistrationService {
           localPayment.rawResponse = asaasPayment;
           localPayment.webhookData = {
             createdBy: 'sync',
-            syncDate: new Date().toISOString()
+            syncDate: new Date().toISOString(),
           };
-          
+
           if (asaasPayment.paymentDate) {
             localPayment.paymentDate = new Date(asaasPayment.paymentDate);
           }
-          
+
           if (asaasPayment.clientPaymentDate) {
-            localPayment.clientPaymentDate = new Date(asaasPayment.clientPaymentDate);
+            localPayment.clientPaymentDate = new Date(
+              asaasPayment.clientPaymentDate
+            );
           }
-          
+
           // Buscar QR Code PIX se for necessário
-          if (asaasPayment.billingType === 'PIX' && asaasPayment.status === 'PENDING') {
+          if (
+            asaasPayment.billingType === 'PIX' &&
+            asaasPayment.status === 'PENDING'
+          ) {
             try {
-              const pixQrCode = await this.asaasService.getPixQrCode(asaasPayment.id);
+              const pixQrCode = await this.asaasService.getPixQrCode(
+                asaasPayment.id
+              );
               localPayment.pixQrCode = pixQrCode.encodedImage;
               localPayment.pixCopyPaste = pixQrCode.payload;
             } catch (error) {
-              console.warn(`Erro ao buscar QR Code PIX para parcela ${asaasPayment.id}:`, error);
+              console.warn(
+                `Erro ao buscar QR Code PIX para parcela ${asaasPayment.id}:`,
+                error
+              );
             }
           }
-          
+
           localPayment = await this.paymentRepository.save(localPayment);
-          
+
           // Atualizar o status da inscrição após criar nova parcela
           await this.updateSeasonRegistrationStatus(registrationId);
-          
+
           // Adicionar à lista de resultados
           const paymentData: RegistrationPaymentData = {
             id: localPayment.id,
@@ -1291,7 +1558,7 @@ export class SeasonRegistrationService {
             pixQrCode: localPayment.pixQrCode,
             pixCopyPaste: localPayment.pixCopyPaste,
           };
-          
+
           updatedPayments.push(paymentData);
         } else {
           // Parcela existe - atualizar se necessário
@@ -1301,33 +1568,37 @@ export class SeasonRegistrationService {
               ...localPayment.webhookData,
               lastSync: new Date().toISOString(),
               syncSource: 'manual',
-              previousStatus: localPayment.status
+              previousStatus: localPayment.status,
             };
-            
+
             if (asaasPayment.paymentDate) {
               localPayment.paymentDate = new Date(asaasPayment.paymentDate);
             }
-            
+
             if (asaasPayment.clientPaymentDate) {
-              localPayment.clientPaymentDate = new Date(asaasPayment.clientPaymentDate);
+              localPayment.clientPaymentDate = new Date(
+                asaasPayment.clientPaymentDate
+              );
             }
-            
+
             if (asaasPayment.invoiceUrl) {
               localPayment.invoiceUrl = asaasPayment.invoiceUrl;
             }
-            
+
             localPayment = await this.paymentRepository.save(localPayment);
-            
+
             // Atualizar o status da inscrição após atualizar parcela existente
             await this.updateSeasonRegistrationStatus(registrationId);
-            
+
             // Adicionar à lista de resultados
             const paymentData: RegistrationPaymentData = {
               id: localPayment.id,
               registrationId: localPayment.registrationId,
               billingType: localPayment.billingType,
               value: localPayment.value,
-              dueDate: this.asaasService.formatDateForAsaas(localPayment.dueDate),
+              dueDate: this.asaasService.formatDateForAsaas(
+                localPayment.dueDate
+              ),
               status: localPayment.status,
               installmentNumber: asaasPayment.installmentNumber,
               installmentCount: asaasInstallmentPayments.length,
@@ -1337,17 +1608,18 @@ export class SeasonRegistrationService {
               pixQrCode: localPayment.pixQrCode,
               pixCopyPaste: localPayment.pixCopyPaste,
             };
-            
+
             updatedPayments.push(paymentData);
           }
         }
       }
-      
+
       // Atualizar o status da inscrição após sincronizar todas as parcelas
       await this.updateSeasonRegistrationStatus(registrationId);
-      
-      return updatedPayments.sort((a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0));
-      
+
+      return updatedPayments.sort(
+        (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0)
+      );
     } catch (error) {
       throw error;
     }
@@ -1356,10 +1628,12 @@ export class SeasonRegistrationService {
   /**
    * Busca dados de pagamento de uma inscrição
    */
-  async getPaymentData(registrationId: string): Promise<RegistrationPaymentData[] | null> {
+  async getPaymentData(
+    registrationId: string
+  ): Promise<RegistrationPaymentData[] | null> {
     // Buscar a inscrição para verificar o status de pagamento
     const registration = await this.registrationRepository.findOne({
-      where: { id: registrationId }
+      where: { id: registrationId },
     });
 
     if (!registration) {
@@ -1367,23 +1641,29 @@ export class SeasonRegistrationService {
     }
 
     // Buscar pagamentos Asaas
-    const asaasPayments = await this.paymentRepository.find({ 
+    const asaasPayments = await this.paymentRepository.find({
       where: { registrationId },
-      order: { dueDate: 'ASC' } 
+      order: { dueDate: 'ASC' },
     });
 
     // Se é uma inscrição administrativa (exempt ou direct_payment) e não há pagamentos Asaas
-    if ((registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') && 
-        (!asaasPayments || asaasPayments.length === 0)) {
-      
+    if (
+      (registration.paymentStatus === 'exempt' ||
+        registration.paymentStatus === 'direct_payment') &&
+      (!asaasPayments || asaasPayments.length === 0)
+    ) {
       // Criar um registro virtual para pagamento administrativo
       const virtualPayment: RegistrationPaymentData = {
         id: `admin_${registrationId}`,
         registrationId: registrationId,
-        billingType: registration.paymentMethod === 'admin_exempt' ? 'ADMIN_EXEMPT' : 'ADMIN_DIRECT',
+        billingType:
+          registration.paymentMethod === 'admin_exempt'
+            ? 'ADMIN_EXEMPT'
+            : 'ADMIN_DIRECT',
         value: registration.amount,
         dueDate: new Date(registration.createdAt).toISOString().split('T')[0], // Usar data de criação
-        status: registration.paymentStatus === 'exempt' ? 'EXEMPT' : 'DIRECT_PAYMENT',
+        status:
+          registration.paymentStatus === 'exempt' ? 'EXEMPT' : 'DIRECT_PAYMENT',
         installmentNumber: 1,
         installmentCount: 1,
         invoiceUrl: null,
@@ -1400,7 +1680,10 @@ export class SeasonRegistrationService {
     if (asaasPayments && asaasPayments.length > 0) {
       const paymentData: RegistrationPaymentData[] = asaasPayments.map(p => {
         // Garantir que dueDate seja um objeto Date válido
-        let formattedDueDate: string = typeof p.dueDate === 'string' ? p.dueDate : this.asaasService.formatDateForAsaas(p.dueDate);
+        const formattedDueDate: string =
+          typeof p.dueDate === 'string'
+            ? p.dueDate
+            : this.asaasService.formatDateForAsaas(p.dueDate);
 
         return {
           id: p.id,
@@ -1420,14 +1703,23 @@ export class SeasonRegistrationService {
       });
 
       // Se é uma inscrição administrativa (exempt ou direct_payment), adicionar o pagamento administrativo virtual
-      if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
+      if (
+        registration.paymentStatus === 'exempt' ||
+        registration.paymentStatus === 'direct_payment'
+      ) {
         const virtualPayment: RegistrationPaymentData = {
           id: `admin_${registrationId}`,
           registrationId: registrationId,
-          billingType: registration.paymentMethod === 'admin_exempt' ? 'ADMIN_EXEMPT' : 'ADMIN_DIRECT',
+          billingType:
+            registration.paymentMethod === 'admin_exempt'
+              ? 'ADMIN_EXEMPT'
+              : 'ADMIN_DIRECT',
           value: registration.amount,
           dueDate: new Date(registration.createdAt).toISOString().split('T')[0],
-          status: registration.paymentStatus === 'exempt' ? 'EXEMPT' : 'DIRECT_PAYMENT',
+          status:
+            registration.paymentStatus === 'exempt'
+              ? 'EXEMPT'
+              : 'DIRECT_PAYMENT',
           installmentNumber: 0, // Colocar antes das parcelas Asaas
           installmentCount: 1,
           invoiceUrl: null,
@@ -1436,7 +1728,7 @@ export class SeasonRegistrationService {
           pixQrCode: null,
           pixCopyPaste: null,
         };
-        
+
         paymentData.push(virtualPayment);
       }
 
@@ -1446,11 +1738,11 @@ export class SeasonRegistrationService {
         if (a.installmentNumber && b.installmentNumber) {
           return a.installmentNumber - b.installmentNumber;
         }
-        
+
         // Se apenas um tem installmentNumber, ele vem primeiro
         if (a.installmentNumber && !b.installmentNumber) return -1;
         if (!a.installmentNumber && b.installmentNumber) return 1;
-        
+
         // Se nenhum tem installmentNumber, ordenar por data de vencimento
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
@@ -1466,8 +1758,8 @@ export class SeasonRegistrationService {
    * Salva todas as parcelas de um installment plan no banco de dados
    */
   private async saveAllInstallmentPayments(
-    registrationId: string, 
-    installmentPlanId: string, 
+    registrationId: string,
+    installmentPlanId: string,
     asaasCustomerId: string,
     installmentPayments: any[]
   ): Promise<void> {
@@ -1478,17 +1770,17 @@ export class SeasonRegistrationService {
         const bNum = b.installmentNumber || 999;
         return aNum - bNum;
       });
-      
+
       for (const payment of sortedPayments) {
         // Verificar se a parcela já existe no banco
         const existingPayment = await this.paymentRepository.findOne({
-          where: { asaasPaymentId: payment.id }
+          where: { asaasPaymentId: payment.id },
         });
-        
+
         if (existingPayment) {
           continue;
         }
-        
+
         const asaasPayment = new AsaasPayment();
         asaasPayment.registrationId = registrationId;
         asaasPayment.asaasPaymentId = payment.id;
@@ -1503,7 +1795,7 @@ export class SeasonRegistrationService {
         asaasPayment.invoiceUrl = payment.invoiceUrl || null;
         asaasPayment.bankSlipUrl = payment.bankSlipUrl || null;
         asaasPayment.rawResponse = payment;
-        
+
         // Verificar se o QR Code já vem na resposta do pagamento
         if (payment.qrCode) {
           asaasPayment.pixQrCode = payment.qrCode.encodedImage;
@@ -1515,16 +1807,18 @@ export class SeasonRegistrationService {
             asaasPayment.pixQrCode = pixQrCode.encodedImage;
             asaasPayment.pixCopyPaste = pixQrCode.payload;
           } catch (error) {
-            console.warn(`Erro ao buscar QR Code PIX para parcela ${payment.id}:`, error);
+            console.warn(
+              `Erro ao buscar QR Code PIX para parcela ${payment.id}:`,
+              error
+            );
           }
         }
-        
+
         await this.paymentRepository.save(asaasPayment);
-        
+
         // Atualizar o status da inscrição após salvar cada parcela
         await this.updateSeasonRegistrationStatus(registrationId);
       }
-      
     } catch (error) {
       throw error;
     }
@@ -1534,57 +1828,73 @@ export class SeasonRegistrationService {
    * Atualiza as categorias de uma inscrição
    * Mantém a mesma quantidade de categorias que o piloto se inscreveu originalmente
    */
-  async updateRegistrationCategories(registrationId: string, newCategoryIds: string[]): Promise<SeasonRegistration> {
+  async updateRegistrationCategories(
+    registrationId: string,
+    newCategoryIds: string[]
+  ): Promise<SeasonRegistration> {
     const registration = await this.findById(registrationId);
     if (!registration) {
       throw new NotFoundException('Inscrição não encontrada');
     }
 
     // Verificar se a inscrição pode ser alterada
-    if (registration.status === RegistrationStatus.CANCELLED || registration.status === RegistrationStatus.EXPIRED) {
-      throw new BadRequestException('Não é possível alterar categorias de uma inscrição cancelada ou expirada');
+    if (
+      registration.status === RegistrationStatus.CANCELLED ||
+      registration.status === RegistrationStatus.EXPIRED
+    ) {
+      throw new BadRequestException(
+        'Não é possível alterar categorias de uma inscrição cancelada ou expirada'
+      );
     }
 
     // Verificar se a quantidade de categorias é a mesma
     const currentCategoryCount = registration.categories?.length || 0;
     if (newCategoryIds.length !== currentCategoryCount) {
-      throw new BadRequestException(`A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${newCategoryIds.length}`);
+      throw new BadRequestException(
+        `A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${newCategoryIds.length}`
+      );
     }
 
     // Verificar se as novas categorias existem e pertencem à temporada
     const categories = await this.categoryRepository.find({
-      where: { 
+      where: {
         id: In(newCategoryIds),
-        seasonId: registration.seasonId
-      }
+        seasonId: registration.seasonId,
+      },
     });
 
     if (categories.length !== newCategoryIds.length) {
-      throw new BadRequestException('Uma ou mais categorias são inválidas ou não pertencem a esta temporada');
+      throw new BadRequestException(
+        'Uma ou mais categorias são inválidas ou não pertencem a esta temporada'
+      );
     }
 
     // Obter IDs das categorias atuais para atualizar o cache
-    const currentCategoryIds = registration.categories?.map(cat => cat.categoryId) || [];
+    const currentCategoryIds =
+      registration.categories?.map(cat => cat.categoryId) || [];
 
     // Remover categorias atuais
     if (registration.categories && registration.categories.length > 0) {
       await this.registrationCategoryRepository.delete({
-        registrationId: registrationId
+        registrationId: registrationId,
       });
     }
 
     // Adicionar novas categorias
-    const registrationCategories = categories.map(category => 
+    const registrationCategories = categories.map(category =>
       this.registrationCategoryRepository.create({
         registrationId: registrationId,
-        categoryId: category.id
+        categoryId: category.id,
       })
     );
-    
+
     await this.registrationCategoryRepository.save(registrationCategories);
 
     // Atualizar cache do Redis: remover das categorias antigas e adicionar às novas
-    await this.removeUserFromCategoryPilotsCache(registration.userId, currentCategoryIds);
+    await this.removeUserFromCategoryPilotsCache(
+      registration.userId,
+      currentCategoryIds
+    );
     await this.updateCategoryPilotsCache(registration.userId, newCategoryIds);
 
     // Buscar a inscrição atualizada com as novas categorias
@@ -1600,23 +1910,24 @@ export class SeasonRegistrationService {
    * Adiciona etapas a uma inscrição existente com pagamento administrativo
    */
 
-
   /**
    * Atualiza o status da SeasonRegistration baseado nos status dos pagamentos
    * Este método é chamado sempre que um pagamento é criado ou atualizado
    */
-  private async updateSeasonRegistrationStatus(registrationId: string): Promise<void> {
+  private async updateSeasonRegistrationStatus(
+    registrationId: string
+  ): Promise<void> {
     try {
       // Buscar todos os pagamentos da inscrição
       const payments = await this.paymentRepository.find({
         where: { registrationId },
-        order: { dueDate: 'ASC' }
+        order: { dueDate: 'ASC' },
       });
 
       if (!payments || payments.length === 0) {
         // Se não há pagamentos, verificar se é uma inscrição administrativa
         const registration = await this.registrationRepository.findOne({
-          where: { id: registrationId }
+          where: { id: registrationId },
         });
 
         if (!registration) {
@@ -1624,11 +1935,14 @@ export class SeasonRegistrationService {
         }
 
         // Se não é uma inscrição administrativa e não há pagamentos, remover completamente a inscrição
-        if (registration.paymentStatus !== 'exempt' && registration.paymentStatus !== 'direct_payment') {
+        if (
+          registration.paymentStatus !== 'exempt' &&
+          registration.paymentStatus !== 'direct_payment'
+        ) {
           // Remover categorias e etapas vinculadas primeiro
           await this.registrationCategoryRepository.delete({ registrationId });
           await this.registrationStageRepository.delete({ registrationId });
-          
+
           // Remover a inscrição completamente
           await this.registrationRepository.remove(registration);
         }
@@ -1637,7 +1951,7 @@ export class SeasonRegistrationService {
 
       // Buscar a inscrição
       const registration = await this.registrationRepository.findOne({
-        where: { id: registrationId }
+        where: { id: registrationId },
       });
 
       if (!registration) {
@@ -1656,7 +1970,11 @@ export class SeasonRegistrationService {
         totalPayments += payment.value;
 
         // Verificar se todos os pagamentos estão pagos
-        if (!['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status)) {
+        if (
+          !['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(
+            payment.status
+          )
+        ) {
           allPaymentsPaid = false;
         }
 
@@ -1666,7 +1984,9 @@ export class SeasonRegistrationService {
         }
 
         // Verificar se algum pagamento foi cancelado
-        if (['REFUND_REQUESTED', 'REFUND_IN_PROGRESS'].includes(payment.status)) {
+        if (
+          ['REFUND_REQUESTED', 'REFUND_IN_PROGRESS'].includes(payment.status)
+        ) {
           anyPaymentCancelled = true;
         }
 
@@ -1676,7 +1996,9 @@ export class SeasonRegistrationService {
         }
 
         // Somar valores pagos
-        if (['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status)) {
+        if (
+          ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status)
+        ) {
           totalPaid += payment.value;
         }
       }
@@ -1722,7 +2044,7 @@ export class SeasonRegistrationService {
       }
 
       // Verificar se houve mudança de status
-      const statusChanged = 
+      const statusChanged =
         registration.paymentStatus !== newPaymentStatus ||
         registration.status !== newRegistrationStatus;
 
@@ -1730,19 +2052,19 @@ export class SeasonRegistrationService {
         // Atualizar a inscrição
         registration.paymentStatus = newPaymentStatus;
         registration.status = newRegistrationStatus;
-        
+
         if (paymentDate) {
           registration.paymentDate = paymentDate;
         }
-        
+
         if (confirmedAt) {
           registration.confirmedAt = confirmedAt;
         }
-        
+
         if (cancelledAt) {
           registration.cancelledAt = cancelledAt;
         }
-        
+
         if (cancellationReason) {
           registration.cancellationReason = cancellationReason;
         }
@@ -1768,7 +2090,16 @@ export class SeasonRegistrationService {
     // Buscar a inscrição com todas as relações
     const registration = await this.registrationRepository.findOne({
       where: { id: registrationId },
-      relations: ['user', 'season', 'season.championship', 'categories', 'categories.category', 'stages', 'stages.stage', 'payments']
+      relations: [
+        'user',
+        'season',
+        'season.championship',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+        'payments',
+      ],
     });
 
     if (!registration) {
@@ -1776,9 +2107,10 @@ export class SeasonRegistrationService {
     }
 
     // Buscar o perfil completo do usuário
-    const memberProfileRepository = AppDataSource.getRepository('MemberProfiles');
+    const memberProfileRepository =
+      AppDataSource.getRepository('MemberProfiles');
     const profile = await memberProfileRepository.findOne({
-      where: { id: registration.userId }
+      where: { id: registration.userId },
     });
 
     // Buscar dados de pagamento
@@ -1788,21 +2120,23 @@ export class SeasonRegistrationService {
       registration,
       user: registration.user,
       profile: profile || null,
-      payments: paymentData || []
+      payments: paymentData || [],
     };
   }
 
   /**
    * Busca pagamentos vencidos (OVERDUE) de uma inscrição
    */
-  async getOverduePayments(registrationId: string): Promise<RegistrationPaymentData[]> {
+  async getOverduePayments(
+    registrationId: string
+  ): Promise<RegistrationPaymentData[]> {
     const overduePayments = await this.paymentRepository.find({
-      where: { 
+      where: {
         registrationId,
         status: AsaasPaymentStatus.OVERDUE,
-        billingType: AsaasBillingType.PIX
+        billingType: AsaasBillingType.PIX,
       },
-      order: { dueDate: 'ASC' }
+      order: { dueDate: 'ASC' },
     });
 
     return overduePayments.map(payment => ({
@@ -1816,7 +2150,8 @@ export class SeasonRegistrationService {
       installmentCount: (payment.rawResponse as any)?.installmentCount || null,
       invoiceUrl: payment.invoiceUrl,
       bankSlipUrl: payment.bankSlipUrl,
-      paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+      paymentLink:
+        (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
       pixQrCode: payment.pixQrCode,
       pixCopyPaste: payment.pixCopyPaste,
     }));
@@ -1825,61 +2160,62 @@ export class SeasonRegistrationService {
   /**
    * Reativa uma fatura vencida atualizando a data de vencimento e gerando novo QR Code PIX
    */
-  async reactivateOverduePayment(paymentId: string, newDueDate: string): Promise<RegistrationPaymentData> {
-
-    
+  async reactivateOverduePayment(
+    paymentId: string,
+    newDueDate: string
+  ): Promise<RegistrationPaymentData> {
     // Buscar o pagamento no banco
     const payment = await this.paymentRepository.findOne({
       where: { id: paymentId },
-      relations: ['registration']
+      relations: ['registration'],
     });
 
     if (!payment) {
-
       throw new BadRequestException('Pagamento não encontrado');
     }
 
-
-
     if (payment.status !== AsaasPaymentStatus.OVERDUE) {
-
-      throw new BadRequestException('Apenas faturas vencidas podem ser reativadas');
+      throw new BadRequestException(
+        'Apenas faturas vencidas podem ser reativadas'
+      );
     }
 
     if (payment.billingType !== AsaasBillingType.PIX) {
-
-      throw new BadRequestException('Apenas pagamentos PIX podem ser reativados');
+      throw new BadRequestException(
+        'Apenas pagamentos PIX podem ser reativados'
+      );
     }
 
     try {
-
-      const formattedDate = this.asaasService.formatDateForAsaas(new Date(newDueDate));
-      
+      const formattedDate = this.asaasService.formatDateForAsaas(
+        new Date(newDueDate)
+      );
 
       // Primeiro, verificar se o pagamento ainda existe no Asaas
-      
+
       let asaasPayment;
       try {
-        asaasPayment = await this.asaasService.getPayment(payment.asaasPaymentId);
-        
+        asaasPayment = await this.asaasService.getPayment(
+          payment.asaasPaymentId
+        );
       } catch (error: any) {
         if (error.message.includes('404')) {
-          
-          
           // Marcar como cancelado no banco local
           payment.status = AsaasPaymentStatus.REFUNDED;
           payment.rawResponse = {
             ...payment.rawResponse,
             deleted: true,
-            status: AsaasPaymentStatus.REFUNDED
+            status: AsaasPaymentStatus.REFUNDED,
           };
-          
+
           await this.paymentRepository.save(payment);
-          
+
           // Atualizar o status da inscrição
           await this.updateSeasonRegistrationStatus(payment.registrationId);
-          
-          throw new BadRequestException('Este pagamento não existe mais no sistema de pagamentos e não pode ser reativado. Entre em contato com o suporte.');
+
+          throw new BadRequestException(
+            'Este pagamento não existe mais no sistema de pagamentos e não pode ser reativado. Entre em contato com o suporte.'
+          );
         } else {
           throw error;
         }
@@ -1887,13 +2223,10 @@ export class SeasonRegistrationService {
 
       // Reativar no Asaas
 
-      
       const result = await this.asaasService.reactivateOverduePayment(
         payment.asaasPaymentId,
         formattedDate
       );
-
-
 
       // Atualizar no banco local
       payment.dueDate = formattedDate;
@@ -1902,14 +2235,11 @@ export class SeasonRegistrationService {
       payment.pixCopyPaste = result.qrCode.payload;
       payment.rawResponse = result.payment;
 
-
       await this.paymentRepository.save(payment);
 
       // Atualizar o status da inscrição
 
       await this.updateSeasonRegistrationStatus(payment.registrationId);
-
-
 
       return {
         id: payment.id,
@@ -1919,10 +2249,12 @@ export class SeasonRegistrationService {
         dueDate: payment.dueDate,
         status: payment.status,
         installmentNumber: (payment.rawResponse as any)?.installmentNumber,
-        installmentCount: (payment.rawResponse as any)?.installmentCount || null,
+        installmentCount:
+          (payment.rawResponse as any)?.installmentCount || null,
         invoiceUrl: payment.invoiceUrl,
         bankSlipUrl: payment.bankSlipUrl,
-        paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+        paymentLink:
+          (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
         pixQrCode: payment.pixQrCode,
         pixCopyPaste: payment.pixCopyPaste,
       };
@@ -1930,9 +2262,11 @@ export class SeasonRegistrationService {
       console.error('[DEBUG] Erro durante reativação:', {
         error: error.message,
         stack: error.stack,
-        response: error.response?.data
+        response: error.response?.data,
       });
-      throw new BadRequestException(`Erro ao reativar fatura: ${error.message}`);
+      throw new BadRequestException(
+        `Erro ao reativar fatura: ${error.message}`
+      );
     }
   }
 
@@ -1941,12 +2275,17 @@ export class SeasonRegistrationService {
    */
   async getAllOverduePayments(): Promise<RegistrationPaymentData[]> {
     const overduePayments = await this.paymentRepository.find({
-      where: { 
+      where: {
         status: AsaasPaymentStatus.OVERDUE,
-        billingType: AsaasBillingType.PIX
+        billingType: AsaasBillingType.PIX,
       },
-      relations: ['registration', 'registration.user', 'registration.season', 'registration.season.championship'],
-      order: { dueDate: 'ASC' }
+      relations: [
+        'registration',
+        'registration.user',
+        'registration.season',
+        'registration.season.championship',
+      ],
+      order: { dueDate: 'ASC' },
     });
 
     return overduePayments.map(payment => ({
@@ -1960,31 +2299,40 @@ export class SeasonRegistrationService {
       installmentCount: (payment.rawResponse as any)?.installmentCount || null,
       invoiceUrl: payment.invoiceUrl,
       bankSlipUrl: payment.bankSlipUrl,
-      paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+      paymentLink:
+        (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
       pixQrCode: payment.pixQrCode,
       pixCopyPaste: payment.pixCopyPaste,
       // Adicionar informações da inscrição com dados do usuário e temporada
-      registration: payment.registration ? {
-        id: payment.registration.id,
-        userId: payment.registration.userId,
-        seasonId: payment.registration.seasonId,
-        amount: payment.registration.amount,
-        paymentStatus: payment.registration.paymentStatus,
-        createdAt: payment.registration.createdAt,
-        user: payment.registration.user ? {
-          id: payment.registration.user.id,
-          name: payment.registration.user.name,
-          email: payment.registration.user.email
-        } : null,
-        season: payment.registration.season ? {
-          id: payment.registration.season.id,
-          name: payment.registration.season.name,
-          championship: payment.registration.season.championship ? {
-            id: payment.registration.season.championship.id,
-            name: payment.registration.season.championship.name
-          } : null
-        } : null
-      } : null
+      registration: payment.registration
+        ? {
+            id: payment.registration.id,
+            userId: payment.registration.userId,
+            seasonId: payment.registration.seasonId,
+            amount: payment.registration.amount,
+            paymentStatus: payment.registration.paymentStatus,
+            createdAt: payment.registration.createdAt,
+            user: payment.registration.user
+              ? {
+                  id: payment.registration.user.id,
+                  name: payment.registration.user.name,
+                  email: payment.registration.user.email,
+                }
+              : null,
+            season: payment.registration.season
+              ? {
+                  id: payment.registration.season.id,
+                  name: payment.registration.season.name,
+                  championship: payment.registration.season.championship
+                    ? {
+                        id: payment.registration.season.championship.id,
+                        name: payment.registration.season.championship.name,
+                      }
+                    : null,
+                }
+              : null,
+          }
+        : null,
     }));
   }
 
@@ -1999,4 +2347,4 @@ export class SeasonRegistrationService {
       return false;
     }
   }
-} 
+}

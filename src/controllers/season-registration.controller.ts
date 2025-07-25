@@ -1,13 +1,17 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { SeasonRegistrationService, CreateRegistrationData } from '../services/season-registration.service';
-import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
-import { UserRole } from '../models/user.entity';
+import { Request, Response } from 'express';
+
 import { BadRequestException } from '../exceptions/bad-request.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
+import { UserRole } from '../models/user.entity';
 import { ChampionshipStaffService } from '../services/championship-staff.service';
 import { SeasonService } from '../services/season.service';
-import { getDocumentType, removeDocumentMask } from '../utils/document.util';
+import {
+  CreateRegistrationData,
+  SeasonRegistrationService,
+} from '../services/season-registration.service';
+import { getDocumentType } from '../utils/document.util';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -40,7 +44,7 @@ import { getDocumentType, removeDocumentMask } from '../utils/document.util';
  *           type: string
  *           description: CPF/CNPJ do usuário
  *           example: "123.456.789-00"
- *     
+ *
  *     RegistrationResponse:
  *       type: object
  *       properties:
@@ -192,7 +196,12 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Usuário ou temporada não encontrados
      */
-    this.router.post('/admin', authMiddleware, roleMiddleware([UserRole.ADMINISTRATOR]), this.createAdminRegistration.bind(this));
+    this.router.post(
+      '/admin',
+      authMiddleware,
+      roleMiddleware([UserRole.ADMINISTRATOR]),
+      this.createAdminRegistration.bind(this)
+    );
 
     /**
      * @swagger
@@ -229,7 +238,11 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Inscrição não encontrada
      */
-    this.router.get('/:id', authMiddleware, this.getRegistrationById.bind(this));
+    this.router.get(
+      '/:id',
+      authMiddleware,
+      this.getRegistrationById.bind(this)
+    );
 
     /**
      * @swagger
@@ -252,7 +265,11 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Inscrição ou dados de pagamento não encontrados
      */
-    this.router.get('/:id/payment', authMiddleware, this.getPaymentData.bind(this));
+    this.router.get(
+      '/:id/payment',
+      authMiddleware,
+      this.getPaymentData.bind(this)
+    );
 
     /**
      * @swagger
@@ -277,7 +294,11 @@ export class SeasonRegistrationController extends BaseController {
      *       500:
      *         description: Erro ao sincronizar com Asaas
      */
-    this.router.post('/:id/sync-payment', authMiddleware, this.syncPaymentStatus.bind(this));
+    this.router.post(
+      '/:id/sync-payment',
+      authMiddleware,
+      this.syncPaymentStatus.bind(this)
+    );
 
     /**
      * @swagger
@@ -296,7 +317,10 @@ export class SeasonRegistrationController extends BaseController {
      *       302:
      *         description: Redirecionamento para o frontend
      */
-    this.router.get('/:id/payment-callback', this.handlePaymentCallback.bind(this));
+    this.router.get(
+      '/:id/payment-callback',
+      this.handlePaymentCallback.bind(this)
+    );
 
     /**
      * @swagger
@@ -331,7 +355,11 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Inscrição não encontrada
      */
-    this.router.post('/:id/cancel', authMiddleware, this.cancelRegistration.bind(this));
+    this.router.post(
+      '/:id/cancel',
+      authMiddleware,
+      this.cancelRegistration.bind(this)
+    );
 
     /**
      * @swagger
@@ -352,7 +380,11 @@ export class SeasonRegistrationController extends BaseController {
      *       200:
      *         description: Lista de inscrições da temporada
      */
-    this.router.get('/season/:seasonId', authMiddleware, this.getRegistrationsBySeason.bind(this));
+    this.router.get(
+      '/season/:seasonId',
+      authMiddleware,
+      this.getRegistrationsBySeason.bind(this)
+    );
 
     /**
      * @swagger
@@ -373,7 +405,11 @@ export class SeasonRegistrationController extends BaseController {
      *       200:
      *         description: Lista de inscrições do campeonato
      */
-    this.router.get('/championship/:championshipId', authMiddleware, this.getRegistrationsByChampionship.bind(this));
+    this.router.get(
+      '/championship/:championshipId',
+      authMiddleware,
+      this.getRegistrationsByChampionship.bind(this)
+    );
 
     /**
      * @swagger
@@ -400,7 +436,11 @@ export class SeasonRegistrationController extends BaseController {
      *       200:
      *         description: Lista de inscrições do usuário na temporada
      */
-    this.router.get('/user/:userId/season/:seasonId', authMiddleware, this.getUserRegistrationsBySeason.bind(this));
+    this.router.get(
+      '/user/:userId/season/:seasonId',
+      authMiddleware,
+      this.getUserRegistrationsBySeason.bind(this)
+    );
 
     /**
      * @swagger
@@ -434,7 +474,11 @@ export class SeasonRegistrationController extends BaseController {
      *                 championship:
      *                   type: object
      */
-    this.router.get('/championship/:championshipId/split-status', authMiddleware, this.checkChampionshipSplitStatus.bind(this));
+    this.router.get(
+      '/championship/:championshipId/split-status',
+      authMiddleware,
+      this.checkChampionshipSplitStatus.bind(this)
+    );
 
     /**
      * @swagger
@@ -462,7 +506,11 @@ export class SeasonRegistrationController extends BaseController {
      *                 count:
      *                   type: number
      */
-    this.router.get('/category/:categoryId/count', authMiddleware, this.getCategoryRegistrationCount.bind(this));
+    this.router.get(
+      '/category/:categoryId/count',
+      authMiddleware,
+      this.getCategoryRegistrationCount.bind(this)
+    );
 
     /**
      * @swagger
@@ -504,7 +552,11 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Inscrição não encontrada
      */
-    this.router.put('/:id/categories', authMiddleware, this.updateRegistrationCategories.bind(this));
+    this.router.put(
+      '/:id/categories',
+      authMiddleware,
+      this.updateRegistrationCategories.bind(this)
+    );
 
     /**
      * @swagger
@@ -553,22 +605,37 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Inscrição não encontrada
      */
-    this.router.get('/:id/pilot-details', authMiddleware, this.getPilotDetails.bind(this));
-
+    this.router.get(
+      '/:id/pilot-details',
+      authMiddleware,
+      this.getPilotDetails.bind(this)
+    );
   }
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
     try {
-      const { seasonId, categoryIds, stageIds, paymentMethod, userDocument, installments, totalAmount } = req.body;
+      const {
+        seasonId,
+        categoryIds,
+        stageIds,
+        paymentMethod,
+        userDocument,
+        installments,
+        totalAmount,
+      } = req.body;
       const userId = req.user!.id;
 
       // Validar dados de entrada
       if (!seasonId || !paymentMethod || !categoryIds || !userDocument) {
-        throw new BadRequestException('seasonId, categoryIds, paymentMethod e userDocument são obrigatórios');
+        throw new BadRequestException(
+          'seasonId, categoryIds, paymentMethod e userDocument são obrigatórios'
+        );
       }
 
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
-        throw new BadRequestException('Pelo menos uma categoria deve ser selecionada');
+        throw new BadRequestException(
+          'Pelo menos uma categoria deve ser selecionada'
+        );
       }
 
       const validPaymentMethods = ['pix', 'cartao_credito'];
@@ -579,7 +646,9 @@ export class SeasonRegistrationController extends BaseController {
       // Validar se o documento é um CPF válido
       const documentType = getDocumentType(userDocument);
       if (documentType !== 'CPF') {
-        throw new BadRequestException('Apenas CPF é aceito para inscrições. CNPJ não é permitido.');
+        throw new BadRequestException(
+          'Apenas CPF é aceito para inscrições. CNPJ não é permitido.'
+        );
       }
 
       const registrationData: CreateRegistrationData = {
@@ -590,33 +659,56 @@ export class SeasonRegistrationController extends BaseController {
         paymentMethod,
         userDocument,
         installments,
-        totalAmount
+        totalAmount,
       };
 
-      const result = await this.registrationService.createRegistration(registrationData);
+      const result =
+        await this.registrationService.createRegistration(registrationData);
 
       res.status(201).json({
         message: 'Inscrição criada com sucesso',
-        data: result
+        data: result,
       });
     } catch (error) {
       res.status(error instanceof BadRequestException ? 400 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
 
-  private async createAdminRegistration(req: Request, res: Response): Promise<void> {
+  private async createAdminRegistration(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
-      const { userId, seasonId, categoryIds, stageIds, paymentStatus, amount, notes } = req.body;
+      const {
+        userId,
+        seasonId,
+        categoryIds,
+        stageIds,
+        paymentStatus,
+        amount,
+        notes,
+      } = req.body;
 
       // Validar dados de entrada
-      if (!userId || !seasonId || !categoryIds || !paymentStatus || amount === undefined) {
-        throw new BadRequestException('userId, seasonId, categoryIds, paymentStatus e amount são obrigatórios');
+      if (
+        !userId ||
+        !seasonId ||
+        !categoryIds ||
+        !paymentStatus ||
+        amount === undefined
+      ) {
+        throw new BadRequestException(
+          'userId, seasonId, categoryIds, paymentStatus e amount são obrigatórios'
+        );
       }
 
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
-        throw new BadRequestException('Pelo menos uma categoria deve ser selecionada');
+        throw new BadRequestException(
+          'Pelo menos uma categoria deve ser selecionada'
+        );
       }
 
       const validPaymentStatuses = ['exempt', 'direct_payment'];
@@ -635,23 +727,26 @@ export class SeasonRegistrationController extends BaseController {
         stageIds,
         paymentStatus,
         amount,
-        notes
+        notes,
       };
 
-      const result = await this.registrationService.createAdminRegistration(adminRegistrationData);
+      const result = await this.registrationService.createAdminRegistration(
+        adminRegistrationData
+      );
 
-      const message = result.isUpdate 
+      const message = result.isUpdate
         ? 'Inscrição administrativa atualizada com sucesso'
         : 'Inscrição administrativa criada com sucesso';
 
       res.status(201).json({
         message,
         data: result.registration,
-        isUpdate: result.isUpdate
+        isUpdate: result.isUpdate,
       });
     } catch (error) {
       res.status(error instanceof BadRequestException ? 400 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
@@ -663,16 +758,19 @@ export class SeasonRegistrationController extends BaseController {
 
       res.json({
         message: 'Inscrições recuperadas com sucesso',
-        data: registrations
+        data: registrations,
       });
     } catch (error) {
       res.status(500).json({
-        message: 'Erro interno do servidor'
+        message: 'Erro interno do servidor',
       });
     }
   }
 
-  private async getRegistrationById(req: Request, res: Response): Promise<void> {
+  private async getRegistrationById(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const registration = await this.registrationService.findById(id);
@@ -684,29 +782,37 @@ export class SeasonRegistrationController extends BaseController {
       // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
       const userId = req.user!.id;
       const isRegistrationOwner = registration.userId === userId;
-      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
-      
+      const isAdminOrManager = [
+        UserRole.ADMINISTRATOR,
+        UserRole.MANAGER,
+      ].includes(req.user!.role);
+
       let isChampionshipStaff = false;
       if (!isRegistrationOwner && !isAdminOrManager) {
         // Verificar se é staff do campeonato
         const championshipId = registration.season.championshipId;
-        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+        isChampionshipStaff =
+          await this.championshipStaffService.isUserStaffMember(
+            userId,
+            championshipId
+          );
       }
 
       if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
-          message: 'Sem permissão para acessar esta inscrição'
+          message: 'Sem permissão para acessar esta inscrição',
         });
         return;
       }
 
       res.json({
         message: 'Inscrição encontrada',
-        data: registration
+        data: registration,
       });
     } catch (error) {
       res.status(error instanceof NotFoundException ? 404 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
@@ -714,7 +820,7 @@ export class SeasonRegistrationController extends BaseController {
   private async getPaymentData(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      
+
       // Verificar se a inscrição existe e se o usuário tem permissão
       const registration = await this.registrationService.findById(id);
       if (!registration) {
@@ -724,18 +830,26 @@ export class SeasonRegistrationController extends BaseController {
       // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
       const userId = req.user!.id;
       const isRegistrationOwner = registration.userId === userId;
-      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
-      
+      const isAdminOrManager = [
+        UserRole.ADMINISTRATOR,
+        UserRole.MANAGER,
+      ].includes(req.user!.role);
+
       let isChampionshipStaff = false;
       if (!isRegistrationOwner && !isAdminOrManager) {
         // Verificar se é staff do campeonato
         const championshipId = registration.season.championshipId;
-        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+        isChampionshipStaff =
+          await this.championshipStaffService.isUserStaffMember(
+            userId,
+            championshipId
+          );
       }
 
       if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
-          message: 'Sem permissão para acessar dados de pagamento desta inscrição'
+          message:
+            'Sem permissão para acessar dados de pagamento desta inscrição',
         });
         return;
       }
@@ -748,11 +862,12 @@ export class SeasonRegistrationController extends BaseController {
 
       res.json({
         message: 'Dados de pagamento encontrados',
-        data: paymentData
+        data: paymentData,
       });
     } catch (error) {
       res.status(error instanceof NotFoundException ? 404 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
@@ -775,37 +890,56 @@ export class SeasonRegistrationController extends BaseController {
       // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
       const userId = req.user!.id;
       const isRegistrationOwner = registration.userId === userId;
-      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
-      
+      const isAdminOrManager = [
+        UserRole.ADMINISTRATOR,
+        UserRole.MANAGER,
+      ].includes(req.user!.role);
+
       let isChampionshipStaff = false;
       if (!isRegistrationOwner && !isAdminOrManager) {
         // Verificar se é staff do campeonato
         const championshipId = registration.season.championshipId;
-        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+        isChampionshipStaff =
+          await this.championshipStaffService.isUserStaffMember(
+            userId,
+            championshipId
+          );
       }
 
       if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
-          message: 'Sem permissão para cancelar esta inscrição'
+          message: 'Sem permissão para cancelar esta inscrição',
         });
         return;
       }
 
-      const cancelledRegistration = await this.registrationService.cancelRegistration(id, reason);
+      const cancelledRegistration =
+        await this.registrationService.cancelRegistration(id, reason);
 
       res.json({
         message: 'Inscrição cancelada com sucesso',
-        data: cancelledRegistration
+        data: cancelledRegistration,
       });
     } catch (error) {
-      res.status(error instanceof BadRequestException ? 400 : 
-                 error instanceof NotFoundException ? 404 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
-      });
+      res
+        .status(
+          error instanceof BadRequestException
+            ? 400
+            : error instanceof NotFoundException
+              ? 404
+              : 500
+        )
+        .json({
+          message:
+            error instanceof Error ? error.message : 'Erro interno do servidor',
+        });
     }
   }
 
-  private async getRegistrationsBySeason(req: Request, res: Response): Promise<void> {
+  private async getRegistrationsBySeason(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { seasonId } = req.params;
       const userId = req.user!.id;
@@ -814,61 +948,79 @@ export class SeasonRegistrationController extends BaseController {
       const season = await this.seasonService.findById(seasonId);
       if (!season) {
         res.status(404).json({
-          message: 'Temporada não encontrada'
+          message: 'Temporada não encontrada',
         });
         return;
       }
 
       // Verificar se o usuário tem permissão para acessar os dados desta temporada
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para acessar os dados desta temporada'
+          message:
+            'Você não tem permissão para acessar os dados desta temporada',
         });
         return;
       }
 
-      const registrations = await this.registrationService.findBySeasonId(seasonId);
+      const registrations =
+        await this.registrationService.findBySeasonId(seasonId);
 
       res.json({
         message: 'Inscrições da temporada recuperadas com sucesso',
-        data: registrations
+        data: registrations,
       });
     } catch (error) {
       res.status(500).json({
-        message: 'Erro interno do servidor'
+        message: 'Erro interno do servidor',
       });
     }
   }
 
-  private async getRegistrationsByChampionship(req: Request, res: Response): Promise<void> {
+  private async getRegistrationsByChampionship(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { championshipId } = req.params;
       const userId = req.user!.id;
 
       // Verificar se o usuário tem permissão para acessar os dados do campeonato
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para acessar os dados deste campeonato'
+          message:
+            'Você não tem permissão para acessar os dados deste campeonato',
         });
         return;
       }
 
-      const registrations = await this.registrationService.findByChampionshipId(championshipId);
+      const registrations =
+        await this.registrationService.findByChampionshipId(championshipId);
 
       res.json({
         message: 'Inscrições do campeonato recuperadas com sucesso',
-        data: registrations
+        data: registrations,
       });
     } catch (error) {
       res.status(500).json({
-        message: 'Erro interno do servidor'
+        message: 'Erro interno do servidor',
       });
     }
   }
 
-  private async getUserRegistrationsBySeason(req: Request, res: Response): Promise<void> {
+  private async getUserRegistrationsBySeason(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { userId, seasonId } = req.params;
       const currentUserId = req.user!.id;
@@ -877,45 +1029,60 @@ export class SeasonRegistrationController extends BaseController {
       const season = await this.seasonService.findById(seasonId);
       if (!season) {
         res.status(404).json({
-          message: 'Temporada não encontrada'
+          message: 'Temporada não encontrada',
         });
         return;
       }
 
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(currentUserId, season.championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          currentUserId,
+          season.championshipId
+        );
       if (!hasPermission) {
         res.status(403).json({
-          message: 'Você não tem permissão para acessar os dados desta temporada'
+          message:
+            'Você não tem permissão para acessar os dados desta temporada',
         });
         return;
       }
 
-      const registrations = await this.registrationService.findByUserIdAndSeasonId(userId, seasonId);
+      const registrations =
+        await this.registrationService.findByUserIdAndSeasonId(
+          userId,
+          seasonId
+        );
 
       res.json({
         message: 'Inscrições do usuário na temporada recuperadas com sucesso',
-        data: registrations
+        data: registrations,
       });
     } catch (error) {
       res.status(500).json({
-        message: 'Erro interno do servidor'
+        message: 'Erro interno do servidor',
       });
     }
   }
 
-  private async checkChampionshipSplitStatus(req: Request, res: Response): Promise<void> {
+  private async checkChampionshipSplitStatus(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { championshipId } = req.params;
-      
-      const splitStatus = await this.registrationService.validateChampionshipSplitConfiguration(championshipId);
-      
+
+      const splitStatus =
+        await this.registrationService.validateChampionshipSplitConfiguration(
+          championshipId
+        );
+
       res.json({
         message: 'Status de configuração de split verificado',
-        data: splitStatus
+        data: splitStatus,
       });
     } catch (error) {
       res.status(500).json({
-        message: 'Erro interno do servidor ao verificar status de split'
+        message: 'Erro interno do servidor ao verificar status de split',
       });
     }
   }
@@ -923,19 +1090,26 @@ export class SeasonRegistrationController extends BaseController {
   /**
    * Handle payment callback from Asaas and redirect to frontend
    */
-  private async handlePaymentCallback(req: Request, res: Response): Promise<void> {
+  private async handlePaymentCallback(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { id: registrationId } = req.params;
-      
+
       // Extrair primeira URL do FRONTEND_URL
-      const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+      const frontendUrl =
+        process.env.FRONTEND_URL?.split(',')[0]?.trim() ||
+        'http://localhost:5173';
       const redirectUrl = `${frontendUrl}/registration/${registrationId}/payment?success=true`;
-      
+
       // Redirecionar para o frontend com parâmetro de sucesso
       res.redirect(302, redirectUrl);
     } catch (error: any) {
       // Em caso de erro, redirecionar para página de erro
-      const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+      const frontendUrl =
+        process.env.FRONTEND_URL?.split(',')[0]?.trim() ||
+        'http://localhost:5173';
       res.redirect(302, `${frontendUrl}/error?message=callback_error`);
     }
   }
@@ -943,7 +1117,7 @@ export class SeasonRegistrationController extends BaseController {
   private async syncPaymentStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      
+
       // Verificar se a inscrição existe e se o usuário tem permissão
       const registration = await this.registrationService.findById(id);
       if (!registration) {
@@ -953,23 +1127,32 @@ export class SeasonRegistrationController extends BaseController {
       // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
       const userId = req.user!.id;
       const isRegistrationOwner = registration.userId === userId;
-      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
-      
+      const isAdminOrManager = [
+        UserRole.ADMINISTRATOR,
+        UserRole.MANAGER,
+      ].includes(req.user!.role);
+
       let isChampionshipStaff = false;
       if (!isRegistrationOwner && !isAdminOrManager) {
         // Verificar se é staff do campeonato
         const championshipId = registration.season.championshipId;
-        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+        isChampionshipStaff =
+          await this.championshipStaffService.isUserStaffMember(
+            userId,
+            championshipId
+          );
       }
 
       if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
-          message: 'Sem permissão para sincronizar status de pagamento desta inscrição'
+          message:
+            'Sem permissão para sincronizar status de pagamento desta inscrição',
         });
         return;
       }
 
-      const syncStatus = await this.registrationService.syncPaymentStatusFromAsaas(id);
+      const syncStatus =
+        await this.registrationService.syncPaymentStatusFromAsaas(id);
 
       if (!syncStatus) {
         throw new NotFoundException('Erro ao sincronizar status de pagamento');
@@ -977,33 +1160,42 @@ export class SeasonRegistrationController extends BaseController {
 
       res.json({
         message: 'Status de pagamento sincronizado com sucesso',
-        data: syncStatus
+        data: syncStatus,
       });
     } catch (error) {
       res.status(error instanceof NotFoundException ? 404 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
 
-  private async getCategoryRegistrationCount(req: Request, res: Response): Promise<void> {
+  private async getCategoryRegistrationCount(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { categoryId } = req.params;
-      
-      const count = await this.registrationService.countRegistrationsByCategory(categoryId);
-      
+
+      const count =
+        await this.registrationService.countRegistrationsByCategory(categoryId);
+
       res.json({
-        message: 'Número de pilotos inscritos na categoria recuperado com sucesso',
-        data: { count }
+        message:
+          'Número de pilotos inscritos na categoria recuperado com sucesso',
+        data: { count },
       });
     } catch (error) {
       res.status(500).json({
-        message: 'Erro interno do servidor ao contar inscrições'
+        message: 'Erro interno do servidor ao contar inscrições',
       });
     }
   }
 
-  private async updateRegistrationCategories(req: Request, res: Response): Promise<void> {
+  private async updateRegistrationCategories(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const { categoryIds } = req.body;
@@ -1027,28 +1219,40 @@ export class SeasonRegistrationController extends BaseController {
 
       const currentCategoryCount = registration.categories?.length || 0;
       if (categoryIds.length !== currentCategoryCount) {
-        throw new BadRequestException(`A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${categoryIds.length}`);
+        throw new BadRequestException(
+          `A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${categoryIds.length}`
+        );
       }
 
       // Verificar se o usuário tem permissão (é owner ou staff do campeonato)
       const championshipId = registration.season.championshipId;
       const isOwner = registration.season.championship.ownerId === userId;
-      const isStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+      const isStaff = await this.championshipStaffService.isUserStaffMember(
+        userId,
+        championshipId
+      );
 
       if (!isOwner && !isStaff) {
-        res.status(403).json({ message: 'Usuário não tem permissão para alterar esta inscrição' });
+        res.status(403).json({
+          message: 'Usuário não tem permissão para alterar esta inscrição',
+        });
         return;
       }
 
-      const updatedRegistration = await this.registrationService.updateRegistrationCategories(id, categoryIds);
+      const updatedRegistration =
+        await this.registrationService.updateRegistrationCategories(
+          id,
+          categoryIds
+        );
 
       res.json({
         message: 'Categorias atualizadas com sucesso',
-        data: updatedRegistration
+        data: updatedRegistration,
       });
     } catch (error) {
       res.status(error instanceof BadRequestException ? 400 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
@@ -1056,7 +1260,7 @@ export class SeasonRegistrationController extends BaseController {
   private async getPilotDetails(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      
+
       // Verificar se a inscrição existe e se o usuário tem permissão
       const registration = await this.registrationService.findById(id);
       if (!registration) {
@@ -1066,18 +1270,25 @@ export class SeasonRegistrationController extends BaseController {
       // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
       const userId = req.user!.id;
       const isRegistrationOwner = registration.userId === userId;
-      const isAdminOrManager = [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(req.user!.role);
-      
+      const isAdminOrManager = [
+        UserRole.ADMINISTRATOR,
+        UserRole.MANAGER,
+      ].includes(req.user!.role);
+
       let isChampionshipStaff = false;
       if (!isRegistrationOwner && !isAdminOrManager) {
         // Verificar se é staff do campeonato
         const championshipId = registration.season.championshipId;
-        isChampionshipStaff = await this.championshipStaffService.isUserStaffMember(userId, championshipId);
+        isChampionshipStaff =
+          await this.championshipStaffService.isUserStaffMember(
+            userId,
+            championshipId
+          );
       }
 
       if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
         res.status(403).json({
-          message: 'Sem permissão para acessar detalhes do piloto inscrito'
+          message: 'Sem permissão para acessar detalhes do piloto inscrito',
         });
         return;
       }
@@ -1090,14 +1301,13 @@ export class SeasonRegistrationController extends BaseController {
 
       res.json({
         message: 'Detalhes do piloto encontrados',
-        data: pilotDetails
+        data: pilotDetails,
       });
     } catch (error) {
       res.status(error instanceof NotFoundException ? 404 : 500).json({
-        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+        message:
+          error instanceof Error ? error.message : 'Erro interno do servidor',
       });
     }
   }
-
-
-} 
+}

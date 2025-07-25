@@ -1,4 +1,13 @@
-import { IsString, IsNumber, IsBoolean, IsOptional, IsUUID, Min, Max } from 'class-validator';
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
+
 import { BaseDto } from './base.dto';
 
 export class CreateCreditCardFeesDto extends BaseDto {
@@ -49,4 +58,4 @@ export class UpdateCreditCardFeesDto extends BaseDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-} 
+}

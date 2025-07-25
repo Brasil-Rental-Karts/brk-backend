@@ -1,9 +1,10 @@
-import { BaseCrudController } from './base.crud.controller';
-import { User, UserRole } from '../models/user.entity';
-import { UserService } from '../services/user.service';
+import { NextFunction, Request, Response } from 'express';
+
 import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.middleware';
-import { Request, Response, NextFunction } from 'express';
+import { User, UserRole } from '../models/user.entity';
+import { UserService } from '../services/user.service';
+import { BaseCrudController } from './base.crud.controller';
 
 /**
  * @swagger
@@ -15,7 +16,11 @@ import { Request, Response, NextFunction } from 'express';
 /**
  * Controller for user management
  */
-export class UserController extends BaseCrudController<User, CreateUserDto, UpdateUserDto> {
+export class UserController extends BaseCrudController<
+  User,
+  CreateUserDto,
+  UpdateUserDto
+> {
   protected service: UserService;
   protected createDtoClass = CreateUserDto;
   protected updateDtoClass = UpdateUserDto;
@@ -23,7 +28,7 @@ export class UserController extends BaseCrudController<User, CreateUserDto, Upda
     create: [UserRole.ADMINISTRATOR],
     read: [UserRole.ADMINISTRATOR],
     update: [UserRole.ADMINISTRATOR],
-    delete: [UserRole.ADMINISTRATOR]
+    delete: [UserRole.ADMINISTRATOR],
   };
 
   constructor(userService: UserService) {
@@ -209,7 +214,11 @@ export class UserController extends BaseCrudController<User, CreateUserDto, Upda
     // Additional custom routes can be added here
   }
 
-  deleteMyAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  deleteMyAccount = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const userId = (req as any).user.id;
       await this.service.anonymizeUser(userId);

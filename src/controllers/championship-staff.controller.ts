@@ -1,9 +1,16 @@
-import { Router, Request, Response } from 'express';
-import { BaseController } from './base.controller';
-import { ChampionshipStaffService, AddStaffMemberRequest } from '../services/championship-staff.service';
+import { Request, Response } from 'express';
+
+import {
+  AddStaffMemberDto,
+  UpdateStaffMemberDto,
+} from '../dtos/championship-staff.dto';
 import { authMiddleware, requireMember } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validator.middleware';
-import { AddStaffMemberDto, UpdateStaffMemberDto } from '../dtos/championship-staff.dto';
+import {
+  AddStaffMemberRequest,
+  ChampionshipStaffService,
+} from '../services/championship-staff.service';
+import { BaseController } from './base.controller';
 
 /**
  * @swagger
@@ -101,7 +108,12 @@ export class ChampionshipStaffController extends BaseController {
      *       404:
      *         description: Championship not found
      */
-    this.router.get('/:championshipId/staff', authMiddleware, requireMember, this.getStaffMembers.bind(this));
+    this.router.get(
+      '/:championshipId/staff',
+      authMiddleware,
+      requireMember,
+      this.getStaffMembers.bind(this)
+    );
 
     /**
      * @swagger
@@ -144,7 +156,13 @@ export class ChampionshipStaffController extends BaseController {
      *       404:
      *         description: Championship or user not found
      */
-    this.router.post('/:championshipId/staff', authMiddleware, requireMember, validationMiddleware(AddStaffMemberDto), this.addStaffMember.bind(this));
+    this.router.post(
+      '/:championshipId/staff',
+      authMiddleware,
+      requireMember,
+      validationMiddleware(AddStaffMemberDto),
+      this.addStaffMember.bind(this)
+    );
 
     /**
      * @swagger
@@ -184,7 +202,12 @@ export class ChampionshipStaffController extends BaseController {
      *       404:
      *         description: Championship or staff member not found
      */
-    this.router.delete('/:championshipId/staff/:staffMemberId', authMiddleware, requireMember, this.removeStaffMember.bind(this));
+    this.router.delete(
+      '/:championshipId/staff/:staffMemberId',
+      authMiddleware,
+      requireMember,
+      this.removeStaffMember.bind(this)
+    );
 
     /**
      * @swagger
@@ -234,7 +257,13 @@ export class ChampionshipStaffController extends BaseController {
      *       404:
      *         description: Championship or staff member not found
      */
-    this.router.put('/:championshipId/staff/:staffMemberId/permissions', authMiddleware, requireMember, validationMiddleware(UpdateStaffMemberDto), this.updateStaffMemberPermissions.bind(this));
+    this.router.put(
+      '/:championshipId/staff/:staffMemberId/permissions',
+      authMiddleware,
+      requireMember,
+      validationMiddleware(UpdateStaffMemberDto),
+      this.updateStaffMemberPermissions.bind(this)
+    );
   }
 
   private async getStaffMembers(req: Request, res: Response): Promise<void> {
@@ -243,13 +272,20 @@ export class ChampionshipStaffController extends BaseController {
       const userId = (req as any).user.id;
 
       // Verificar se o usuário tem permissão para ver o staff
-      const hasPermission = await this.championshipStaffService.hasChampionshipPermission(userId, championshipId);
+      const hasPermission =
+        await this.championshipStaffService.hasChampionshipPermission(
+          userId,
+          championshipId
+        );
       if (!hasPermission) {
-        res.status(403).json({ message: 'Você não tem permissão para ver o staff deste campeonato' });
+        res.status(403).json({
+          message: 'Você não tem permissão para ver o staff deste campeonato',
+        });
         return;
       }
 
-      const staffMembers = await this.championshipStaffService.getStaffMembers(championshipId);
+      const staffMembers =
+        await this.championshipStaffService.getStaffMembers(championshipId);
       res.json({ data: staffMembers });
     } catch (error: any) {
       console.error('Error getting staff members:', error);
@@ -262,18 +298,20 @@ export class ChampionshipStaffController extends BaseController {
       const championshipId = req.params.championshipId;
       const userId = (req as any).user.id;
       const request: AddStaffMemberRequest = req.body;
-      
 
+      const staffMember = await this.championshipStaffService.addStaffMember(
+        championshipId,
+        request,
+        userId
+      );
 
-      const staffMember = await this.championshipStaffService.addStaffMember(championshipId, request, userId);
-      
       res.status(201).json({
         message: 'Membro adicionado ao staff com sucesso',
-        data: staffMember
+        data: staffMember,
       });
     } catch (error: any) {
       console.error('Error adding staff member:', error);
-      
+
       if (error.status === 404) {
         res.status(404).json({ message: error.message });
       } else if (error.status === 400) {
@@ -292,12 +330,16 @@ export class ChampionshipStaffController extends BaseController {
       const staffMemberId = req.params.staffMemberId;
       const userId = (req as any).user.id;
 
-      await this.championshipStaffService.removeStaffMember(championshipId, staffMemberId, userId);
-      
+      await this.championshipStaffService.removeStaffMember(
+        championshipId,
+        staffMemberId,
+        userId
+      );
+
       res.json({ message: 'Membro removido do staff com sucesso' });
     } catch (error: any) {
       console.error('Error removing staff member:', error);
-      
+
       if (error.status === 404) {
         res.status(404).json({ message: error.message });
       } else if (error.status === 403) {
@@ -308,27 +350,31 @@ export class ChampionshipStaffController extends BaseController {
     }
   }
 
-  private async updateStaffMemberPermissions(req: Request, res: Response): Promise<void> {
+  private async updateStaffMemberPermissions(
+    req: Request,
+    res: Response
+  ): Promise<void> {
     try {
       const championshipId = req.params.championshipId;
       const staffMemberId = req.params.staffMemberId;
       const userId = (req as any).user.id;
       const { permissions } = req.body;
 
-      const updatedStaffMember = await this.championshipStaffService.updateStaffMemberPermissions(
-        championshipId, 
-        staffMemberId, 
-        permissions, 
-        userId
-      );
-      
+      const updatedStaffMember =
+        await this.championshipStaffService.updateStaffMemberPermissions(
+          championshipId,
+          staffMemberId,
+          permissions,
+          userId
+        );
+
       res.json({
         message: 'Permissões do membro atualizadas com sucesso',
-        data: updatedStaffMember
+        data: updatedStaffMember,
       });
     } catch (error: any) {
       console.error('Error updating staff member permissions:', error);
-      
+
       if (error.status === 404) {
         res.status(404).json({ message: error.message });
       } else if (error.status === 400) {
@@ -340,4 +386,4 @@ export class ChampionshipStaffController extends BaseController {
       }
     }
   }
-} 
+}

@@ -1,4 +1,5 @@
 import { DeepPartial } from 'typeorm';
+
 import { BaseRepository } from '../repositories/base.repository';
 
 export abstract class BaseService<T> {
@@ -23,4 +24,4 @@ export abstract class BaseService<T> {
   async delete(id: string): Promise<boolean> {
     return this.repository.delete(id);
   }
-} 
+}

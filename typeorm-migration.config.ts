@@ -1,6 +1,6 @@
-import { DataSource } from 'typeorm';
-import { join } from 'path';
 import dotenv from 'dotenv';
+import { join } from 'path';
+import { DataSource } from 'typeorm';
 
 // Load environment variables
 dotenv.config();
@@ -20,4 +20,4 @@ const migrationConfig = new DataSource({
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 });
 
-export default migrationConfig; 
+export default migrationConfig;
