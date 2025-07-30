@@ -36,7 +36,6 @@ const TABLES_ORDER = [
   'Regulations',
   'ScoringSystem',
   'Users',
-  'vip_preregister',
 
   // Tabelas com dependências de primeiro nível
   'CreditCardFees', // FK: championshipId

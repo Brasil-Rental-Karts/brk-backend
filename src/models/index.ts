@@ -20,4 +20,3 @@ export * from './season-registration-stage.entity';
 export * from './stage.entity';
 export * from './stage-participation.entity';
 export * from './user.entity';
-export * from './vip-preregister.entity';

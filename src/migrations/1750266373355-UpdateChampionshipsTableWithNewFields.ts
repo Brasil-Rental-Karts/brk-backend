@@ -60,11 +60,7 @@ export class UpdateChampionshipsTableWithNewFields1750266373355
     await queryRunner.query(
       `ALTER TABLE "MemberProfiles" DROP CONSTRAINT "FK_MemberProfiles_Users_id"`
     );
-    await queryRunner.query(`DROP INDEX "public"."IDX_vip_preregister_email"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_vip_preregister_name"`);
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_vip_preregister_createdAt"`
-    );
+
     await queryRunner.query(`DROP INDEX "public"."IDX_Users_email"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_Users_googleId"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_Users_role"`);
@@ -792,15 +788,7 @@ export class UpdateChampionshipsTableWithNewFields1750266373355
     await queryRunner.query(
       `CREATE INDEX "IDX_Users_email" ON "Users" ("email") `
     );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_vip_preregister_createdAt" ON "vip_preregister" ("createdAt") `
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_vip_preregister_name" ON "vip_preregister" ("name") `
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_vip_preregister_email" ON "vip_preregister" ("email") `
-    );
+
     await queryRunner.query(
       `ALTER TABLE "MemberProfiles" ADD CONSTRAINT "FK_MemberProfiles_Users_id" FOREIGN KEY ("id") REFERENCES "Users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`
     );

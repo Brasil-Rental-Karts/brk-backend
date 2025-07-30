@@ -29,7 +29,6 @@ import { StageController } from './controllers/stage.controller';
 import { StageParticipationController } from './controllers/stage-participation.controller';
 import { UserController } from './controllers/user.controller';
 import { UserStatsController } from './controllers/user-stats.controller';
-import { VipPreregisterController } from './controllers/vip-preregister.controller';
 import { Category } from './models/category.entity';
 import { Championship } from './models/championship.entity';
 import { ChampionshipStaff } from './models/championship-staff.entity';
@@ -40,7 +39,6 @@ import { Regulation } from './models/regulation.entity';
 import { Season } from './models/season.entity';
 // Entities
 import { User } from './models/user.entity';
-import { VipPreregister } from './models/vip-preregister.entity';
 import { CategoryRepository } from './repositories/category.repository';
 import { ChampionshipRepository } from './repositories/championship.repository';
 import { ChampionshipStaffRepository } from './repositories/championship-staff.repository';
@@ -51,7 +49,6 @@ import { RegulationRepositoryImpl } from './repositories/regulation.repository';
 import { SeasonRepository } from './repositories/season.repository';
 // Repositories
 import { UserRepository } from './repositories/user.repository';
-import { VipPreregisterRepository } from './repositories/vip-preregister.repository';
 import { AsaasService } from './services/asaas.service';
 // Services
 import { AuthService } from './services/auth.service';
@@ -74,7 +71,6 @@ import { StageService } from './services/stage.service';
 import { StageParticipationService } from './services/stage-participation.service';
 import { UserService } from './services/user.service';
 import { UserStatsService } from './services/user-stats.service';
-import { VipPreregisterService } from './services/vip-preregister.service';
 
 // Initialize Sentry
 initSentry();
@@ -101,9 +97,7 @@ AppDataSource.initialize()
     const seasonRepository = new SeasonRepository(
       AppDataSource.getRepository(Season)
     );
-    const vipPreregisterRepository = new VipPreregisterRepository(
-      AppDataSource.getRepository(VipPreregister)
-    );
+
     const categoryRepository = new CategoryRepository(
       AppDataSource.getRepository(Category)
     );
@@ -143,9 +137,6 @@ AppDataSource.initialize()
       userService
     );
     const seasonService = new SeasonService(seasonRepository);
-    const vipPreregisterService = new VipPreregisterService(
-      vipPreregisterRepository
-    );
     const stageService = new StageService();
     const categoryService = new CategoryService(
       categoryRepository,
@@ -182,7 +173,7 @@ AppDataSource.initialize()
         championshipStaffService,
         championshipService
       ),
-      new VipPreregisterController(vipPreregisterService),
+
       new CategoryController(
         categoryService,
         championshipStaffService,
