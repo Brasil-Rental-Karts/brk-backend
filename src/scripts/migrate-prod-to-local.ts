@@ -204,6 +204,18 @@ async function migrateData(): Promise<void> {
     console.log('🔒 Reabilitando foreign key constraints...');
     await localClient.query('SET session_replication_role = DEFAULT;');
 
+    // Atualiza o asaasWalletId na tabela Championships
+    console.log('🔧 Atualizando asaasWalletId na tabela Championships...');
+    try {
+      await localClient.query(`
+        UPDATE public."Championships" 
+        SET "asaasWalletId" = 'edb4b739-c789-4fef-b6c1-f47b693bc413'
+      `);
+      console.log('✅ asaasWalletId atualizado com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao atualizar asaasWalletId:', error);
+    }
+
     console.log('🎉 Migração concluída com sucesso!');
     console.log('📊 Resumo das tabelas migradas:');
     for (const table of TABLES_ORDER) {
