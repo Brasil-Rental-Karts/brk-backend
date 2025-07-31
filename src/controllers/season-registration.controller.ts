@@ -622,6 +622,7 @@ export class SeasonRegistrationController extends BaseController {
         userDocument,
         installments,
         totalAmount,
+        inscriptionType,
       } = req.body;
       const userId = req.user!.id;
 
@@ -660,6 +661,7 @@ export class SeasonRegistrationController extends BaseController {
         userDocument,
         installments,
         totalAmount,
+        inscriptionType,
       };
 
       const result =

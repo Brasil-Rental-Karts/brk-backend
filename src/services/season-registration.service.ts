@@ -36,6 +36,7 @@ export interface CreateRegistrationData {
   userDocument: string; // CPF/CNPJ do usuário (obrigatório)
   installments?: number;
   totalAmount?: number; // Valor total calculado incluindo taxas
+  inscriptionType?: 'por_temporada' | 'por_etapa'; // Tipo de inscrição selecionado pelo usuário
 }
 
 export interface CreateAdminRegistrationData {
@@ -263,8 +264,9 @@ export class SeasonRegistrationService {
     }
 
     // Determinar o tipo de inscrição baseado nos dados recebidos
-    const inscriptionType =
-      data.stageIds && data.stageIds.length > 0 ? 'por_etapa' : 'por_temporada';
+    // Se o frontend forneceu o inscriptionType, usar ele; caso contrário, determinar baseado nas etapas
+    const inscriptionType = data.inscriptionType || 
+      (data.stageIds && data.stageIds.length > 0 ? 'por_etapa' : 'por_temporada');
 
     // Validar se o parcelamento é permitido e se o número de parcelas é válido
     if (data.installments && data.installments > 1) {
@@ -412,14 +414,26 @@ export class SeasonRegistrationService {
 
       // Usar nova estrutura de paymentConditions se disponível
       if (season.paymentConditions && season.paymentConditions.length > 0) {
-        // Calcular valor baseado nas condições ativas
-        for (const condition of season.paymentConditions) {
-          if (condition.enabled) {
-            if (condition.type === 'por_temporada') {
-              baseAmount += condition.value * categories.length;
-            } else if (condition.type === 'por_etapa' && stages.length > 0) {
-              baseAmount += condition.value * categories.length * stages.length;
-            }
+        // Buscar a condição de pagamento que corresponde ao tipo de inscrição
+        const matchingCondition = season.paymentConditions.find(
+          condition => condition.enabled && condition.type === inscriptionType
+        );
+        
+        if (matchingCondition) {
+          if (inscriptionType === 'por_temporada') {
+            baseAmount = matchingCondition.value * categories.length;
+          } else if (inscriptionType === 'por_etapa' && stages.length > 0) {
+            baseAmount = matchingCondition.value * categories.length * stages.length;
+          }
+        } else {
+          // Fallback para campos legados se não encontrar condição específica
+          if (inscriptionType === 'por_etapa' && stages.length > 0) {
+            baseAmount =
+              Number(season.getInscriptionValue()) *
+              categories.length *
+              stages.length;
+          } else {
+            baseAmount = Number(season.getInscriptionValue()) * categories.length;
           }
         }
       } else {
@@ -450,7 +464,7 @@ export class SeasonRegistrationService {
     let savedRegistration: SeasonRegistration;
 
     // Para temporadas por etapa, se já existe inscrição, atualizar ela
-    if (season.hasPaymentCondition('por_etapa') && existingRegistration) {
+    if (inscriptionType === 'por_etapa' && existingRegistration) {
       // Atualizar o valor total (adicionar ao valor existente)
       const newTotalAmount = Number(existingRegistration.amount) + totalAmount;
 
@@ -494,7 +508,7 @@ export class SeasonRegistrationService {
 
     // Salvar as etapas selecionadas (se for inscrição por etapa)
 
-    if (season.hasPaymentCondition('por_etapa') && stages.length > 0) {
+    if (inscriptionType === 'por_etapa' && stages.length > 0) {
       const registrationStages = stages.map(stage =>
         this.registrationStageRepository.create({
           registrationId: savedRegistration.id,
