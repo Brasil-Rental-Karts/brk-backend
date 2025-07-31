@@ -514,6 +514,39 @@ export class SeasonRegistrationController extends BaseController {
 
     /**
      * @swagger
+     * /season-registrations/stage/{stageId}/count:
+     *   get:
+     *     summary: Contar pilotos inscritos por etapa
+     *     tags: [Season Registrations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: stageId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: ID da etapa
+     *     responses:
+     *       200:
+     *         description: Número de pilotos inscritos na etapa (inclui todos os status exceto cancelados e expirados)
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 count:
+     *                   type: number
+     */
+    this.router.get(
+      '/stage/:stageId/count',
+      authMiddleware,
+      this.getStageRegistrationCount.bind(this)
+    );
+
+    /**
+     * @swagger
      * /season-registrations/{id}/categories:
      *   put:
      *     summary: Atualizar categorias de uma inscrição (apenas organizadores/staff)
@@ -1185,6 +1218,28 @@ export class SeasonRegistrationController extends BaseController {
       res.json({
         message:
           'Número de pilotos inscritos na categoria recuperado com sucesso',
+        data: { count },
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: 'Erro interno do servidor ao contar inscrições',
+      });
+    }
+  }
+
+  private async getStageRegistrationCount(
+    req: Request,
+    res: Response
+  ): Promise<void> {
+    try {
+      const { stageId } = req.params;
+
+      const count =
+        await this.registrationService.countRegistrationsByStage(stageId);
+
+      res.json({
+        message:
+          'Número de pilotos inscritos na etapa recuperado com sucesso',
         data: { count },
       });
     } catch (error) {
