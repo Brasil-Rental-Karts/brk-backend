@@ -33,6 +33,11 @@ export enum PaymentStatus {
   DIRECT_PAYMENT = 'direct_payment',
 }
 
+export enum InscriptionType {
+  POR_TEMPORADA = 'por_temporada',
+  POR_ETAPA = 'por_etapa',
+}
+
 @Entity('SeasonRegistrations')
 @Index(['userId', 'seasonId'], { unique: true })
 export class SeasonRegistration extends BaseEntity {
@@ -73,6 +78,13 @@ export class SeasonRegistration extends BaseEntity {
 
   @Column({ length: 255, nullable: true })
   cancellationReason: string;
+
+  @Column({
+    type: 'enum',
+    enum: InscriptionType,
+    nullable: false,
+  })
+  inscriptionType: InscriptionType;
 
   // Relacionamentos
   @ManyToOne(() => User, { eager: true })

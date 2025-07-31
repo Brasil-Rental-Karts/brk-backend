@@ -15,6 +15,7 @@ import {
   PaymentStatus,
   RegistrationStatus,
   SeasonRegistration,
+  InscriptionType,
 } from '../models/season-registration.entity';
 import { SeasonRegistrationCategory } from '../models/season-registration-category.entity';
 import { SeasonRegistrationStage } from '../models/season-registration-stage.entity';
@@ -470,6 +471,7 @@ export class SeasonRegistrationService {
         paymentMethod: data.paymentMethod,
         status: RegistrationStatus.PAYMENT_PENDING,
         paymentStatus: PaymentStatus.PENDING,
+        inscriptionType: inscriptionType as InscriptionType,
       });
 
       savedRegistration = await this.registrationRepository.save(registration);
@@ -1090,6 +1092,11 @@ export class SeasonRegistrationService {
         : RegistrationStatus.PAYMENT_PENDING;
     registration.paymentMethod =
       data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
+    
+    // Determinar o tipo de inscrição baseado nos dados recebidos
+    const inscriptionType =
+      data.stageIds && data.stageIds.length > 0 ? 'por_etapa' : 'por_temporada';
+    registration.inscriptionType = inscriptionType as InscriptionType;
 
     // Definir datas baseadas no status
     if (
@@ -1205,6 +1212,11 @@ export class SeasonRegistrationService {
         : RegistrationStatus.PAYMENT_PENDING;
     existingRegistration.paymentMethod =
       data.paymentStatus === 'exempt' ? 'admin_exempt' : 'admin_direct';
+    
+    // Atualizar o tipo de inscrição baseado nos dados recebidos
+    const inscriptionType =
+      data.stageIds && data.stageIds.length > 0 ? 'por_etapa' : 'por_temporada';
+    existingRegistration.inscriptionType = inscriptionType as InscriptionType;
 
     // Definir datas baseadas no status
     if (
