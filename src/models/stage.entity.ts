@@ -2,6 +2,7 @@ import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 
 import { BaseEntity } from './base.entity';
 import { RaceTrack } from './race-track.entity';
+import { Season } from './season.entity';
 
 @Entity('Stages')
 export class Stage extends BaseEntity {
@@ -23,7 +24,7 @@ export class Stage extends BaseEntity {
   @Column({ type: 'varchar', length: 500, nullable: true })
   streamLink: string;
 
-  @Column({ nullable: false })
+  @Column({ type: 'uuid', nullable: false })
   seasonId: string;
 
   @Column({ type: 'simple-array', nullable: false })
@@ -54,4 +55,9 @@ export class Stage extends BaseEntity {
   @ManyToOne(() => RaceTrack, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'raceTrackId' })
   raceTrack: RaceTrack;
+
+  // Relacionamento com Season
+  @ManyToOne(() => Season, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'seasonId' })
+  season: Season;
 }

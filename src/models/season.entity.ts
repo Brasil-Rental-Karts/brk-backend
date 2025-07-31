@@ -13,6 +13,7 @@ import { BaseEntity } from './base.entity';
 import { Category } from './category.entity';
 import { Championship } from './championship.entity';
 import { Regulation } from './regulation.entity';
+import { Stage } from './stage.entity';
 
 export enum SeasonStatus {
   AGENDADO = 'agendado',
@@ -92,6 +93,9 @@ export class Season extends BaseEntity {
 
   @OneToMany(() => Regulation, regulation => regulation.season)
   regulations: Regulation[];
+
+  @OneToMany(() => Stage, stage => stage.season)
+  stages: Stage[];
 
   @BeforeInsert()
   @BeforeUpdate()
