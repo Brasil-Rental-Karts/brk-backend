@@ -22,10 +22,7 @@ export enum SeasonStatus {
   FINALIZADO = 'finalizado',
 }
 
-export enum InscriptionType {
-  POR_TEMPORADA = 'por_temporada',
-  POR_ETAPA = 'por_etapa',
-}
+import { InscriptionType } from './season-registration.entity';
 
 export enum PaymentMethod {
   PIX = 'pix',

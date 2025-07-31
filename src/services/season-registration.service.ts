@@ -960,6 +960,7 @@ export class SeasonRegistrationService {
 
   /**
    * Conta pilotos inscritos por categoria (inclui todos os status exceto cancelados e expirados)
+   * Considera apenas inscrições do tipo 'por_temporada' para cálculo de vagas disponíveis
    */
   async countRegistrationsByCategory(categoryId: string): Promise<number> {
     const result = await this.registrationCategoryRepository
@@ -971,6 +972,9 @@ export class SeasonRegistrationService {
           RegistrationStatus.CANCELLED,
           RegistrationStatus.EXPIRED,
         ],
+      })
+      .andWhere('registration.inscriptionType = :inscriptionType', {
+        inscriptionType: 'por_temporada',
       })
       .getCount();
 
