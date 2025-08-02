@@ -29,6 +29,7 @@ import { StageController } from './controllers/stage.controller';
 import { StageParticipationController } from './controllers/stage-participation.controller';
 import { UserController } from './controllers/user.controller';
 import { UserStatsController } from './controllers/user-stats.controller';
+import { ShortioController } from './controllers/shortio.controller';
 import { Category } from './models/category.entity';
 import { Championship } from './models/championship.entity';
 import { ChampionshipStaff } from './models/championship-staff.entity';
@@ -210,6 +211,7 @@ AppDataSource.initialize()
       new CreditCardFeesController(),
       new PaymentManagementController(seasonRegistrationService),
       new PenaltyController(penaltyService),
+      new ShortioController(),
     ];
 
     // Initialize the app

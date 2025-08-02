@@ -60,6 +60,12 @@ const config = {
     secure: process.env.COOKIE_SECURE === 'true',
     sameSite: process.env.COOKIE_SAMESITE || 'lax',
   },
+
+  // Short.io configuration
+  shortio: {
+    apiKey: process.env.SHORTIO_API_KEY || '',
+    domain: process.env.SHORTIO_DOMAIN || '',
+  },
 };
 
 export default config;
