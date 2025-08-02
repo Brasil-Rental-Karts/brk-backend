@@ -39,8 +39,6 @@ export class ShortioService {
    */
   async shortenUrl(originalUrl: string, title?: string, tags?: string[]): Promise<ShortioResponse> {
     try {
-      console.log(`Attempting to shorten URL with domain: ${config.shortio.domain}`);
-      
       const response = await this.apiClient.post('/links', {
         originalURL: originalUrl,
         domain: config.shortio.domain,
@@ -50,8 +48,6 @@ export class ShortioService {
         allowDuplicates: false,
       });
 
-      console.log('Short.io response:', response.data);
-
       return {
         shortURL: response.data.shortURL,
         originalURL: response.data.originalURL,
@@ -59,12 +55,6 @@ export class ShortioService {
         tags: response.data.tags,
       };
     } catch (error: any) {
-      console.error('Error shortening URL with short.io:', {
-        error: error.response?.data || error.message,
-        domain: config.shortio.domain,
-        apiKey: config.shortio.apiKey ? '***' : 'NOT_SET'
-      });
-      
       if (error.response?.data?.message === 'Domain not found') {
         throw new Error(`Domain '${config.shortio.domain}' not found in short.io account. Please verify the domain is configured correctly.`);
       }
@@ -84,7 +74,6 @@ export class ShortioService {
       
       return await Promise.all(promises);
     } catch (error: any) {
-      console.error('Error shortening multiple URLs:', error);
       throw new Error(`Failed to shorten URLs: ${error.message}`);
     }
   }
@@ -94,8 +83,6 @@ export class ShortioService {
    */
   async findExistingLink(originalUrl: string): Promise<ShortioResponse | null> {
     try {
-      console.log(`Searching for existing link for URL: ${originalUrl}`);
-      
       const response = await this.apiClient.get('/links', {
         params: {
           domain: config.shortio.domain,
@@ -109,7 +96,6 @@ export class ShortioService {
       );
 
       if (existingLink) {
-        console.log(`Found existing link: ${existingLink.shortURL}`);
         return {
           shortURL: existingLink.shortURL,
           originalURL: existingLink.originalURL,
@@ -118,10 +104,8 @@ export class ShortioService {
         };
       }
 
-      console.log('No existing link found');
       return null;
     } catch (error: any) {
-      console.error('Error searching for existing link:', error.response?.data || error.message);
       return null;
     }
   }
@@ -135,15 +119,12 @@ export class ShortioService {
       const existingLink = await this.findExistingLink(originalUrl);
       
       if (existingLink) {
-        console.log('Using existing shortened link');
         return existingLink;
       }
 
       // Se não encontrou, cria um novo
-      console.log('Creating new shortened link');
       return await this.shortenUrl(originalUrl, title, tags);
     } catch (error: any) {
-      console.error('Error in shortenUrlWithDuplicateCheck:', error);
       throw error;
     }
   }
@@ -156,7 +137,6 @@ export class ShortioService {
       const response = await this.apiClient.get('/domains');
       return response.status === 200;
     } catch (error: any) {
-      console.error('Short.io connection test failed:', error.response?.data || error.message);
       return false;
     }
   }

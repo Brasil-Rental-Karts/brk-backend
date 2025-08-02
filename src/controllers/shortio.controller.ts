@@ -38,7 +38,6 @@ export class ShortioController extends BaseController {
       
       res.status(200).json(result);
     } catch (error: any) {
-      console.error('Error in shortenUrl controller:', error);
       res.status(500).json({ error: error.message });
     }
   }
@@ -59,7 +58,6 @@ export class ShortioController extends BaseController {
       
       res.status(200).json(results);
     } catch (error: any) {
-      console.error('Error in shortenMultipleUrls controller:', error);
       res.status(500).json({ error: error.message });
     }
   }
@@ -84,7 +82,6 @@ export class ShortioController extends BaseController {
         res.status(404).json({ message: 'No existing link found for this URL' });
       }
     } catch (error: any) {
-      console.error('Error in findExistingLink controller:', error);
       res.status(500).json({ error: error.message });
     }
   }
@@ -102,7 +99,6 @@ export class ShortioController extends BaseController {
         res.status(503).json({ connected: false, message: 'Short.io connection failed' });
       }
     } catch (error: any) {
-      console.error('Error in testConnection controller:', error);
       res.status(500).json({ error: error.message });
     }
   }
