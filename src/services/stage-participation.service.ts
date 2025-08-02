@@ -149,7 +149,7 @@ export class StageParticipationService {
 
       if (!stageRegistration) {
         throw new BadRequestException(
-          'Usuário não está inscrito nesta etapa específica'
+          'Você não está inscrito nesta etapa específica'
         );
       }
 
@@ -159,7 +159,7 @@ export class StageParticipationService {
         registration.paymentStatus != 'direct_payment'
       ) {
         throw new BadRequestException(
-          'Usuário não está inscrito nesta etapa específica'
+          'Você não está inscrito nesta etapa específica'
         );
       }
 
@@ -224,7 +224,7 @@ export class StageParticipationService {
 
     if (!registration) {
       throw new BadRequestException(
-        'Usuário não está inscrito nesta temporada'
+        'Você não está inscrito nesta temporada'
       );
     }
 
@@ -238,7 +238,7 @@ export class StageParticipationService {
 
     if (!hasCategory) {
       throw new BadRequestException(
-        'Usuário não está inscrito nesta categoria'
+        'Você não está inscrito nesta categoria'
       );
     }
 
@@ -264,7 +264,7 @@ export class StageParticipationService {
     if (existingParticipation) {
       if (existingParticipation.status === ParticipationStatus.CONFIRMED) {
         throw new BadRequestException(
-          'Participação já confirmada para esta etapa'
+          'Sua participação já foi confirmada para esta etapa'
         );
       } else {
         // Reativar participação cancelada
