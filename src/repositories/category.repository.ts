@@ -42,8 +42,9 @@ export class CategoryRepository extends BaseRepositoryImpl<Category> {
         'src.categoryId = category.id'
       )
       .leftJoin('SeasonRegistrations', 'sr', 'sr.id = src.registrationId')
-      .addSelect('COUNT(DISTINCT sr.id)', 'registrationCount')
+      .addSelect('COUNT(DISTINCT CASE WHEN sr.inscriptionType = :inscriptionType THEN sr.id END)', 'registrationCount')
       .where('category.seasonId = :seasonId', { seasonId })
+      .setParameter('inscriptionType', 'por_temporada')
       .groupBy('category.id')
       .getRawAndEntities()
       .then(result => {
@@ -68,8 +69,9 @@ export class CategoryRepository extends BaseRepositoryImpl<Category> {
         'src.categoryId = category.id'
       )
       .leftJoin('SeasonRegistrations', 'sr', 'sr.id = src.registrationId')
-      .addSelect('COUNT(DISTINCT sr.id)', 'registrationCount')
+      .addSelect('COUNT(DISTINCT CASE WHEN sr.inscriptionType = :inscriptionType THEN sr.id END)', 'registrationCount')
       .where('category.id IN (:...categoryIds)', { categoryIds })
+      .setParameter('inscriptionType', 'por_temporada')
       .groupBy('category.id')
       .getRawAndEntities()
       .then(result => {
