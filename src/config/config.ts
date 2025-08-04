@@ -27,7 +27,7 @@ const config = {
   // JWT configuration
   jwt: {
     secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-    accessTokenExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
+    accessTokenExpiry: process.env.JWT_ACCESS_EXPIRY || '2d',
     refreshTokenExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
   },
 

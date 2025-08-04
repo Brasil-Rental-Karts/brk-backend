@@ -402,7 +402,7 @@ export class AuthController extends BaseController {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 15, // 15 minutes (should match accessToken expiry)
+        maxAge: 1000 * 60 * 60 * 24 * 2, // 2 days (should match accessToken expiry)
       };
       const refreshCookieOptions = {
         httpOnly: true,
@@ -654,7 +654,7 @@ export class AuthController extends BaseController {
         httpOnly: true,
         secure: config.cookie.secure,
         sameSite: config.cookie.sameSite as 'lax' | 'strict' | 'none',
-        maxAge: 1000 * 60 * 15, // 15 minutes (should match accessToken expiry)
+        maxAge: 1000 * 60 * 60 * 24 * 2, // 2 days (should match accessToken expiry)
       };
       const refreshCookieOptions = {
         httpOnly: true,
