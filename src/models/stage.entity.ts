@@ -33,6 +33,9 @@ export class Stage extends BaseEntity {
   @Column({ type: 'boolean', nullable: false, default: false })
   doublePoints: boolean;
 
+  @Column({ type: 'boolean', nullable: false, default: false })
+  doubleRound: boolean;
+
   @Column({ type: 'text', nullable: true })
   briefing: string;
 

@@ -66,6 +66,10 @@ import { BaseDto } from './base.dto';
  *           type: boolean
  *           description: Se a pontuação é em dobro
  *           default: false
+ *         doubleRound:
+ *           type: boolean
+ *           description: Se é uma rodada dupla
+ *           default: false
  *         briefing:
  *           type: string
  *           description: Texto do briefing (opcional)
@@ -129,6 +133,11 @@ export class CreateStageDto extends BaseDto {
   doublePoints?: boolean = false;
 
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'doubleRound deve ser um boolean' })
+  doubleRound?: boolean = false;
+
+  @IsOptional()
   @IsString()
   briefing?: string;
 
@@ -182,6 +191,9 @@ export class CreateStageDto extends BaseDto {
  *         doublePoints:
  *           type: boolean
  *           description: Se a pontuação é em dobro
+ *         doubleRound:
+ *           type: boolean
+ *           description: Se é uma rodada dupla
  *         briefing:
  *           type: string
  *           description: Texto do briefing (opcional)
@@ -243,6 +255,11 @@ export class UpdateStageDto extends BaseDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean({ message: 'doublePoints deve ser um boolean' })
   doublePoints?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'doubleRound deve ser um boolean' })
+  doubleRound?: boolean;
 
   @IsOptional()
   @IsString()
