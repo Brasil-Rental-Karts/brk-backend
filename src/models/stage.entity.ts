@@ -42,6 +42,9 @@ export class Stage extends BaseEntity {
   @Column({ type: 'time', nullable: true })
   briefingTime: string;
 
+  @Column({ type: 'numeric', precision: 10, scale: 2, nullable: true })
+  price: number;
+
   @Column({ type: 'jsonb', nullable: true })
   schedule: any;
 

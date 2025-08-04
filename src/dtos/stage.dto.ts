@@ -4,11 +4,13 @@ import {
   IsBoolean,
   IsDate,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 import { BaseDto } from './base.dto';
@@ -148,6 +150,12 @@ export class CreateStageDto extends BaseDto {
     message: 'Horário do briefing deve estar no formato HH:MM',
   })
   briefingTime?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : Number(value)))
+  @IsNumber({}, { message: 'Preço deve ser um número válido' })
+  @Min(0, { message: 'Preço deve ser maior ou igual a zero' })
+  price?: number;
 }
 
 /**
@@ -272,6 +280,12 @@ export class UpdateStageDto extends BaseDto {
     message: 'Horário do briefing deve estar no formato HH:MM',
   })
   briefingTime?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : Number(value)))
+  @IsNumber({}, { message: 'Preço deve ser um número válido' })
+  @Min(0, { message: 'Preço deve ser maior ou igual a zero' })
+  price?: number;
 
   @IsOptional()
   @Transform(({ value }) => value)
