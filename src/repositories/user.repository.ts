@@ -9,7 +9,8 @@ export class UserRepository extends BaseRepositoryImpl<User> {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.repository.findOne({ where: { email } });
+    const normalized = email?.trim().toLowerCase();
+    return this.repository.findOne({ where: { email: normalized } });
   }
 
   async findByResetPasswordToken(token: string): Promise<User | null> {

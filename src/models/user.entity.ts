@@ -1,4 +1,4 @@
-import { Column, Entity, OneToOne } from 'typeorm';
+import { BeforeInsert, BeforeUpdate, Column, Entity, OneToOne } from 'typeorm';
 
 import { BaseEntity } from './base.entity';
 import { MemberProfile } from './member-profile.entity';
@@ -60,4 +60,12 @@ export class User extends BaseEntity {
   // Relations
   @OneToOne(() => MemberProfile, memberProfile => memberProfile.user)
   memberProfile?: MemberProfile;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  private normalizeEmail(): void {
+    if (this.email) {
+      this.email = this.email.trim().toLowerCase();
+    }
+  }
 }

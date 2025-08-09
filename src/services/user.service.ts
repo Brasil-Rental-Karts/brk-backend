@@ -20,11 +20,14 @@ export class UserService extends BaseService<User> {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findByEmail(email);
+    return this.userRepository.findByEmail(email.trim().toLowerCase());
   }
 
   async create(userData: Partial<User>): Promise<User> {
     // Check if user with this email already exists
+    if (userData.email) {
+      userData.email = userData.email.trim().toLowerCase();
+    }
     const existingUser = await this.findByEmail(userData.email!);
     if (existingUser) {
       throw new HttpException(409, 'User with this email already exists');
@@ -46,6 +49,7 @@ export class UserService extends BaseService<User> {
   async update(id: string, userData: Partial<User>): Promise<User | null> {
     // Check if email is being updated and is already in use
     if (userData.email) {
+      userData.email = userData.email.trim().toLowerCase();
       const existingUser = await this.findByEmail(userData.email);
       if (existingUser && existingUser.id !== id) {
         throw new HttpException(409, 'Email is already in use');
