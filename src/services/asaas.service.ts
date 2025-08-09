@@ -509,6 +509,67 @@ export class AsaasService {
   }
 
   /**
+   * Atualiza o valor de uma cobrança
+   */
+  async updatePaymentValue(
+    paymentId: string,
+    newValue: number
+  ): Promise<AsaasPaymentResponse> {
+    try {
+      const response: AxiosResponse<AsaasPaymentResponse> =
+        await this.apiClient.put(`/payments/${paymentId}`, {
+          value: Number(newValue),
+        });
+
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new BadRequestException(
+          'Cobrança não encontrada no Asaas (404). Verifique se o ID existe e se a chave/API URL correspondem ao mesmo ambiente.'
+        );
+      }
+      console.error(
+        '[ASAAS DEBUG] Erro detalhado ao atualizar valor da cobrança:',
+        {
+          error: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          headers: error.response?.headers,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            data: error.config?.data,
+          },
+        }
+      );
+
+      if (error.response?.status === 400) {
+        const errorDetails = error.response?.data;
+        if (errorDetails?.errors && Array.isArray(errorDetails.errors)) {
+          const errorMessage = errorDetails.errors
+            .map((err: any) => `${err.code}: ${err.description}`)
+            .join(', ');
+          throw new BadRequestException(`Erro 400 do Asaas: ${errorMessage}`);
+        } else if (errorDetails?.message) {
+          throw new BadRequestException(
+            `Erro 400 do Asaas: ${errorDetails.message}`
+          );
+        } else {
+          throw new BadRequestException(
+            `Erro 400 do Asaas: ${JSON.stringify(errorDetails)}`
+          );
+        }
+      }
+
+      throw new BadRequestException(
+        error.response?.data?.errors?.[0]?.description ||
+          'Erro ao atualizar valor da cobrança no Asaas.'
+      );
+    }
+  }
+
+  /**
    * Reativa uma fatura vencida atualizando a data de vencimento e gerando novo QR Code PIX
    */
   async reactivateOverduePayment(

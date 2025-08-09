@@ -2324,6 +2324,88 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Atualiza o valor de um pagamento PENDENTE/ VENCIDO e, se PIX, gera novo QR Code
+   */
+  async updatePaymentValue(
+    paymentId: string,
+    newValue: number
+  ): Promise<RegistrationPaymentData> {
+    // Buscar pagamento local
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+      relations: ['registration'],
+    });
+
+    if (!payment) {
+      throw new BadRequestException('Pagamento não encontrado');
+    }
+
+    // Permitir alteração apenas se ainda não pago e não cancelado
+    if (
+      ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'REFUNDED'].includes(
+        payment.status
+      )
+    ) {
+      throw new BadRequestException(
+        'Não é possível alterar o valor de um pagamento finalizado'
+      );
+    }
+
+    if (newValue <= 0) {
+      throw new BadRequestException('Valor deve ser maior que zero');
+    }
+
+    try {
+      // Atualizar no Asaas
+      const updated = await this.asaasService.updatePaymentValue(
+        payment.asaasPaymentId,
+        Number(newValue)
+      );
+
+      // Se PIX, atualizar QR Code
+      if (payment.billingType === AsaasBillingType.PIX) {
+        try {
+          const qr = await this.asaasService.getPixQrCode(payment.asaasPaymentId);
+          payment.pixQrCode = qr.encodedImage;
+          payment.pixCopyPaste = qr.payload;
+        } catch (e) {
+          // segue sem QR code
+        }
+      }
+
+      // Persistir alterações locais
+      payment.value = updated.value;
+      payment.status = updated.status as AsaasPaymentStatus;
+      payment.rawResponse = updated;
+      await this.paymentRepository.save(payment);
+
+      // Atualizar status da inscrição
+      await this.updateSeasonRegistrationStatus(payment.registrationId);
+
+      return {
+        id: payment.id,
+        registrationId: payment.registrationId,
+        billingType: payment.billingType,
+        value: payment.value,
+        dueDate: this.asaasService.formatDateForAsaas(payment.dueDate),
+        status: payment.status,
+        installmentNumber: (payment.rawResponse as any)?.installmentNumber,
+        installmentCount: (payment.rawResponse as any)?.installmentCount || null,
+        invoiceUrl: payment.invoiceUrl,
+        bankSlipUrl: payment.bankSlipUrl,
+        paymentLink:
+          (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+        pixQrCode: payment.pixQrCode,
+        pixCopyPaste: payment.pixCopyPaste,
+      };
+    } catch (error: any) {
+      throw new BadRequestException(
+        error?.message || 'Erro ao atualizar valor do pagamento'
+      );
+    }
+  }
+
+  /**
    * Busca todos os pagamentos vencidos do sistema
    */
   async getAllOverduePayments(): Promise<RegistrationPaymentData[]> {
@@ -2357,6 +2439,71 @@ export class SeasonRegistrationService {
       pixQrCode: payment.pixQrCode,
       pixCopyPaste: payment.pixCopyPaste,
       // Adicionar informações da inscrição com dados do usuário e temporada
+      registration: payment.registration
+        ? {
+            id: payment.registration.id,
+            userId: payment.registration.userId,
+            seasonId: payment.registration.seasonId,
+            amount: payment.registration.amount,
+            paymentStatus: payment.registration.paymentStatus,
+            createdAt: payment.registration.createdAt,
+            user: payment.registration.user
+              ? {
+                  id: payment.registration.user.id,
+                  name: payment.registration.user.name,
+                  email: payment.registration.user.email,
+                }
+              : null,
+            season: payment.registration.season
+              ? {
+                  id: payment.registration.season.id,
+                  name: payment.registration.season.name,
+                  championship: payment.registration.season.championship
+                    ? {
+                        id: payment.registration.season.championship.id,
+                        name: payment.registration.season.championship.name,
+                      }
+                    : null,
+                }
+              : null,
+          }
+        : null,
+    }));
+  }
+
+  /**
+   * Busca todos os pagamentos pendentes (PENDING) por PIX no sistema
+   */
+  async getAllPendingPayments(): Promise<RegistrationPaymentData[]> {
+    const pendingPayments = await this.paymentRepository.find({
+      where: {
+        status: AsaasPaymentStatus.PENDING,
+        billingType: AsaasBillingType.PIX,
+      },
+      relations: [
+        'registration',
+        'registration.user',
+        'registration.season',
+        'registration.season.championship',
+      ],
+      order: { dueDate: 'ASC' },
+    });
+
+    return pendingPayments.map(payment => ({
+      id: payment.id,
+      registrationId: payment.registrationId,
+      billingType: payment.billingType,
+      value: Number(payment.value) || 0,
+      dueDate: payment.dueDate,
+      status: payment.status,
+      installmentNumber: (payment.rawResponse as any)?.installmentNumber,
+      installmentCount: (payment.rawResponse as any)?.installmentCount || null,
+      invoiceUrl: payment.invoiceUrl,
+      bankSlipUrl: payment.bankSlipUrl,
+      paymentLink:
+        (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+      pixQrCode: payment.pixQrCode,
+      pixCopyPaste: payment.pixCopyPaste,
       registration: payment.registration
         ? {
             id: payment.registration.id,

@@ -94,6 +94,31 @@ export class PaymentManagementController extends BaseController {
 
     /**
      * @swagger
+     * /payment-management/pending-payments:
+     *   get:
+     *     summary: Buscar todos os pagamentos pendentes do sistema
+     *     tags: [Payment Management]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Lista de todos os pagamentos pendentes
+     *       400:
+     *         description: Erro na requisição
+     *       401:
+     *         description: Não autorizado
+     *       403:
+     *         description: Sem permissão
+     */
+    this.router.get(
+      '/pending-payments',
+      authMiddleware,
+      requireAdmin,
+      this.getAllPendingPayments.bind(this)
+    );
+
+    /**
+     * @swagger
      * /payment-management/overdue-payments/{registrationId}:
      *   get:
      *     summary: Buscar pagamentos vencidos de uma inscrição
@@ -210,6 +235,50 @@ export class PaymentManagementController extends BaseController {
 
     /**
      * @swagger
+     * /payment-management/update-payment-value/{paymentId}:
+     *   put:
+     *     summary: Atualizar o valor de uma cobrança
+     *     tags: [Payment Management]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: paymentId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID do pagamento
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [newValue]
+     *             properties:
+     *               newValue:
+     *                 type: number
+     *                 description: Novo valor da cobrança (em reais)
+     *                 example: 150.5
+     *     responses:
+     *       200:
+     *         description: Cobrança atualizada com sucesso
+     *       400:
+     *         description: Erro na requisição
+     *       401:
+     *         description: Não autorizado
+     *       403:
+     *         description: Sem permissão
+     */
+    this.router.put(
+      '/update-payment-value/:paymentId',
+      authMiddleware,
+      requireAdmin,
+      this.updatePaymentValue.bind(this)
+    );
+
+    /**
+     * @swagger
      * /payment-management/test-asaas:
      *   get:
      *     summary: Testar conexão com Asaas
@@ -243,6 +312,23 @@ export class PaymentManagementController extends BaseController {
       res.json({
         success: true,
         data: overduePayments,
+      });
+    } catch (error: any) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  private async getAllPendingPayments(
+    req: Request,
+    res: Response
+  ): Promise<void> {
+    try {
+      const pendingPayments =
+        await this.seasonRegistrationService.getAllPendingPayments();
+
+      res.json({
+        success: true,
+        data: pendingPayments,
       });
     } catch (error: any) {
       throw new BadRequestException(error.message);
@@ -320,6 +406,29 @@ export class PaymentManagementController extends BaseController {
         connected: false,
         message: error.message,
       });
+    }
+  }
+
+  private async updatePaymentValue(req: Request, res: Response): Promise<void> {
+    try {
+      const { paymentId } = req.params;
+      const { newValue } = req.body as { newValue: number };
+
+      if (newValue === undefined || newValue === null) {
+        throw new BadRequestException('Novo valor é obrigatório');
+      }
+      if (isNaN(Number(newValue)) || Number(newValue) <= 0) {
+        throw new BadRequestException('Novo valor inválido');
+      }
+
+      const updated = await this.seasonRegistrationService.updatePaymentValue(
+        paymentId,
+        Number(newValue)
+      );
+
+      res.json({ success: true, data: updated });
+    } catch (error: any) {
+      throw new BadRequestException(error.message);
     }
   }
 }
