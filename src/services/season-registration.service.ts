@@ -2406,6 +2406,78 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Atualiza a data de vencimento de um pagamento PENDENTE (ou OVERDUE sem reativar QR) e mantém dados sincronizados
+   */
+  async updatePaymentDueDate(
+    paymentId: string,
+    newDueDate: string
+  ): Promise<RegistrationPaymentData> {
+    // Buscar pagamento local
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+      relations: ['registration'],
+    });
+
+    if (!payment) {
+      throw new BadRequestException('Pagamento não encontrado');
+    }
+
+    // Permitir apenas se não finalizado
+    if (
+      ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'REFUNDED'].includes(
+        payment.status
+      )
+    ) {
+      throw new BadRequestException(
+        'Não é possível alterar o vencimento de um pagamento finalizado'
+      );
+    }
+
+    // Atualizar no Asaas
+    const formattedDate = this.asaasService.formatDateForAsaas(newDueDate);
+    const updated = await this.asaasService.updatePaymentDueDate(
+      payment.asaasPaymentId,
+      formattedDate
+    );
+
+    // Se PIX e continuar pendente, tentar garantir QR code atualizado (o Asaas mantém o mesmo id)
+    if (payment.billingType === AsaasBillingType.PIX) {
+      try {
+        const qr = await this.asaasService.getPixQrCode(payment.asaasPaymentId);
+        payment.pixQrCode = qr.encodedImage;
+        payment.pixCopyPaste = qr.payload;
+      } catch (e) {
+        // segue sem QR code atualizado
+      }
+    }
+
+    // Persistir alterações locais
+    payment.dueDate = updated.dueDate || formattedDate;
+    payment.status = updated.status as AsaasPaymentStatus;
+    payment.rawResponse = updated;
+    await this.paymentRepository.save(payment);
+
+    // Atualizar status da inscrição
+    await this.updateSeasonRegistrationStatus(payment.registrationId);
+
+    return {
+      id: payment.id,
+      registrationId: payment.registrationId,
+      billingType: payment.billingType,
+      value: payment.value,
+      dueDate: this.asaasService.formatDateForAsaas(payment.dueDate),
+      status: payment.status,
+      installmentNumber: (payment.rawResponse as any)?.installmentNumber,
+      installmentCount: (payment.rawResponse as any)?.installmentCount || null,
+      invoiceUrl: payment.invoiceUrl,
+      bankSlipUrl: payment.bankSlipUrl,
+      paymentLink: (payment.rawResponse as any)?.paymentLink || payment.invoiceUrl,
+      pixQrCode: payment.pixQrCode,
+      pixCopyPaste: payment.pixCopyPaste,
+    };
+  }
+
+  /**
    * Busca todos os pagamentos vencidos do sistema
    */
   async getAllOverduePayments(): Promise<RegistrationPaymentData[]> {

@@ -235,6 +235,44 @@ export class PaymentManagementController extends BaseController {
 
     /**
      * @swagger
+     * /payment-management/update-due-date/{paymentId}:
+     *   put:
+     *     summary: Atualizar a data de vencimento de uma cobrança pendente
+     *     tags: [Payment Management]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: paymentId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID do pagamento
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ReactivatePaymentRequest'
+     *     responses:
+     *       200:
+     *         description: Vencimento atualizado com sucesso
+     *       400:
+     *         description: Erro na requisição
+     *       401:
+     *         description: Não autorizado
+     *       403:
+     *         description: Sem permissão
+     */
+    this.router.put(
+      '/update-due-date/:paymentId',
+      authMiddleware,
+      requireAdmin,
+      this.updatePaymentDueDate.bind(this)
+    );
+
+    /**
+     * @swagger
      * /payment-management/update-payment-value/{paymentId}:
      *   put:
      *     summary: Atualizar o valor de uma cobrança
@@ -380,6 +418,34 @@ export class PaymentManagementController extends BaseController {
         data: reactivatedPayment,
         message: 'Fatura reativada com sucesso',
       });
+    } catch (error: any) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  private async updatePaymentDueDate(
+    req: Request,
+    res: Response
+  ): Promise<void> {
+    try {
+      const { paymentId } = req.params;
+      const { newDueDate } = req.body;
+
+      if (!newDueDate) {
+        throw new BadRequestException('Nova data de vencimento é obrigatória');
+      }
+
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(newDueDate)) {
+        throw new BadRequestException('Data deve estar no formato YYYY-MM-DD');
+      }
+
+      const updated = await this.seasonRegistrationService.updatePaymentDueDate(
+        paymentId,
+        newDueDate
+      );
+
+      res.json({ success: true, data: updated, message: 'Vencimento atualizado com sucesso' });
     } catch (error: any) {
       throw new BadRequestException(error.message);
     }
