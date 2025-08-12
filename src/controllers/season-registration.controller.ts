@@ -545,6 +545,13 @@ export class SeasonRegistrationController extends BaseController {
       this.getStageRegistrationCount.bind(this)
     );
 
+    // Novo: contar por etapa e categoria
+    this.router.get(
+      '/stage/:stageId/category/:categoryId/count',
+      authMiddleware,
+      this.getStageCategoryRegistrationCount.bind(this)
+    );
+
     /**
      * @swagger
      * /season-registrations/{id}/categories:
@@ -1245,6 +1252,31 @@ export class SeasonRegistrationController extends BaseController {
     } catch (error) {
       res.status(500).json({
         message: 'Erro interno do servidor ao contar inscrições',
+      });
+    }
+  }
+
+  private async getStageCategoryRegistrationCount(
+    req: Request,
+    res: Response
+  ): Promise<void> {
+    try {
+      const { stageId, categoryId } = req.params;
+
+      const count =
+        await this.registrationService.countRegistrationsByStageAndCategory(
+          stageId,
+          categoryId
+        );
+
+      res.json({
+        message:
+          'Número de pilotos inscritos na etapa por categoria recuperado com sucesso',
+        data: { count },
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: 'Erro interno do servidor ao contar inscrições por etapa/categoria',
       });
     }
   }

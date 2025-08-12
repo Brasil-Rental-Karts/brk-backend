@@ -1005,6 +1005,34 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Conta pilotos inscritos por etapa e por categoria (exclui cancelados e expirados)
+   * Considera apenas inscrições do tipo 'por_etapa'
+   */
+  async countRegistrationsByStageAndCategory(
+    stageId: string,
+    categoryId: string
+  ): Promise<number> {
+    const result = await this.registrationStageRepository
+      .createQueryBuilder('regStage')
+      .innerJoin('regStage.registration', 'registration')
+      .innerJoin('registration.categories', 'regCategory')
+      .where('regStage.stageId = :stageId', { stageId })
+      .andWhere('regCategory.categoryId = :categoryId', { categoryId })
+      .andWhere('registration.status NOT IN (:...excludedStatuses)', {
+        excludedStatuses: [
+          RegistrationStatus.CANCELLED,
+          RegistrationStatus.EXPIRED,
+        ],
+      })
+      .andWhere('registration.inscriptionType = :inscriptionType', {
+        inscriptionType: 'por_etapa',
+      })
+      .getCount();
+
+    return result;
+  }
+
+  /**
    * Processa webhook do Asaas para atualizar status de pagamento
    */
   async processAsaasWebhook(webhookData: any): Promise<void> {
