@@ -37,15 +37,6 @@ export class CategoryResponseDto extends BaseDto {
   @IsInt()
   minimumAge: number;
 
-  @IsOptional()
-  allowDiscarding?: boolean;
-
-  @IsOptional()
-  discardingType?: 'bateria' | 'etapa';
-
-  @IsOptional()
-  discardingQuantity?: number;
-
   @IsUUID('4')
   seasonId: string;
 
@@ -192,19 +183,6 @@ export class CreateCategoryDto extends BaseDto {
   @Max(999, { message: 'Idade mínima deve ser no máximo 999' })
   minimumAge: number;
 
-  @Transform(({ value }) => Boolean(value))
-  allowDiscarding: boolean;
-
-  @IsOptional()
-  @IsString()
-  discardingType?: 'bateria' | 'etapa';
-
-  @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
-  @IsInt({ message: 'Quantidade de descarte deve ser um número inteiro' })
-  @Min(0, { message: 'Quantidade de descarte deve ser maior que 0' })
-  discardingQuantity?: number;
-
   @IsUUID('4', { message: 'ID da temporada deve ser um UUID válido' })
   @IsNotEmpty({ message: 'ID da temporada é obrigatório' })
   seasonId: string;
@@ -311,20 +289,6 @@ export class UpdateCategoryDto extends BaseDto {
   @Min(0, { message: 'Idade mínima deve ser no mínimo 0' })
   @Max(999, { message: 'Idade mínima deve ser no máximo 999' })
   minimumAge?: number;
-
-  @IsOptional()
-  @Transform(({ value }) => Boolean(value))
-  allowDiscarding?: boolean;
-
-  @IsOptional()
-  @IsString()
-  discardingType?: 'bateria' | 'etapa';
-
-  @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? parseInt(value) : undefined))
-  @IsInt({ message: 'Quantidade de descarte deve ser um número inteiro' })
-  @Min(0, { message: 'Quantidade de descarte deve ser maior que 0' })
-  discardingQuantity?: number;
 
   @IsOptional()
   @IsUUID('4', { message: 'ID da temporada deve ser um UUID válido' })

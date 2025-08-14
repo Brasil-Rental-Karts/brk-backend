@@ -21,16 +21,6 @@ export class Category extends BaseEntity {
   @Column({ type: 'int', nullable: false })
   minimumAge: number;
 
-  // Campos de descarte
-  @Column({ type: 'boolean', default: false })
-  allowDiscarding: boolean;
-
-  @Column({ type: 'enum', enum: ['bateria', 'etapa'], nullable: true })
-  discardingType?: 'bateria' | 'etapa';
-
-  @Column({ type: 'int', nullable: true })
-  discardingQuantity?: number;
-
   // Relacionamento com a temporada
   @Column({ nullable: false })
   seasonId: string;
