@@ -205,15 +205,56 @@ export class ChampionshipClassificationService {
       }
     }
 
+    // Mapas auxiliares para aplicar regra de descarte por piloto
+    const perPilotStagePoints: Map<string, Array<{ stageId: string; points: number; hasPenalty: boolean; participated: boolean }>> = new Map();
+    const perPilotBatteryPoints: Map<string, Array<{ stageId: string; batteryIndex: string; points: number; hasPenalty: boolean; participated: boolean }>> = new Map();
+
+    // Determinar configuração de descarte com base nos sistemas usados (inclui padrão)
+    let discardMode: 'none' | 'per_stage' | 'per_battery' = 'none';
+    let discardCount = 0;
+    const scoringSystemsUsed = new Set<ScoringSystem>();
+    if (defaultScoringSystem) scoringSystemsUsed.add(defaultScoringSystem);
+    for (const ss of scoringSystemByBattery.values()) scoringSystemsUsed.add(ss);
+    const modes = Array.from(scoringSystemsUsed).map(ss => ({
+      mode: (ss as any)?.discardMode as 'none' | 'per_stage' | 'per_battery' | undefined,
+      count: Number((ss as any)?.discardCount ?? 0),
+      name: (ss as any)?.name || 'unknown',
+    }));
+    if (modes.some(m => m.mode === 'per_stage')) {
+      discardMode = 'per_stage';
+      discardCount = Math.max(0, modes
+        .filter(m => m.mode === 'per_stage')
+        .reduce((max, m) => Math.max(max, m.count || 0), 0));
+    } else if (modes.some(m => m.mode === 'per_battery')) {
+      discardMode = 'per_battery';
+      discardCount = Math.max(0, modes
+        .filter(m => m.mode === 'per_battery')
+        .reduce((max, m) => Math.max(max, m.count || 0), 0));
+    } else {
+      discardMode = 'none';
+      discardCount = 0;
+    }
+
+    
+
+    // Índices esperados de baterias conforme configuração da categoria
+    const expectedBatteryIndices: string[] = Array.from(scoringSystemByBattery.keys());
+
+    // Guardar resultados por etapa para preencher ausências depois
+    const categoryStageResultsByStageId = new Map<string, any>();
+
     // Processar cada etapa
     for (const stage of allStages) {
       const stageResultsData = stage.stage_results;
 
       if (!stageResultsData || !stageResultsData[categoryId]) {
+        // Mesmo sem resultados, manter referência vazia para permitir descarte por ausência
+        categoryStageResultsByStageId.set(stage.id, null);
         continue;
       }
 
       const categoryStageResults = stageResultsData[categoryId];
+      categoryStageResultsByStageId.set(stage.id, categoryStageResults);
 
       // Processar cada bateria individualmente para calcular pódios corretamente
       const batteryResults: {
@@ -273,6 +314,124 @@ export class ChampionshipClassificationService {
         podiumsByBattery.set(batteryIndex, podiumPilotIds);
       }
 
+      // Preparar entradas completas de baterias (incluindo pilotos sem finishPosition) para cálculo de pole/fastest por bateria
+      const allBatteryEntries: Array<{ batteryIndex: string; pilotId: string; data: any }> = [];
+      for (const [pilotId, pilotData] of Object.entries(categoryStageResults)) {
+        for (const [batteryIndex, batteryData] of Object.entries(pilotData as any)) {
+          allBatteryEntries.push({ batteryIndex: String(batteryIndex), pilotId, data: batteryData });
+        }
+      }
+
+      // Detectar pole por bateria (menor startPosition entre todas as entradas)
+      const polePilotByBattery = new Map<string, string>();
+      for (const entry of allBatteryEntries) {
+        const { batteryIndex, pilotId, data } = entry;
+        if (data.startPosition !== undefined && data.startPosition !== null) {
+          const currentPilot = polePilotByBattery.get(batteryIndex);
+          if (!currentPilot) {
+            polePilotByBattery.set(batteryIndex, pilotId);
+          } else {
+            const currentEntry = allBatteryEntries.find(
+              e => e.batteryIndex === batteryIndex && e.pilotId === currentPilot
+            );
+            const currentStart = currentEntry?.data?.startPosition ?? Infinity;
+            if (data.startPosition < currentStart) {
+              polePilotByBattery.set(batteryIndex, pilotId);
+            }
+          }
+        }
+      }
+
+      // Detectar fastest lap por bateria (menor bestLap entre todas as entradas)
+      const fastestLapByBattery = new Map<string, { pilotId: string; lapTimeMs: number }>();
+      const batteriesAll = new Map<string, Array<{ pilotId: string; data: any }>>();
+      for (const { batteryIndex, pilotId, data } of allBatteryEntries) {
+        if (!batteriesAll.has(batteryIndex)) batteriesAll.set(batteryIndex, []);
+        batteriesAll.get(batteryIndex)!.push({ pilotId, data });
+      }
+      for (const [batteryIndex, batteryPilots] of batteriesAll) {
+        let fastestLapMs = Infinity;
+        let fastestLapPilot = '';
+        for (const { pilotId, data } of batteryPilots) {
+          if (data.bestLap) {
+            const lapTimeMs = this.convertLapTimeToMs(data.bestLap);
+            if (lapTimeMs < fastestLapMs) {
+              fastestLapMs = lapTimeMs;
+              fastestLapPilot = pilotId;
+            }
+          }
+        }
+        if (fastestLapPilot) {
+          fastestLapByBattery.set(batteryIndex, { pilotId: fastestLapPilot, lapTimeMs: fastestLapMs });
+        }
+      }
+
+      // Para cada piloto desta etapa, calcular pontos por bateria e por etapa para uso no descarte
+      const pilotIdsInStage = Object.keys(categoryStageResults);
+      for (const pilotId of pilotIdsInStage) {
+        const pilotData = categoryStageResults[pilotId] as any;
+        const batteryPointsList: Array<{ stageId: string; batteryIndex: string; points: number; hasPenalty: boolean; participated: boolean }> = [];
+
+        const batteriesToIterate = expectedBatteryIndices.length > 0
+          ? expectedBatteryIndices
+          : Array.from(new Set(Object.keys(pilotData || {})));
+
+        for (const batteryIndex of batteriesToIterate) {
+          const data = (pilotData || {})[batteryIndex];
+          const scoringSystem = scoringSystemByBattery.get(String(batteryIndex)) || defaultScoringSystem || undefined;
+
+          let points = 0;
+          let participated = false;
+          let hasPenalty = false;
+
+          if (data && data.finishPosition !== undefined && data.finishPosition !== null) {
+            participated = true;
+            const position = data.finishPosition;
+            const positionPoints = scoringSystem ? this.getPointsForPosition(position, scoringSystem) : 0;
+
+            let extra = 0;
+            const polePilot = polePilotByBattery.get(String(batteryIndex));
+            if (polePilot === pilotId) extra += (scoringSystem as any)?.polePositionPoints || 0;
+            const fl = fastestLapByBattery.get(String(batteryIndex));
+            if (fl && fl.pilotId === pilotId) extra += (scoringSystem as any)?.fastestLapPoints || 0;
+
+            points = positionPoints + extra;
+
+            const penaltyTime = data.penaltyTime ? parseInt(data.penaltyTime) : 0;
+            const status = (data.status || '').toString().toLowerCase();
+            const positionPenalty = Number((data.positionPenalty ?? 0));
+            const hasAnyPenaltyFlag = Array.isArray(data.penalties)
+              ? data.penalties.length > 0
+              : !!data.penalties;
+            if (
+              penaltyTime > 0 ||
+              positionPenalty > 0 ||
+              hasAnyPenaltyFlag ||
+              ['dq', 'dc', 'nc', 'dnf'].includes(status)
+            ) {
+              hasPenalty = true;
+            }
+          } else {
+            // Não participou: pontos 0, elegível ao descarte
+            points = 0;
+            participated = false;
+            hasPenalty = false;
+          }
+
+          batteryPointsList.push({ stageId: stage.id, batteryIndex: String(batteryIndex), points, hasPenalty, participated });
+        }
+
+        if (!perPilotBatteryPoints.has(pilotId)) perPilotBatteryPoints.set(pilotId, []);
+        perPilotBatteryPoints.get(pilotId)!.push(...batteryPointsList);
+
+        const stagePoints = batteryPointsList.reduce((sum, b) => sum + b.points, 0);
+        // Etapa só é elegível ao descarte se nenhuma bateria tiver punição
+        const stageHasPenalty = batteryPointsList.some(b => b.hasPenalty);
+        const stageParticipated = batteryPointsList.some(b => b.participated);
+        if (!perPilotStagePoints.has(pilotId)) perPilotStagePoints.set(pilotId, []);
+        perPilotStagePoints.get(pilotId)!.push({ stageId: stage.id, points: stagePoints, hasPenalty: stageHasPenalty, participated: stageParticipated });
+      }
+
       // Processar o formato real dos dados: { pilotId: { batteryIndex: { data } } }
       const processedResults = await this.processStageResultsData(
         categoryId,
@@ -301,6 +460,16 @@ export class ChampionshipClassificationService {
         const userStats = allResults.get(userId)!;
         userStats.totalPoints += result.points || 0;
         userStats.totalStages += 1;
+
+        // Garantir que os pontos por etapa usados no descarte reflitam exatamente o cálculo consolidado
+        if (!perPilotStagePoints.has(userId)) perPilotStagePoints.set(userId, []);
+        const stageEntries = perPilotStagePoints.get(userId)!;
+        const existing = stageEntries.find(e => e.stageId === stage.id);
+        if (existing) {
+          // Atualiza apenas os pontos consolidados; preserva flags de punição/participação
+          existing.points = result.points || 0;
+        }
+        perPilotStagePoints.set(userId, stageEntries);
 
         // Calcular vitórias e pódios por bateria
         let stageWins = 0;
@@ -349,6 +518,94 @@ export class ChampionshipClassificationService {
           userStats.fastestLaps += result.fastestLapCount;
 
         userStats.positions.push(result.position);
+      }
+    }
+
+    // Preencher ausências por piloto para etapas sem participação (0 pontos, sem punição)
+    for (const [userId] of allResults) {
+      // Garantir lista de etapas
+      if (!perPilotStagePoints.has(userId)) perPilotStagePoints.set(userId, []);
+      const stageEntries = perPilotStagePoints.get(userId)!;
+      const presentStageIds = new Set(stageEntries.map(s => s.stageId));
+
+      for (const stage of allStages) {
+        const csr = categoryStageResultsByStageId.get(stage.id);
+        const pilotHasData = csr && csr[userId];
+        if (!presentStageIds.has(stage.id) && !pilotHasData) {
+          stageEntries.push({
+            stageId: stage.id,
+            points: 0,
+            hasPenalty: false,
+            participated: false,
+          });
+        }
+      }
+      perPilotStagePoints.set(userId, stageEntries);
+
+      // Para descarte por bateria, preencher baterias ausentes como 0
+      if (discardMode === 'per_battery') {
+        if (!perPilotBatteryPoints.has(userId)) perPilotBatteryPoints.set(userId, []);
+        const batteryEntries = perPilotBatteryPoints.get(userId)!;
+        const existingKeys = new Set(batteryEntries.map(b => `${b.stageId}#${b.batteryIndex}`));
+        for (const stage of allStages) {
+          const csr = categoryStageResultsByStageId.get(stage.id);
+          const pilotHasData = csr && csr[userId];
+          const batteriesToIterate = expectedBatteryIndices.length > 0
+            ? expectedBatteryIndices
+            : pilotHasData
+              ? Object.keys(csr[userId])
+              : [];
+          for (const batteryIndex of batteriesToIterate) {
+            const key = `${stage.id}#${batteryIndex}`;
+            if (!existingKeys.has(key) && !(pilotHasData && csr[userId][batteryIndex])) {
+              batteryEntries.push({
+                stageId: stage.id,
+                batteryIndex: String(batteryIndex),
+                points: 0,
+                hasPenalty: false,
+                participated: false,
+              });
+              existingKeys.add(key);
+            }
+          }
+        }
+        perPilotBatteryPoints.set(userId, batteryEntries);
+      }
+    }
+
+    // Aplicar descarte configurado (se houver)
+    if (discardMode !== 'none' && discardCount > 0) {
+      for (const [userId, stats] of allResults) {
+        let totalPoints = stats.totalPoints;
+
+        if (discardMode === 'per_stage') {
+          const stageList = perPilotStagePoints.get(userId) || [];
+          const eligible = stageList.filter(s => !s.hasPenalty);
+          eligible.sort((a, b) => {
+            if (a.points !== b.points) return a.points - b.points;
+            if (a.participated !== b.participated) return (a.participated ? 1 : 0) - (b.participated ? 1 : 0);
+            return 0;
+          });
+          const toDiscard = eligible.slice(0, Math.min(discardCount, eligible.length));
+          const discardSum = toDiscard.reduce((sum, s) => sum + s.points, 0);
+          
+          
+          totalPoints -= discardSum;
+        } else if (discardMode === 'per_battery') {
+          const batteryList = perPilotBatteryPoints.get(userId) || [];
+          const eligible = batteryList.filter(b => !b.hasPenalty);
+          eligible.sort((a, b) => {
+            if (a.points !== b.points) return a.points - b.points;
+            if (a.participated !== b.participated) return (a.participated ? 1 : 0) - (b.participated ? 1 : 0);
+            return 0;
+          });
+          const toDiscard = eligible.slice(0, Math.min(discardCount, eligible.length));
+          const discardSum = toDiscard.reduce((sum, s) => sum + s.points, 0);
+          
+          totalPoints -= discardSum;
+        }
+
+        stats.totalPoints = Math.max(0, totalPoints);
       }
     }
 
