@@ -26,6 +26,7 @@ import { isValidDocumentLength } from '../utils/document.util';
 import { AsaasCustomer, AsaasService } from './asaas.service';
 import { CreditCardFeesService } from './credit-card-fees.service';
 import { RedisService } from './redis.service';
+import { StageParticipationService } from './stage-participation.service';
 
 export interface CreateRegistrationData {
   userId: string;
@@ -78,6 +79,7 @@ export class SeasonRegistrationService {
   private asaasService: AsaasService;
   private creditCardFeesService: CreditCardFeesService;
   private redisService: RedisService;
+  private stageParticipationService: StageParticipationService;
 
   constructor() {
     this.registrationRepository =
@@ -97,6 +99,7 @@ export class SeasonRegistrationService {
     this.asaasService = new AsaasService();
     this.creditCardFeesService = new CreditCardFeesService();
     this.redisService = RedisService.getInstance();
+    this.stageParticipationService = new StageParticipationService();
   }
 
   /**
@@ -1081,6 +1084,27 @@ export class SeasonRegistrationService {
 
     // Atualizar o status da inscrição usando a nova lógica
     await this.updateSeasonRegistrationStatus(asaasPayment.registrationId);
+
+    // Se o pagamento foi confirmado/recebido, confirmar participações automaticamente
+    const confirmedStatuses = [
+      AsaasPaymentStatus.RECEIVED,
+      AsaasPaymentStatus.CONFIRMED,
+      AsaasPaymentStatus.RECEIVED_IN_CASH,
+    ];
+
+    if (confirmedStatuses.includes(asaasPayment.status)) {
+      try {
+        await this.autoConfirmParticipationsAfterPayment(
+          asaasPayment.registrationId
+        );
+      } catch (e) {
+        // Evitar falhar o webhook por erro de auto-confirmação; apenas logar
+        console.warn(
+          '[AUTO-CONFIRM] Falha ao confirmar participações após pagamento:',
+          (e as Error).message
+        );
+      }
+    }
   }
 
   /**
@@ -2156,6 +2180,94 @@ export class SeasonRegistrationService {
       }
     } catch (error) {
       throw error;
+    }
+  }
+
+  /**
+   * Confirma participações automaticamente após um pagamento confirmado
+   * - por_temporada: confirma todas as etapas futuras da temporada
+   * - por_etapa: confirma as etapas vinculadas à inscrição (futuras)
+   */
+  private async autoConfirmParticipationsAfterPayment(
+    registrationId: string
+  ): Promise<void> {
+    // Buscar inscrição com relações necessárias
+    const registration = await this.registrationRepository.findOne({
+      where: { id: registrationId },
+      relations: [
+        'user',
+        'season',
+        'categories',
+        'categories.category',
+        'stages',
+        'stages.stage',
+      ],
+    });
+
+    if (!registration) return;
+
+    const userId = registration.userId;
+    const categoryIds = registration.categories?.map(c => c.categoryId) || [];
+    if (categoryIds.length === 0) return;
+
+    // Data base para filtrar etapas futuras (00:00 do dia atual)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let targetStageIds: string[] = [];
+
+    if (registration.inscriptionType === ('por_temporada' as InscriptionType)) {
+      // Todas as etapas futuras da temporada
+      const seasonStages = await this.stageRepository.find({
+        where: { seasonId: registration.seasonId },
+      });
+
+      targetStageIds = seasonStages
+        .filter(st => new Date(st.date) >= today)
+        .map(st => st.id);
+    } else if (
+      registration.inscriptionType === ('por_etapa' as InscriptionType)
+    ) {
+      // Etapas vinculadas à inscrição (futuras)
+      const stageIds = registration.stages?.map(s => s.stageId) || [];
+      if (stageIds.length > 0) {
+        const stages = await this.stageRepository.find({
+          where: { id: In(stageIds) },
+        });
+        targetStageIds = stages
+          .filter(st => new Date(st.date) >= today)
+          .map(st => st.id);
+      }
+    }
+
+    if (targetStageIds.length === 0) return;
+
+    // Confirmar participação por (stage x category) disponível na etapa
+    const stages = await this.stageRepository.find({ where: { id: In(targetStageIds) } });
+
+    for (const stage of stages) {
+      // Normalizar categories disponíveis da etapa
+      const stageCategoryIds = Array.isArray(stage.categoryIds)
+        ? stage.categoryIds
+        : stage.categoryIds
+        ? String(stage.categoryIds)
+            .split(',')
+            .map(id => id.trim())
+        : [];
+
+      for (const categoryId of categoryIds) {
+        if (!stageCategoryIds.includes(categoryId)) continue;
+        try {
+          await this.stageParticipationService.confirmParticipationAdmin({
+            userId,
+            stageId: stage.id,
+            categoryId,
+          });
+        } catch (error: any) {
+          // Ignorar erros de já confirmado; reativação já é tratada no service
+          continue;
+        }
+      }
     }
   }
 
