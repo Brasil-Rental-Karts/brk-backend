@@ -36,6 +36,9 @@ export class Stage extends BaseEntity {
   @Column({ type: 'boolean', nullable: false, default: false })
   doubleRound: boolean;
 
+  @Column({ type: 'uuid', nullable: true })
+  doubleRoundPairId: string | null;
+
   @Column({ type: 'text', nullable: true })
   briefing: string;
 

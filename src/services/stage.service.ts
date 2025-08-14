@@ -3,7 +3,6 @@ import { Repository } from 'typeorm';
 import { AppDataSource } from '../config/database.config';
 import { CreateStageDto, UpdateStageDto } from '../dtos/stage.dto';
 import { BadRequestException } from '../exceptions/bad-request.exception';
-import { ConflictException } from '../exceptions/conflict.exception';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { Stage } from '../models/stage.entity';
 import {
@@ -183,18 +182,6 @@ export class StageService {
   async create(createStageDto: CreateStageDto): Promise<Stage> {
     const dateObj = new Date(createStageDto.date);
 
-    const existingStage = await this.stageRepository.findOne({
-      where: {
-        seasonId: createStageDto.seasonId,
-        date: dateObj,
-      },
-    });
-
-    if (existingStage) {
-      throw new ConflictException(
-        'Já existe uma etapa cadastrada para esta data nesta temporada.'
-      );
-    }
 
     let briefingTime = createStageDto.briefingTime;
     if (!briefingTime) {
@@ -217,6 +204,37 @@ export class StageService {
       briefingTime = `${briefingHour.toString().padStart(2, '0')}:${briefingMinute.toString().padStart(2, '0')}`;
     }
 
+    // Valida par de rodada dupla
+    let pairStage: Stage | null = null;
+    if (createStageDto.doubleRound) {
+      if (!createStageDto.doubleRoundPairId) {
+        throw new BadRequestException(
+          'doubleRoundPairId é obrigatório quando doubleRound é verdadeiro'
+        );
+      }
+      // precisa existir e ser da mesma temporada
+      pairStage = await this.stageRepository.findOne({
+        where: { id: createStageDto.doubleRoundPairId },
+      });
+      if (!pairStage) {
+        throw new BadRequestException('Etapa par de rodada dupla não encontrada');
+      }
+      if (pairStage.seasonId !== createStageDto.seasonId) {
+        throw new BadRequestException(
+          'A etapa par de rodada dupla deve pertencer à mesma temporada'
+        );
+      }
+      if (
+        pairStage.doubleRoundPairId &&
+        pairStage.doubleRoundPairId !== createStageDto.id
+      ) {
+        // Se já está pareada com outra etapa, não permitir
+        throw new BadRequestException(
+          'A etapa selecionada já está marcada como rodada dupla com outra etapa'
+        );
+      }
+    }
+
     const stage = this.stageRepository.create({
       ...createStageDto,
       date: dateObj,
@@ -224,6 +242,15 @@ export class StageService {
     });
 
     const savedStage = await this.stageRepository.save(stage);
+
+    // Sincroniza vínculo na etapa par
+    if (createStageDto.doubleRound && pairStage) {
+      // Atualiza par
+      pairStage.doubleRound = true;
+      pairStage.doubleRoundPairId = savedStage.id;
+      await this.stageRepository.save(pairStage);
+      await this.redisService.invalidateStageCache(pairStage.id, pairStage.seasonId);
+    }
 
     return this.formatTimeFields(savedStage);
   }
@@ -234,26 +261,6 @@ export class StageService {
   async update(id: string, updateStageDto: UpdateStageDto): Promise<Stage> {
     const stage = await this.findById(id);
 
-    if (updateStageDto.date) {
-      const dateObj = new Date(updateStageDto.date);
-
-      const checkDate = updateStageDto.date ? dateObj : stage.date;
-      const checkTime = updateStageDto.time || stage.time;
-
-      const existingStage = await this.stageRepository
-        .createQueryBuilder('stage')
-        .where('stage.seasonId = :seasonId', { seasonId: stage.seasonId })
-        .andWhere('stage.date = :date', { date: checkDate })
-        .andWhere('stage.time = :time', { time: checkTime })
-        .andWhere('stage.id != :id', { id })
-        .getOne();
-
-      if (existingStage) {
-        throw new BadRequestException(
-          'Já existe uma etapa agendada para esta data e horário'
-        );
-      }
-    }
 
     const { date, ...restOfDto } = updateStageDto;
     const updateData: Partial<Stage> = { ...restOfDto };
@@ -262,6 +269,72 @@ export class StageService {
       const isoDateString = date.toISOString().split('T')[0];
       const [year, month, day] = isoDateString.split('-').map(Number);
       updateData.date = new Date(Date.UTC(year, month - 1, day));
+    }
+
+    // Sincronização/validação de rodada dupla
+    const wasDouble = !!stage.doubleRound;
+    const wasPairedWith = stage.doubleRoundPairId || null;
+    const willBeDouble = updateStageDto.doubleRound ?? stage.doubleRound;
+    const requestedPairId = updateStageDto.doubleRoundPairId ?? wasPairedWith;
+
+    if (willBeDouble) {
+      if (!requestedPairId) {
+        throw new BadRequestException(
+          'doubleRoundPairId é obrigatório quando doubleRound é verdadeiro'
+        );
+      }
+      const pair = await this.stageRepository.findOne({ where: { id: requestedPairId } });
+      if (!pair) {
+        throw new BadRequestException('Etapa par de rodada dupla não encontrada');
+      }
+      if (pair.seasonId !== stage.seasonId) {
+        throw new BadRequestException(
+          'A etapa par de rodada dupla deve pertencer à mesma temporada'
+        );
+      }
+      if (pair.id === stage.id) {
+        throw new BadRequestException('A etapa par não pode ser a própria etapa');
+      }
+      if (pair.doubleRoundPairId && pair.doubleRoundPairId !== stage.id) {
+        throw new BadRequestException(
+          'A etapa selecionada já está marcada como rodada dupla com outra etapa'
+        );
+      }
+      // Se existia um par anterior diferente, desvincula
+      if (wasPairedWith && wasPairedWith !== pair.id) {
+        const oldPair = await this.stageRepository.findOne({ where: { id: wasPairedWith } });
+        if (oldPair) {
+          oldPair.doubleRound = false;
+          oldPair.doubleRoundPairId = null;
+          await this.stageRepository.save(oldPair);
+          await this.redisService.invalidateStageCache(oldPair.id, oldPair.seasonId);
+        }
+      }
+      // Garante recíproco no novo par
+      pair.doubleRound = true;
+      pair.doubleRoundPairId = stage.id;
+      await this.stageRepository.save(pair);
+      await this.redisService.invalidateStageCache(pair.id, pair.seasonId);
+    } else {
+      // Se vai deixar de ser dupla, remover vínculo no par anterior
+      if (wasPairedWith) {
+        const oldPair = await this.stageRepository.findOne({ where: { id: wasPairedWith } });
+        if (oldPair) {
+          oldPair.doubleRound = false;
+          oldPair.doubleRoundPairId = null;
+          await this.stageRepository.save(oldPair);
+          await this.redisService.invalidateStageCache(oldPair.id, oldPair.seasonId);
+        }
+      }
+    }
+
+    // Aplica alterações locais
+    if (!willBeDouble) {
+      updateData.doubleRound = false;
+      updateData.doubleRoundPairId = null;
+    } else if (requestedPairId) {
+      updateData.doubleRound = true;
+      updateData.doubleRoundPairId = requestedPairId;
     }
 
     const updatedStage = this.stageRepository.merge(stage, updateData);
