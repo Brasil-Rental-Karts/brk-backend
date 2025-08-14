@@ -109,15 +109,6 @@ export class ChampionshipClassificationService {
     }
 
     const championship = season.championship;
-
-    // Buscar sistema de pontuação
-    const scoringSystem = await this.scoringSystemRepository.findOne({
-      where: { championshipId: championship.id },
-    });
-
-    if (!scoringSystem) {
-      return;
-    }
     // Buscar todas as etapas da temporada UMA SÓ VEZ
     const allStages = await this.stageRepository
       .createQueryBuilder('stage')
@@ -141,8 +132,7 @@ export class ChampionshipClassificationService {
         season.id,
         championship.id,
         categoryId,
-        allStages,
-        scoringSystem
+        allStages
       );
 
       // Redis removido - classificação sempre buscada do banco
@@ -156,8 +146,7 @@ export class ChampionshipClassificationService {
     seasonId: string,
     championshipId: string,
     categoryId: string,
-    allStages: Stage[],
-    scoringSystem: ScoringSystem
+    allStages: Stage[]
   ): Promise<void> {
     // Coletar todos os resultados históricos da categoria
     const allResults = new Map<
@@ -172,6 +161,49 @@ export class ChampionshipClassificationService {
         positions: number[];
       }
     >();
+
+    // Carregar categoria e mapear sistemas de pontuação por bateria
+    const category = await this.categoryRepository.findOne({ where: { id: categoryId } });
+
+    // Fallback: sistema padrão do campeonato (se necessário)
+    const defaultScoringSystem = await this.scoringSystemRepository.findOne({
+      where: { championshipId, isDefault: true },
+    }) || (await this.scoringSystemRepository.findOne({ where: { championshipId, isActive: true } }));
+
+    // Construir mapa batteryIndex -> scoringSystem
+    const scoringSystemByBattery = new Map<string, ScoringSystem>();
+    if (category?.batteriesConfig && Array.isArray(category.batteriesConfig)) {
+      // Mapear orders para ids
+      const scoringIds = Array.from(new Set(
+        category.batteriesConfig
+          .map(b => b.scoringSystemId)
+          .filter(Boolean)
+      ));
+
+      if (scoringIds.length > 0) {
+        const scoringSystems = await this.scoringSystemRepository.find({
+          where: { id: In(scoringIds) as any },
+        });
+        const byId = new Map(scoringSystems.map(ss => [ss.id, ss]));
+        category.batteriesConfig.forEach((battery, index) => {
+          const ss = byId.get(battery.scoringSystemId);
+          if (!ss) return;
+          // Cobrir diferentes convenções de índice usadas em stage_results
+          const keysToMap = new Set<string>();
+          // 0-based pelo array
+          keysToMap.add(String(index));
+          // order informado (pode ser 0-based ou 1-based dependendo de quem preencheu)
+          if (battery.order !== undefined && battery.order !== null) {
+            keysToMap.add(String(battery.order));
+            // se for 1-based, também mapear order-1
+            keysToMap.add(String(Math.max(0, battery.order - 1)));
+          }
+          for (const key of keysToMap) {
+            scoringSystemByBattery.set(key, ss);
+          }
+        });
+      }
+    }
 
     // Processar cada etapa
     for (const stage of allStages) {
@@ -245,7 +277,8 @@ export class ChampionshipClassificationService {
       const processedResults = await this.processStageResultsData(
         categoryId,
         categoryStageResults,
-        scoringSystem
+        scoringSystemByBattery,
+        defaultScoringSystem || undefined
       );
 
       // Processar resultados da etapa
@@ -355,15 +388,6 @@ export class ChampionshipClassificationService {
     categoryId: string,
     stageResults: StageResultData[]
   ): Promise<void> {
-    // Buscar sistema de pontuação
-    const scoringSystem = await this.scoringSystemRepository.findOne({
-      where: { championshipId },
-    });
-
-    if (!scoringSystem) {
-      return;
-    }
-
     // Buscar todas as etapas da temporada
     const allStages = await this.stageRepository
       .createQueryBuilder('stage')
@@ -377,8 +401,7 @@ export class ChampionshipClassificationService {
       seasonId,
       championshipId,
       categoryId,
-      allStages,
-      scoringSystem
+      allStages
     );
   }
 
@@ -388,10 +411,18 @@ export class ChampionshipClassificationService {
   private async processStageResultsData(
     categoryId: string,
     categoryData: any,
-    scoringSystem: ScoringSystem
+    scoringSystemByBattery: Map<string, ScoringSystem>,
+    defaultScoringSystem?: ScoringSystem
   ): Promise<StageResultData[]> {
     // Armazenar resultados de cada bateria separadamente
     const batteryResults: {
+      batteryIndex: string;
+      pilotId: string;
+      data: any;
+    }[] = [];
+
+    // Armazenar todas as entradas por bateria (inclusive pilotos sem finishPosition)
+    const allBatteryEntries: {
       batteryIndex: string;
       pilotId: string;
       data: any;
@@ -404,6 +435,10 @@ export class ChampionshipClassificationService {
       )) {
         const data = batteryData as any;
 
+        // Sempre registrar nas entradas completas da bateria
+        allBatteryEntries.push({ batteryIndex, pilotId, data });
+
+        // Para pontuação, considerar apenas quem tem finishPosition
         if (data.finishPosition !== undefined && data.finishPosition !== null) {
           batteryResults.push({
             batteryIndex,
@@ -430,18 +465,23 @@ export class ChampionshipClassificationService {
       }
     >();
 
-    // Determinar pole position global (melhor largada de qualquer bateria)
-    let globalBestStartPosition = Infinity;
-
-    // Primeira passagem: encontrar pole position global
-    for (const result of batteryResults) {
-      const { data } = result;
-
+    // Determinar pole position por bateria considerando todas as entradas
+    const polePilotByBattery = new Map<string, string>();
+    for (const { batteryIndex, pilotId, data } of allBatteryEntries) {
       if (data.startPosition !== undefined && data.startPosition !== null) {
-        globalBestStartPosition = Math.min(
-          globalBestStartPosition,
-          data.startPosition
-        );
+        const currentPolePilot = polePilotByBattery.get(batteryIndex);
+        if (!currentPolePilot) {
+          polePilotByBattery.set(batteryIndex, pilotId);
+        } else {
+          // Comparar posições de largada para definir pole
+          const currentPoleEntry = allBatteryEntries.find(
+            e => e.batteryIndex === batteryIndex && e.pilotId === currentPolePilot
+          );
+          const currentPoleStart = currentPoleEntry?.data?.startPosition ?? Infinity;
+          if (data.startPosition < currentPoleStart) {
+            polePilotByBattery.set(batteryIndex, pilotId);
+          }
+        }
       }
     }
 
@@ -509,13 +549,18 @@ export class ChampionshipClassificationService {
 
       const pilotStats = pilotTotalPoints.get(pilotId)!;
 
+      // Selecionar sistema de pontuação desta bateria (fallback para default)
+      const scoringSystem =
+        scoringSystemByBattery.get(String(batteryIndex)) || defaultScoringSystem;
+
       // Calcular pontos da bateria
       const position = data.finishPosition;
-      const positionPoints = this.getPointsForPosition(position, scoringSystem);
+      const positionPoints = scoringSystem
+        ? this.getPointsForPosition(position, scoringSystem)
+        : 0;
 
-      // Verificar se esta bateria teve pole position
-      const hasPoleInThisBattery =
-        data.startPosition === globalBestStartPosition;
+      // Verificar se este piloto é o pole desta bateria
+      const hasPoleInThisBattery = polePilotByBattery.get(batteryIndex) === pilotId;
 
       // Verificar se este piloto teve fastest lap nesta bateria específica
       const batteryFastestLap = fastestLapByBattery.get(batteryIndex);
@@ -526,13 +571,14 @@ export class ChampionshipClassificationService {
       let polePositionPoints = 0;
       let fastestLapPoints = 0;
 
-      if (hasPoleInThisBattery && !pilotStats.polePosition) {
-        polePositionPoints = scoringSystem.polePositionPoints || 0;
-        pilotStats.polePosition = true;
+      if (hasPoleInThisBattery) {
+        polePositionPoints = scoringSystem?.polePositionPoints || 0;
+        // Marcar que este piloto teve ao menos uma pole (para StageResultData)
+        pilotStats.polePosition = pilotStats.polePosition || true;
       }
 
       if (hasFastestLapInThisBattery) {
-        fastestLapPoints = scoringSystem.fastestLapPoints || 0;
+        fastestLapPoints = scoringSystem?.fastestLapPoints || 0;
         pilotStats.fastestLapCount += 1;
       }
 
