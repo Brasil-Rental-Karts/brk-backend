@@ -10,6 +10,8 @@ export interface CreateScoringSystemDto {
   positions: Array<{ position: number; points: number }>;
   polePositionPoints?: number;
   fastestLapPoints?: number;
+  discardMode?: 'none' | 'per_stage' | 'per_battery';
+  discardCount?: number;
   isActive?: boolean;
   isDefault?: boolean;
 }
@@ -19,6 +21,8 @@ export interface UpdateScoringSystemDto {
   positions?: Array<{ position: number; points: number }>;
   polePositionPoints?: number;
   fastestLapPoints?: number;
+  discardMode?: 'none' | 'per_stage' | 'per_battery';
+  discardCount?: number;
   isActive?: boolean;
   isDefault?: boolean;
 }
@@ -77,6 +81,8 @@ export class ScoringSystemService {
       isDefault: data.isDefault || false,
       polePositionPoints: data.polePositionPoints || 0,
       fastestLapPoints: data.fastestLapPoints || 0,
+      discardMode: data.discardMode || 'none',
+      discardCount: data.discardCount || 0,
     });
 
     return this.scoringSystemRepository.save(scoringSystem);

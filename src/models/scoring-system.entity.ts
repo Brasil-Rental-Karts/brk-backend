@@ -22,6 +22,12 @@ export class ScoringSystem extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   fastestLapPoints: number;
 
+  @Column({ type: 'varchar', length: 20, default: 'none' })
+  discardMode: 'none' | 'per_stage' | 'per_battery';
+
+  @Column({ type: 'int', default: 0 })
+  discardCount: number;
+
   @Column({ default: true })
   isActive: boolean;
 

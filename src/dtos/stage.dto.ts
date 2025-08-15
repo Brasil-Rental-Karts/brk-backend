@@ -72,6 +72,11 @@ import { BaseDto } from './base.dto';
  *           type: boolean
  *           description: Se é uma rodada dupla
  *           default: false
+ *         doubleRoundPairId:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           description: ID da outra etapa que compõe a rodada dupla (mesma temporada)
  *         briefing:
  *           type: string
  *           description: Texto do briefing (opcional)
@@ -140,6 +145,11 @@ export class CreateStageDto extends BaseDto {
   doubleRound?: boolean = false;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsUUID(4, { message: 'doubleRoundPairId deve ser um UUID válido' })
+  doubleRoundPairId?: string;
+
+  @IsOptional()
   @IsString()
   briefing?: string;
 
@@ -202,6 +212,11 @@ export class CreateStageDto extends BaseDto {
  *         doubleRound:
  *           type: boolean
  *           description: Se é uma rodada dupla
+  *         doubleRoundPairId:
+  *           type: string
+  *           format: uuid
+  *           nullable: true
+  *           description: ID da outra etapa que compõe a rodada dupla (mesma temporada)
  *         briefing:
  *           type: string
  *           description: Texto do briefing (opcional)
@@ -268,6 +283,11 @@ export class UpdateStageDto extends BaseDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean({ message: 'doubleRound deve ser um boolean' })
   doubleRound?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsUUID(4, { message: 'doubleRoundPairId deve ser um UUID válido' })
+  doubleRoundPairId?: string;
 
   @IsOptional()
   @IsString()

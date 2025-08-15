@@ -54,6 +54,16 @@ import { BaseController } from './base.controller';
  *           minimum: 0
  *           default: 0
  *           description: Pontos extras para volta mais rápida
+ *         discardMode:
+ *           type: string
+ *           enum: [none, per_stage, per_battery]
+ *           default: none
+ *           description: Modo de descarte
+ *         discardCount:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *           description: Quantidade de etapas/baterias a descartar
  *         isActive:
  *           type: boolean
  *           default: true
@@ -196,6 +206,12 @@ export class ScoringSystemController extends BaseController {
      *               fastestLapPoints:
      *                 type: number
      *                 minimum: 0
+ *               discardMode:
+ *                 type: string
+ *                 enum: [none, per_stage, per_battery]
+ *               discardCount:
+ *                 type: integer
+ *                 minimum: 0
      *               isActive:
      *                 type: boolean
      *               isDefault:
@@ -262,6 +278,12 @@ export class ScoringSystemController extends BaseController {
      *               fastestLapPoints:
      *                 type: number
      *                 minimum: 0
+ *               discardMode:
+ *                 type: string
+ *                 enum: [none, per_stage, per_battery]
+ *               discardCount:
+ *                 type: integer
+ *                 minimum: 0
      *               isActive:
      *                 type: boolean
      *               isDefault:

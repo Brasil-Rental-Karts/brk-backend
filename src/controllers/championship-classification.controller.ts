@@ -688,12 +688,17 @@ export class ChampionshipClassificationController extends BaseController {
       // TODO: Adicionar verificação de permissão (apenas admins/managers do campeonato)
       // await this.validateChampionshipPermission(championshipId, userId);
 
+      // 1) Recalcula classificação de forma síncrona
+      await this.classificationService.recalculateSeasonClassification(seasonId);
+
+      // 2) Atualiza o cache no Redis com o resultado recalculado
       await this.classificationService.cacheSeasonClassificationInRedis(
         seasonId
       );
 
       res.json({
-        message: 'Cache da classificação da temporada atualizado com sucesso',
+        message:
+          'Classificação recalculada e cache da temporada atualizado com sucesso',
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
