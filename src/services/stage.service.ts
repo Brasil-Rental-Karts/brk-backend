@@ -9,7 +9,6 @@ import {
   ParticipationStatus,
   StageParticipation,
 } from '../models/stage-participation.entity';
-import { ChampionshipClassificationService } from './championship-classification.service';
 import { RedisService } from './redis.service';
 import { ScoringSystemService } from './scoring-system.service';
 
@@ -31,7 +30,6 @@ export class StageService {
   private stageRepository: Repository<Stage>;
   private participationRepository: Repository<StageParticipation>;
   private redisService: RedisService;
-  private classificationService: ChampionshipClassificationService;
   private scoringSystemService: ScoringSystemService;
   private seasonRepository: Repository<any>;
 
@@ -40,7 +38,6 @@ export class StageService {
     this.participationRepository =
       AppDataSource.getRepository(StageParticipation);
     this.redisService = RedisService.getInstance();
-    this.classificationService = new ChampionshipClassificationService();
     this.scoringSystemService = new ScoringSystemService();
     this.seasonRepository = AppDataSource.getRepository('Season');
   }
@@ -440,23 +437,6 @@ export class StageService {
     // Invalidar cache da etapa
     await this.redisService.invalidateStageCache(id, stage.seasonId);
 
-    // AUTOMATICAMENTE recalcular toda a classificação da temporada
-    try {
-      // Recalcular classificação completa da temporada
-      await this.classificationService.recalculateSeasonClassification(
-        stage.seasonId
-      );
-
-      // Persistir resultado no Redis usando o hash season:{seasonId}
-      await this.persistClassificationToRedis(stage.seasonId);
-    } catch (error) {
-      console.error(
-        '❌ [TRIGGER] Erro ao recalcular classificação da temporada:',
-        error
-      );
-      // Não bloquear o salvamento dos resultados se houver erro na classificação
-    }
-
     return this.formatTimeFields(updatedStage);
   }
 
@@ -466,18 +446,7 @@ export class StageService {
   private async persistClassificationToRedis(seasonId: string): Promise<void> {
     try {
       // Buscar classificação completa da temporada
-      const classificationData =
-        await this.classificationService.getSeasonClassificationOptimized(
-          seasonId
-        );
-
-      if (classificationData) {
-        // Persistir no Redis usando o método existente
-        await this.redisService.cacheSeasonClassification(
-          seasonId,
-          classificationData
-        );
-      }
+      // classificação removida
     } catch (error) {
       console.error(
         '❌ [REDIS] Erro ao persistir classificação no Redis:',
@@ -487,7 +456,7 @@ export class StageService {
     }
   }
 
-  // Método removido - agora usa recalculateSeasonClassification() diretamente para evitar redundância
+  // Método removido
 
   /**
    * Calcular pontos baseado na posição e sistema de pontuação

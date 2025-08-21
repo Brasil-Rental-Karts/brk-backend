@@ -72,27 +72,7 @@ export class PenaltyService {
             `✅ [PENALTY SERVICE] Status DC adicionado ao resultado da etapa ${penalty.stageId} (criação)`
           );
 
-          // Recalcular posições após adicionar o status DC
-          try {
-            const { ChampionshipClassificationService } = await import(
-              './championship-classification.service'
-            );
-            const classificationService =
-              new ChampionshipClassificationService();
-            await classificationService.recalculateStagePositions(
-              penalty.stageId,
-              penalty.categoryId,
-              penalty.batteryIndex
-            );
-            console.log(
-              `✅ [PENALTY SERVICE] Posições recalculadas após adição do status DC`
-            );
-          } catch (recalcError) {
-            console.error(
-              '❌ [PENALTY SERVICE] Erro ao recalcular posições após adição do status DC:',
-              recalcError
-            );
-          }
+          // Recalcular posições removido (classificação desativada)
         }
       } catch (error) {
         console.error(
@@ -258,27 +238,7 @@ export class PenaltyService {
             `✅ [PENALTY SERVICE] Status DC adicionado ao resultado da etapa ${penalty.stageId} (aplicação)`
           );
 
-          // Recalcular posições após adicionar o status DC
-          try {
-            const { ChampionshipClassificationService } = await import(
-              './championship-classification.service'
-            );
-            const classificationService =
-              new ChampionshipClassificationService();
-            await classificationService.recalculateStagePositions(
-              penalty.stageId,
-              penalty.categoryId,
-              penalty.batteryIndex
-            );
-            console.log(
-              `✅ [PENALTY SERVICE] Posições recalculadas após adição do status DC`
-            );
-          } catch (recalcError) {
-            console.error(
-              '❌ [PENALTY SERVICE] Erro ao recalcular posições após adição do status DC:',
-              recalcError
-            );
-          }
+          // Recalcular posições removido (classificação desativada)
         }
       } catch (error) {
         console.error(
@@ -426,27 +386,7 @@ export class PenaltyService {
             `✅ [PENALTY SERVICE] Status DC removido do resultado da etapa ${penalty.stageId} (cancelamento)`
           );
 
-          // Recalcular posições após remover o status DC
-          try {
-            const { ChampionshipClassificationService } = await import(
-              './championship-classification.service'
-            );
-            const classificationService =
-              new ChampionshipClassificationService();
-            await classificationService.recalculateStagePositions(
-              penalty.stageId,
-              penalty.categoryId,
-              penalty.batteryIndex
-            );
-            console.log(
-              `✅ [PENALTY SERVICE] Posições recalculadas após remoção do status DC`
-            );
-          } catch (recalcError) {
-            console.error(
-              '❌ [PENALTY SERVICE] Erro ao recalcular posições após remoção do status DC:',
-              recalcError
-            );
-          }
+          // Recalcular posições removido (classificação desativada)
         }
       } catch (error) {
         console.error(
@@ -703,27 +643,7 @@ export class PenaltyService {
             `✅ [PENALTY SERVICE] Status DC removido do resultado da etapa ${penalty.stageId} (exclusão)`
           );
 
-          // Recalcular posições após remover o status DC
-          try {
-            const { ChampionshipClassificationService } = await import(
-              './championship-classification.service'
-            );
-            const classificationService =
-              new ChampionshipClassificationService();
-            await classificationService.recalculateStagePositions(
-              penalty.stageId,
-              penalty.categoryId,
-              penalty.batteryIndex
-            );
-            console.log(
-              `✅ [PENALTY SERVICE] Posições recalculadas após remoção do status DC`
-            );
-          } catch (recalcError) {
-            console.error(
-              '❌ [PENALTY SERVICE] Erro ao recalcular posições após remoção do status DC:',
-              recalcError
-            );
-          }
+          // Recalcular posições removido (classificação desativada)
         }
       } catch (error) {
         console.error(
