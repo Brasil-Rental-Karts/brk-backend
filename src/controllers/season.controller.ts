@@ -110,7 +110,62 @@ export class SeasonController extends BaseController {
       }
 
       const redis = RedisService.getInstance();
-      const ok = await redis.setSeasonClassification(existingSeason.id, payload);
+
+      // Merge por categoria, preservando demais categorias
+      const categoryId = payload?.categoryId;
+      const nowIso = new Date().toISOString();
+      let merged: any = {
+        lastUpdated: nowIso,
+        totalCategories: 0,
+        totalPilots: 0,
+        classificationsByCategory: {},
+      };
+
+      const existing = await redis.getSeasonClassification(existingSeason.id);
+      if (existing) {
+        if (existing.classificationsByCategory && typeof existing.classificationsByCategory === 'object') {
+          merged = {
+            ...existing,
+            lastUpdated: nowIso,
+            classificationsByCategory: { ...existing.classificationsByCategory },
+          };
+        } else {
+          // Normalizar estrutura antiga/solta para agrupamento por categoria
+          merged = {
+            lastUpdated: nowIso,
+            totalCategories: 0,
+            totalPilots: 0,
+            classificationsByCategory: {},
+          };
+          if (existing.categoryId) {
+            merged.classificationsByCategory[existing.categoryId] = existing;
+          }
+        }
+      }
+
+      if (!categoryId || typeof categoryId !== 'string') {
+        res.status(400).json({ message: 'categoryId é obrigatório no payload' });
+        return;
+      }
+
+      // Atualiza somente a categoria enviada
+      merged.classificationsByCategory[categoryId] = payload;
+
+      // Atualiza contadores agregados
+      const categoryIds = Object.keys(merged.classificationsByCategory);
+      merged.totalCategories = categoryIds.length;
+      try {
+        merged.totalPilots = categoryIds.reduce((acc: number, cid: string) => {
+          const cat = merged.classificationsByCategory[cid];
+          const totals = Array.isArray(cat?.totals) ? cat.totals : [];
+          return acc + totals.length;
+        }, 0);
+      } catch {
+        // fallback silencioso
+        merged.totalPilots = 0;
+      }
+
+      const ok = await redis.setSeasonClassification(existingSeason.id, merged);
       if (!ok) {
         res.status(500).json({ message: 'Erro ao salvar classificação no Redis' });
         return;
