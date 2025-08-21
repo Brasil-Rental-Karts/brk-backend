@@ -3,7 +3,6 @@ export * from './asaas-payment.entity';
 export * from './base.entity';
 export * from './category.entity';
 export * from './championship.entity';
-export * from './championship-classification.entity';
 export * from './championship-staff.entity';
 export * from './credit-card-fees.entity';
 export * from './grid-type.entity';

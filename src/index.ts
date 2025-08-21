@@ -10,7 +10,6 @@ import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
 import { AuthController } from './controllers/auth.controller';
 import { CategoryController } from './controllers/category.controller';
 import { ChampionshipController } from './controllers/championship.controller';
-import { ChampionshipClassificationController } from './controllers/championship-classification.controller';
 import { ChampionshipStaffController } from './controllers/championship-staff.controller';
 import { CreditCardFeesController } from './controllers/credit-card-fees.controller';
 import { GridTypeController } from './controllers/grid-type.controller';
@@ -207,7 +206,6 @@ AppDataSource.initialize()
       new AdminStatsController(),
       new RaceTrackController(raceTrackService),
       new LapTimesController(AppDataSource),
-      new ChampionshipClassificationController(),
       new CreditCardFeesController(),
       new PaymentManagementController(seasonRegistrationService),
       new PenaltyController(penaltyService),

@@ -9,7 +9,6 @@ import { Stage } from '../models/stage.entity';
 import { User } from '../models/user.entity';
 import { MemberProfileRepository } from '../repositories/member-profile.repository';
 import { UserRepository } from '../repositories/user.repository';
-import { ChampionshipClassificationService } from './championship-classification.service';
 import { RedisService } from './redis.service';
 import { UserService } from './user.service';
 
@@ -26,13 +25,13 @@ export class DatabaseEventsService {
   private static instance: DatabaseEventsService;
   private client: Client | null = null;
   private redisService: RedisService;
-  private classificationService: ChampionshipClassificationService;
+  private classificationService: any;
   private userService: UserService;
   private isListening = false;
 
   private constructor() {
     this.redisService = RedisService.getInstance();
-    this.classificationService = new ChampionshipClassificationService();
+    this.classificationService = null; // classificação removida
     this.userService = new UserService(
       new UserRepository(AppDataSource.getRepository(User)),
       new MemberProfileRepository(AppDataSource.getRepository(MemberProfile))
@@ -316,11 +315,9 @@ export class DatabaseEventsService {
               );
             }
 
-            // If stage was deleted, recalculate season classification
+            // Se uma etapa foi deletada, apenas invalidar caches relacionados de etapa/temporada
             if (event.data && event.data.seasonId) {
-              await this.classificationService.recalculateSeasonClassification(
-                event.data.seasonId
-              );
+              // Nenhuma ação adicional de classificação é necessária (funcionalidade removida)
             }
             break;
         }
