@@ -439,6 +439,52 @@ export class RedisService {
     }
   }
 
+  // Save season classification (arbitrary JSON payload) into season hash
+  async setSeasonClassification(
+    seasonId: string,
+    classificationData: any
+  ): Promise<boolean> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const seasonKey = `season:${seasonId}`;
+      const classificationJson = JSON.stringify(classificationData);
+      await this.client.hSet(seasonKey, 'classification', classificationJson);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async getSeasonClassification(seasonId: string): Promise<any | null> {
+    try {
+      if (!this.client || !this.client.isOpen) {
+        await this.connect();
+      }
+
+      if (!this.client) {
+        throw new Error('Failed to create Redis client');
+      }
+
+      const seasonKey = `season:${seasonId}`;
+      const value = await this.client.hGet(seasonKey, 'classification');
+      if (!value) return null;
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    } catch (error) {
+      return null;
+    }
+  }
+
   // Get multiple seasons at once using Redis pipeline (ultra-fast)
   async getMultipleSeasonsBasicInfo(seasonIds: string[]): Promise<any[]> {
     try {
