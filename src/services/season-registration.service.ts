@@ -1933,83 +1933,7 @@ export class SeasonRegistrationService {
    * Atualiza as categorias de uma inscrição
    * Mantém a mesma quantidade de categorias que o piloto se inscreveu originalmente
    */
-  async updateRegistrationCategories(
-    registrationId: string,
-    newCategoryIds: string[]
-  ): Promise<SeasonRegistration> {
-    const registration = await this.findById(registrationId);
-    if (!registration) {
-      throw new NotFoundException('Inscrição não encontrada');
-    }
-
-    // Verificar se a inscrição pode ser alterada
-    if (
-      registration.status === RegistrationStatus.CANCELLED ||
-      registration.status === RegistrationStatus.EXPIRED
-    ) {
-      throw new BadRequestException(
-        'Não é possível alterar categorias de uma inscrição cancelada ou expirada'
-      );
-    }
-
-    // Verificar se a quantidade de categorias é a mesma
-    const currentCategoryCount = registration.categories?.length || 0;
-    if (newCategoryIds.length !== currentCategoryCount) {
-      throw new BadRequestException(
-        `A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${newCategoryIds.length}`
-      );
-    }
-
-    // Verificar se as novas categorias existem e pertencem à temporada
-    const categories = await this.categoryRepository.find({
-      where: {
-        id: In(newCategoryIds),
-        seasonId: registration.seasonId,
-      },
-    });
-
-    if (categories.length !== newCategoryIds.length) {
-      throw new BadRequestException(
-        'Uma ou mais categorias são inválidas ou não pertencem a esta temporada'
-      );
-    }
-
-    // Obter IDs das categorias atuais para atualizar o cache
-    const currentCategoryIds =
-      registration.categories?.map(cat => cat.categoryId) || [];
-
-    // Remover categorias atuais
-    if (registration.categories && registration.categories.length > 0) {
-      await this.registrationCategoryRepository.delete({
-        registrationId: registrationId,
-      });
-    }
-
-    // Adicionar novas categorias
-    const registrationCategories = categories.map(category =>
-      this.registrationCategoryRepository.create({
-        registrationId: registrationId,
-        categoryId: category.id,
-      })
-    );
-
-    await this.registrationCategoryRepository.save(registrationCategories);
-
-    // Atualizar cache do Redis: remover das categorias antigas e adicionar às novas
-    await this.removeUserFromCategoryPilotsCache(
-      registration.userId,
-      currentCategoryIds
-    );
-    await this.updateCategoryPilotsCache(registration.userId, newCategoryIds);
-
-    // Buscar a inscrição atualizada com as novas categorias
-    const updatedRegistration = await this.findById(registrationId);
-    if (!updatedRegistration) {
-      throw new NotFoundException('Erro ao atualizar inscrição');
-    }
-
-    return updatedRegistration;
-  }
+  // updateRegistrationCategories removido (funcionalidade da aba Pilotos)
 
   /**
    * Adiciona etapas a uma inscrição existente com pagamento administrativo
@@ -2274,48 +2198,7 @@ export class SeasonRegistrationService {
   /**
    * Busca detalhes completos do piloto inscrito
    */
-  async getPilotDetails(registrationId: string): Promise<{
-    registration: SeasonRegistration;
-    user: User;
-    profile: any;
-    payments: RegistrationPaymentData[];
-  } | null> {
-    // Buscar a inscrição com todas as relações
-    const registration = await this.registrationRepository.findOne({
-      where: { id: registrationId },
-      relations: [
-        'user',
-        'season',
-        'season.championship',
-        'categories',
-        'categories.category',
-        'stages',
-        'stages.stage',
-        'payments',
-      ],
-    });
-
-    if (!registration) {
-      return null;
-    }
-
-    // Buscar o perfil completo do usuário
-    const memberProfileRepository =
-      AppDataSource.getRepository('MemberProfiles');
-    const profile = await memberProfileRepository.findOne({
-      where: { id: registration.userId },
-    });
-
-    // Buscar dados de pagamento
-    const paymentData = await this.getPaymentData(registrationId);
-
-    return {
-      registration,
-      user: registration.user,
-      profile: profile || null,
-      payments: paymentData || [],
-    };
-  }
+  // getPilotDetails removido (funcionalidade da aba Pilotos)
 
   /**
    * Busca pagamentos vencidos (OVERDUE) de uma inscrição

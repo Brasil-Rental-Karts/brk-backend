@@ -592,11 +592,7 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Inscrição não encontrada
      */
-    this.router.put(
-      '/:id/categories',
-      authMiddleware,
-      this.updateRegistrationCategories.bind(this)
-    );
+    // Rota de atualização de categorias removida (funcionalidade da aba Pilotos)
 
     /**
      * @swagger
@@ -645,11 +641,7 @@ export class SeasonRegistrationController extends BaseController {
      *       404:
      *         description: Inscrição não encontrada
      */
-    this.router.get(
-      '/:id/pilot-details',
-      authMiddleware,
-      this.getPilotDetails.bind(this)
-    );
+    // Rota de detalhes do piloto removida (funcionalidade da aba Pilotos)
   }
 
   private async createRegistration(req: Request, res: Response): Promise<void> {
@@ -1281,122 +1273,7 @@ export class SeasonRegistrationController extends BaseController {
     }
   }
 
-  private async updateRegistrationCategories(
-    req: Request,
-    res: Response
-  ): Promise<void> {
-    try {
-      const { id } = req.params;
-      const { categoryIds } = req.body;
-      const userId = req.user?.id;
+  // Método updateRegistrationCategories removido (funcionalidade da aba Pilotos)
 
-      if (!userId) {
-        res.status(401).json({ message: 'Usuário não autenticado' });
-        return;
-      }
-
-      if (!categoryIds || !Array.isArray(categoryIds)) {
-        throw new BadRequestException('Dados de categorias inválidos');
-      }
-
-      // Buscar a inscrição para verificar a quantidade atual de categorias
-      const registration = await this.registrationService.findById(id);
-      if (!registration) {
-        res.status(404).json({ message: 'Inscrição não encontrada' });
-        return;
-      }
-
-      const currentCategoryCount = registration.categories?.length || 0;
-      if (categoryIds.length !== currentCategoryCount) {
-        throw new BadRequestException(
-          `A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${categoryIds.length}`
-        );
-      }
-
-      // Verificar se o usuário tem permissão (é owner ou staff do campeonato)
-      const championshipId = registration.season.championshipId;
-      const isOwner = registration.season.championship.ownerId === userId;
-      const isStaff = await this.championshipStaffService.isUserStaffMember(
-        userId,
-        championshipId
-      );
-
-      if (!isOwner && !isStaff) {
-        res.status(403).json({
-          message: 'Usuário não tem permissão para alterar esta inscrição',
-        });
-        return;
-      }
-
-      const updatedRegistration =
-        await this.registrationService.updateRegistrationCategories(
-          id,
-          categoryIds
-        );
-
-      res.json({
-        message: 'Categorias atualizadas com sucesso',
-        data: updatedRegistration,
-      });
-    } catch (error) {
-      res.status(error instanceof BadRequestException ? 400 : 500).json({
-        message:
-          error instanceof Error ? error.message : 'Erro interno do servidor',
-      });
-    }
-  }
-
-  private async getPilotDetails(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-
-      // Verificar se a inscrição existe e se o usuário tem permissão
-      const registration = await this.registrationService.findById(id);
-      if (!registration) {
-        throw new NotFoundException('Inscrição não encontrada');
-      }
-
-      // Verificar permissões: usuário da inscrição, admin/manager, ou staff do campeonato
-      const userId = req.user!.id;
-      const isRegistrationOwner = registration.userId === userId;
-      const isAdminOrManager = [
-        UserRole.ADMINISTRATOR,
-        UserRole.MANAGER,
-      ].includes(req.user!.role);
-
-      let isChampionshipStaff = false;
-      if (!isRegistrationOwner && !isAdminOrManager) {
-        // Verificar se é staff do campeonato
-        const championshipId = registration.season.championshipId;
-        isChampionshipStaff =
-          await this.championshipStaffService.isUserStaffMember(
-            userId,
-            championshipId
-          );
-      }
-
-      if (!isRegistrationOwner && !isAdminOrManager && !isChampionshipStaff) {
-        res.status(403).json({
-          message: 'Sem permissão para acessar detalhes do piloto inscrito',
-        });
-        return;
-      }
-
-      const pilotDetails = await this.registrationService.getPilotDetails(id);
-
-      if (!pilotDetails) {
-        throw new NotFoundException('Detalhes do piloto não encontrados');
-      }
-
-      res.json({
-        message: 'Detalhes do piloto encontrados',
-        data: pilotDetails,
-      });
-    } catch (error) {
-      res.status(error instanceof NotFoundException ? 404 : 500).json({
-        message:
-          error instanceof Error ? error.message : 'Erro interno do servidor',
-      });
-    }
-  }
+  // Método getPilotDetails removido (funcionalidade da aba Pilotos)
 }
