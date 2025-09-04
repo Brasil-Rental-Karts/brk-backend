@@ -9,6 +9,7 @@ import {
 
 import { AsaasPayment } from './asaas-payment.entity';
 import { BaseEntity } from './base.entity';
+import { MemberProfile } from './member-profile.entity';
 import { Season } from './season.entity';
 import { SeasonRegistrationCategory } from './season-registration-category.entity';
 import { SeasonRegistrationStage } from './season-registration-stage.entity';
@@ -94,6 +95,10 @@ export class SeasonRegistration extends BaseEntity {
   @ManyToOne(() => Season, { eager: true })
   @JoinColumn({ name: 'seasonId' })
   season: Season;
+
+  @ManyToOne(() => MemberProfile, { eager: true })
+  @JoinColumn({ name: 'userId' })
+  memberProfile: MemberProfile;
 
   @OneToMany(
     () => SeasonRegistrationCategory,

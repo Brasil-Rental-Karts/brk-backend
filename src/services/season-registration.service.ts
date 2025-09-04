@@ -897,11 +897,12 @@ export class SeasonRegistrationService {
    * Lista inscrições de um campeonato
    */
   async findByChampionshipId(championshipId: string): Promise<any[]> {
-    // Busca as inscrições com os relacionamentos necessários
+    // Busca as inscrições com todos os relacionamentos necessários em uma única consulta
     const registrations = await this.registrationRepository.find({
       where: { season: { championshipId } },
       relations: [
         'user',
+        'memberProfile', // Relacionamento direto com MemberProfile
         'season',
         'season.championship',
         'categories',
@@ -913,28 +914,41 @@ export class SeasonRegistrationService {
       order: { createdAt: 'DESC' },
     });
 
-    // Buscar todos os perfis dos usuários dessas inscrições
-    const userIds = registrations.map(reg => reg.userId);
-    const profiles = await this.userRepository.manager
-      .getRepository('MemberProfile')
-      .find({
-        where: { id: In(userIds) },
-      });
-    const profileMap = new Map(
-      profiles.map((profile: any) => [profile.id, profile])
-    );
-
-    // Montar o retorno incluindo nickname e state
+    // Montar o retorno com todos os dados do perfil
     return registrations.map(reg => {
       const user = reg.user;
-      const profile = profileMap.get(reg.userId);
+      const memberProfile = reg.memberProfile;
+      
       return {
         ...reg,
         user: {
           ...user,
-          nickname: profile?.nickName || null,
+          nickname: memberProfile?.nickName || null,
         },
-        profile: profile ? { state: profile.state } : null,
+        profile: memberProfile ? {
+          id: memberProfile.id,
+          lastLoginAt: memberProfile.lastLoginAt,
+          nickName: memberProfile.nickName,
+          birthDate: memberProfile.birthDate,
+          gender: memberProfile.gender,
+          city: memberProfile.city,
+          state: memberProfile.state,
+          experienceTime: memberProfile.experienceTime,
+          raceFrequency: memberProfile.raceFrequency,
+          championshipParticipation: memberProfile.championshipParticipation,
+          competitiveLevel: memberProfile.competitiveLevel,
+          hasOwnKart: memberProfile.hasOwnKart,
+          isTeamMember: memberProfile.isTeamMember,
+          teamName: memberProfile.teamName,
+          usesTelemetry: memberProfile.usesTelemetry,
+          telemetryType: memberProfile.telemetryType,
+          attendsEvents: memberProfile.attendsEvents,
+          interestCategories: memberProfile.interestCategories,
+          preferredTrack: memberProfile.preferredTrack,
+          profileCompleted: memberProfile.profileCompleted,
+          createdAt: memberProfile.createdAt,
+          updatedAt: memberProfile.updatedAt,
+        } : null,
       };
     });
   }
