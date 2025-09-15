@@ -897,11 +897,12 @@ export class SeasonRegistrationService {
    * Lista inscrições de um campeonato
    */
   async findByChampionshipId(championshipId: string): Promise<any[]> {
-    // Busca as inscrições com os relacionamentos necessários
+    // Busca as inscrições com todos os relacionamentos necessários em uma única consulta
     const registrations = await this.registrationRepository.find({
       where: { season: { championshipId } },
       relations: [
         'user',
+        'memberProfile', // Relacionamento direto com MemberProfile
         'season',
         'season.championship',
         'categories',
@@ -913,28 +914,41 @@ export class SeasonRegistrationService {
       order: { createdAt: 'DESC' },
     });
 
-    // Buscar todos os perfis dos usuários dessas inscrições
-    const userIds = registrations.map(reg => reg.userId);
-    const profiles = await this.userRepository.manager
-      .getRepository('MemberProfile')
-      .find({
-        where: { id: In(userIds) },
-      });
-    const profileMap = new Map(
-      profiles.map((profile: any) => [profile.id, profile])
-    );
-
-    // Montar o retorno incluindo nickname e state
+    // Montar o retorno com todos os dados do perfil
     return registrations.map(reg => {
       const user = reg.user;
-      const profile = profileMap.get(reg.userId);
+      const memberProfile = reg.memberProfile;
+      
       return {
         ...reg,
         user: {
           ...user,
-          nickname: profile?.nickName || null,
+          nickname: memberProfile?.nickName || null,
         },
-        profile: profile ? { state: profile.state } : null,
+        profile: memberProfile ? {
+          id: memberProfile.id,
+          lastLoginAt: memberProfile.lastLoginAt,
+          nickName: memberProfile.nickName,
+          birthDate: memberProfile.birthDate,
+          gender: memberProfile.gender,
+          city: memberProfile.city,
+          state: memberProfile.state,
+          experienceTime: memberProfile.experienceTime,
+          raceFrequency: memberProfile.raceFrequency,
+          championshipParticipation: memberProfile.championshipParticipation,
+          competitiveLevel: memberProfile.competitiveLevel,
+          hasOwnKart: memberProfile.hasOwnKart,
+          isTeamMember: memberProfile.isTeamMember,
+          teamName: memberProfile.teamName,
+          usesTelemetry: memberProfile.usesTelemetry,
+          telemetryType: memberProfile.telemetryType,
+          attendsEvents: memberProfile.attendsEvents,
+          interestCategories: memberProfile.interestCategories,
+          preferredTrack: memberProfile.preferredTrack,
+          profileCompleted: memberProfile.profileCompleted,
+          createdAt: memberProfile.createdAt,
+          updatedAt: memberProfile.updatedAt,
+        } : null,
       };
     });
   }
@@ -1933,83 +1947,7 @@ export class SeasonRegistrationService {
    * Atualiza as categorias de uma inscrição
    * Mantém a mesma quantidade de categorias que o piloto se inscreveu originalmente
    */
-  async updateRegistrationCategories(
-    registrationId: string,
-    newCategoryIds: string[]
-  ): Promise<SeasonRegistration> {
-    const registration = await this.findById(registrationId);
-    if (!registration) {
-      throw new NotFoundException('Inscrição não encontrada');
-    }
-
-    // Verificar se a inscrição pode ser alterada
-    if (
-      registration.status === RegistrationStatus.CANCELLED ||
-      registration.status === RegistrationStatus.EXPIRED
-    ) {
-      throw new BadRequestException(
-        'Não é possível alterar categorias de uma inscrição cancelada ou expirada'
-      );
-    }
-
-    // Verificar se a quantidade de categorias é a mesma
-    const currentCategoryCount = registration.categories?.length || 0;
-    if (newCategoryIds.length !== currentCategoryCount) {
-      throw new BadRequestException(
-        `A quantidade de categorias deve ser a mesma. Atual: ${currentCategoryCount}, Nova: ${newCategoryIds.length}`
-      );
-    }
-
-    // Verificar se as novas categorias existem e pertencem à temporada
-    const categories = await this.categoryRepository.find({
-      where: {
-        id: In(newCategoryIds),
-        seasonId: registration.seasonId,
-      },
-    });
-
-    if (categories.length !== newCategoryIds.length) {
-      throw new BadRequestException(
-        'Uma ou mais categorias são inválidas ou não pertencem a esta temporada'
-      );
-    }
-
-    // Obter IDs das categorias atuais para atualizar o cache
-    const currentCategoryIds =
-      registration.categories?.map(cat => cat.categoryId) || [];
-
-    // Remover categorias atuais
-    if (registration.categories && registration.categories.length > 0) {
-      await this.registrationCategoryRepository.delete({
-        registrationId: registrationId,
-      });
-    }
-
-    // Adicionar novas categorias
-    const registrationCategories = categories.map(category =>
-      this.registrationCategoryRepository.create({
-        registrationId: registrationId,
-        categoryId: category.id,
-      })
-    );
-
-    await this.registrationCategoryRepository.save(registrationCategories);
-
-    // Atualizar cache do Redis: remover das categorias antigas e adicionar às novas
-    await this.removeUserFromCategoryPilotsCache(
-      registration.userId,
-      currentCategoryIds
-    );
-    await this.updateCategoryPilotsCache(registration.userId, newCategoryIds);
-
-    // Buscar a inscrição atualizada com as novas categorias
-    const updatedRegistration = await this.findById(registrationId);
-    if (!updatedRegistration) {
-      throw new NotFoundException('Erro ao atualizar inscrição');
-    }
-
-    return updatedRegistration;
-  }
+  // updateRegistrationCategories removido (funcionalidade da aba Pilotos)
 
   /**
    * Adiciona etapas a uma inscrição existente com pagamento administrativo
@@ -2274,48 +2212,7 @@ export class SeasonRegistrationService {
   /**
    * Busca detalhes completos do piloto inscrito
    */
-  async getPilotDetails(registrationId: string): Promise<{
-    registration: SeasonRegistration;
-    user: User;
-    profile: any;
-    payments: RegistrationPaymentData[];
-  } | null> {
-    // Buscar a inscrição com todas as relações
-    const registration = await this.registrationRepository.findOne({
-      where: { id: registrationId },
-      relations: [
-        'user',
-        'season',
-        'season.championship',
-        'categories',
-        'categories.category',
-        'stages',
-        'stages.stage',
-        'payments',
-      ],
-    });
-
-    if (!registration) {
-      return null;
-    }
-
-    // Buscar o perfil completo do usuário
-    const memberProfileRepository =
-      AppDataSource.getRepository('MemberProfiles');
-    const profile = await memberProfileRepository.findOne({
-      where: { id: registration.userId },
-    });
-
-    // Buscar dados de pagamento
-    const paymentData = await this.getPaymentData(registrationId);
-
-    return {
-      registration,
-      user: registration.user,
-      profile: profile || null,
-      payments: paymentData || [],
-    };
-  }
+  // getPilotDetails removido (funcionalidade da aba Pilotos)
 
   /**
    * Busca pagamentos vencidos (OVERDUE) de uma inscrição
