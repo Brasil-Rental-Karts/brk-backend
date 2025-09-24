@@ -337,7 +337,22 @@ export class StageService {
     const updatedStage = this.stageRepository.merge(stage, updateData);
     const savedStage = await this.stageRepository.save(updatedStage);
 
-    await this.redisService.invalidateStageCache(id, savedStage.seasonId);
+    // Invalidate using the PREVIOUS season to ensure old index cleanup if season changed
+    await this.redisService.invalidateStageCache(id, stage.seasonId);
+
+    // Re-cache updated basic info immediately to avoid missing stage in Redis
+    await this.redisService.cacheStageBasicInfo(savedStage.id, {
+      id: savedStage.id,
+      name: savedStage.name,
+      date: savedStage.date,
+      time: savedStage.time,
+      raceTrackId: savedStage.raceTrackId,
+      trackLayoutId: savedStage.trackLayoutId,
+      streamLink: savedStage.streamLink,
+      briefing: savedStage.briefing,
+      seasonId: savedStage.seasonId,
+      stageResults: savedStage.stage_results,
+    });
 
     return this.formatTimeFields(savedStage);
   }
@@ -352,9 +367,20 @@ export class StageService {
 
     const updatedStage = await this.stageRepository.save(stage);
 
-    // Limpar cache relacionado
-    await this.redisService.deleteData(`stage:${id}`);
-    await this.redisService.deleteData(`stages:season:${stage.seasonId}`);
+    // Limpar e recachear chave correta imediatamente
+    await this.redisService.invalidateStageCache(id, stage.seasonId);
+    await this.redisService.cacheStageBasicInfo(updatedStage.id, {
+      id: updatedStage.id,
+      name: updatedStage.name,
+      date: updatedStage.date,
+      time: updatedStage.time,
+      raceTrackId: updatedStage.raceTrackId,
+      trackLayoutId: updatedStage.trackLayoutId,
+      streamLink: updatedStage.streamLink,
+      briefing: updatedStage.briefing,
+      seasonId: updatedStage.seasonId,
+      stageResults: updatedStage.stage_results,
+    });
 
     return this.formatTimeFields(updatedStage);
   }
@@ -415,6 +441,18 @@ export class StageService {
     stage.kart_draw_assignments = assignments;
     const updatedStage = await this.stageRepository.save(stage);
     await this.redisService.invalidateStageCache(id, stage.seasonId);
+    await this.redisService.cacheStageBasicInfo(updatedStage.id, {
+      id: updatedStage.id,
+      name: updatedStage.name,
+      date: updatedStage.date,
+      time: updatedStage.time,
+      raceTrackId: updatedStage.raceTrackId,
+      trackLayoutId: updatedStage.trackLayoutId,
+      streamLink: updatedStage.streamLink,
+      briefing: updatedStage.briefing,
+      seasonId: updatedStage.seasonId,
+      stageResults: updatedStage.stage_results,
+    });
     return this.formatTimeFields(updatedStage);
   }
 
@@ -436,6 +474,20 @@ export class StageService {
 
     // Invalidar cache da etapa
     await this.redisService.invalidateStageCache(id, stage.seasonId);
+
+    // Re-cachear para manter chave stage:{id} presente
+    await this.redisService.cacheStageBasicInfo(updatedStage.id, {
+      id: updatedStage.id,
+      name: updatedStage.name,
+      date: updatedStage.date,
+      time: updatedStage.time,
+      raceTrackId: updatedStage.raceTrackId,
+      trackLayoutId: updatedStage.trackLayoutId,
+      streamLink: updatedStage.streamLink,
+      briefing: updatedStage.briefing,
+      seasonId: updatedStage.seasonId,
+      stageResults: updatedStage.stage_results,
+    });
 
     return this.formatTimeFields(updatedStage);
   }
