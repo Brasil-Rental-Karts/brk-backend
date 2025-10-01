@@ -229,7 +229,6 @@ export class PaymentManagementController extends BaseController {
     this.router.post(
       '/reactivate-payment/:paymentId',
       authMiddleware,
-      requireAdmin,
       this.reactivateOverduePayment.bind(this)
     );
 
