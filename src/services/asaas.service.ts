@@ -638,10 +638,18 @@ export class AsaasService {
         throw new Error('Data inválida');
       }
 
-      return dateObj.toISOString().split('T')[0];
+      // Monta YYYY-MM-DD a partir dos componentes locais para evitar deslocamento UTC
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     } catch (error) {
       // Fallback: retorna data atual
-      return new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
   }
 
