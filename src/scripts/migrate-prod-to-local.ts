@@ -26,43 +26,116 @@ const LOCAL_CONFIG = {
   ssl: false,
 };
 
-// Ordem das tabelas para respeitar as constraints de chave estrangeira
-// Atualizada com todas as novas tabelas identificadas nas migrações recentes
+// Ordem estática (fallback) para respeitar as constraints de chave estrangeira
+// Mantida apenas como plano B caso a descoberta dinâmica falhe
 const TABLES_ORDER = [
-  // Tabelas independentes (sem FK) - ordem alfabética
   'Championships',
   'GridTypes',
   'RaceTracks',
   'Regulations',
   'ScoringSystem',
   'Users',
-
-  // Tabelas com dependências de primeiro nível
-  'CreditCardFees', // FK: championshipId
-  'MemberProfiles', // FK: userId
-  'Seasons', // FK: championshipId
-
-  // Tabelas com dependências de segundo nível
-  'Categories', // FK: seasonId
-  'ChampionshipStaff', // FK: championshipId, userId
-  'Stages', // FK: seasonId
-
-  // Tabelas com dependências de terceiro nível
-  'SeasonRegistrations', // FK: seasonId, userId
-  'StageParticipations', // FK: stageId, userId
-
-  // Tabelas com dependências de quarto nível
-  'SeasonRegistrationCategories', // FK: seasonRegistrationId, categoryId
-  'SeasonRegistrationStages', // FK: seasonRegistrationId, stageId
-
-  // Tabelas de pagamento e resultados (dependem de registrations e stages)
-  'AsaasPayments', // FK: seasonRegistrationId
-  'lap_times', // FK: stageId, userId
-
-  // Tabelas de classificação e penalidades (dependem de múltiplas tabelas)
-  'ChampionshipClassification', // FK: championshipId, userId, seasonId, categoryId
-  'penalties', // FK: championshipId, userId, seasonId, stageId, categoryId, appliedByUserId, appealedByUserId
+  'CreditCardFees',
+  'MemberProfiles',
+  'Seasons',
+  'Categories',
+  'ChampionshipStaff',
+  'Stages',
+  'SeasonRegistrations',
+  'StageParticipations',
+  'SeasonRegistrationCategories',
+  'SeasonRegistrationStages',
+  'AsaasPayments',
+  'lap_times',
+  'ChampionshipClassification',
+  'penalties',
 ];
+
+// Descoberta dinâmica de tabelas e ordenação topológica por FKs
+async function getAllPublicTables(client: Client): Promise<string[]> {
+  // Exclui tabelas internas/conhecidas que não devem ser migradas
+  const EXCLUDED = ['migrations'];
+  const result = await client.query(
+    `
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_type = 'BASE TABLE'
+        AND table_name <> ALL($1)
+      ORDER BY table_name
+    `,
+    [EXCLUDED]
+  );
+  return result.rows.map(r => r.table_name);
+}
+
+type ForeignKeyEdge = { parent: string; child: string };
+
+async function getForeignKeyEdges(client: Client): Promise<ForeignKeyEdge[]> {
+  const result = await client.query(
+    `
+      SELECT
+        ccu.table_name AS parent_table,
+        tc.table_name  AS child_table
+      FROM information_schema.table_constraints AS tc
+      JOIN information_schema.key_column_usage AS kcu
+        ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+      JOIN information_schema.constraint_column_usage AS ccu
+        ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_schema = 'public'
+    `
+  );
+  return result.rows.map(r => ({ parent: r.parent_table, child: r.child_table }));
+}
+
+function topologicalSortTables(tables: string[], edges: ForeignKeyEdge[]): string[] {
+  const adjacency = new Map<string, Set<string>>(); // parent -> set(children)
+  const indegree = new Map<string, number>();
+
+  for (const t of tables) {
+    adjacency.set(t, new Set());
+    indegree.set(t, 0);
+  }
+
+  for (const { parent, child } of edges) {
+    if (!adjacency.has(parent) || !indegree.has(child)) continue;
+    const children = adjacency.get(parent)!;
+    if (!children.has(child)) {
+      children.add(child);
+      indegree.set(child, (indegree.get(child) || 0) + 1);
+    }
+  }
+
+  // Kahn's algorithm
+  const queue: string[] = [];
+  for (const [table, deg] of indegree.entries()) {
+    if (deg === 0) queue.push(table);
+  }
+
+  const ordered: string[] = [];
+  while (queue.length > 0) {
+    const table = queue.shift()!;
+    ordered.push(table);
+    for (const child of adjacency.get(table) || []) {
+      indegree.set(child, (indegree.get(child) || 0) - 1);
+      if (indegree.get(child) === 0) queue.push(child);
+    }
+  }
+
+  // Se houver ciclo (nem todas foram ordenadas), retorna o que deu + o restante no final
+  if (ordered.length !== tables.length) {
+    const remaining = tables.filter(t => !ordered.includes(t));
+    return [...ordered, ...remaining];
+  }
+  return ordered;
+}
+
+async function getDynamicallyOrderedTables(client: Client): Promise<string[]> {
+  const tables = await getAllPublicTables(client);
+  const edges = await getForeignKeyEdges(client);
+  return topologicalSortTables(tables, edges);
+}
 
 async function createConnection(config: any): Promise<Client> {
   const client = new Client(config);
@@ -70,12 +143,12 @@ async function createConnection(config: any): Promise<Client> {
   return client;
 }
 
-async function truncateAllTables(client: Client): Promise<void> {
+async function truncateAllTables(client: Client, orderedTables: string[]): Promise<void> {
   console.log('🗑️  Iniciando truncate de todas as tabelas...');
 
   // Trunca todas as tabelas na ordem reversa para evitar problemas de FK
-  for (let i = TABLES_ORDER.length - 1; i >= 0; i--) {
-    const table = TABLES_ORDER[i];
+  for (let i = orderedTables.length - 1; i >= 0; i--) {
+    const table = orderedTables[i];
     try {
       await client.query(`TRUNCATE TABLE "${table}" CASCADE;`);
       console.log(`✅ Tabela ${table} truncada`);
@@ -178,7 +251,6 @@ async function migrateData(): Promise<void> {
 
   try {
     console.log('🚀 Iniciando migração de dados de produção para local...');
-    console.log('📋 Tabelas que serão migradas:', TABLES_ORDER.join(', '));
 
     // Conecta aos bancos
     console.log('🔌 Conectando aos bancos de dados...');
@@ -187,15 +259,29 @@ async function migrateData(): Promise<void> {
 
     console.log('✅ Conexões estabelecidas');
 
+    // Descobre e ordena as tabelas dinamicamente (usa local, que deve refletir o schema)
+    let orderedTables: string[] = [];
+    try {
+      orderedTables = await getDynamicallyOrderedTables(localClient);
+      if (!orderedTables || orderedTables.length === 0) {
+        throw new Error('Nenhuma tabela encontrada na descoberta dinâmica');
+      }
+      console.log('📋 Tabelas que serão migradas (dinâmico):', orderedTables.join(', '));
+    } catch (err) {
+      console.warn('⚠️  Falha na descoberta dinâmica. Usando ordem estática de fallback. Motivo:', err);
+      orderedTables = [...TABLES_ORDER];
+      console.log('📋 Tabelas que serão migradas (fallback):', orderedTables.join(', '));
+    }
+
     // Desabilita as foreign key constraints temporariamente
     console.log('🔓 Desabilitando foreign key constraints...');
     await localClient.query('SET session_replication_role = replica;');
 
     // Trunca todas as tabelas locais
-    await truncateAllTables(localClient);
+    await truncateAllTables(localClient, orderedTables);
 
     // Copia os dados na ordem correta
-    for (const table of TABLES_ORDER) {
+    for (const table of orderedTables) {
       await copyTableData(prodClient, localClient, table);
     }
 
@@ -217,7 +303,7 @@ async function migrateData(): Promise<void> {
 
     console.log('🎉 Migração concluída com sucesso!');
     console.log('📊 Resumo das tabelas migradas:');
-    for (const table of TABLES_ORDER) {
+    for (const table of orderedTables) {
       console.log(`  - ${table}`);
     }
   } catch (error) {
