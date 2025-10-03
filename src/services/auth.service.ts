@@ -75,6 +75,12 @@ export class AuthService {
   }
 
   async login(loginUserDto: LoginUserDto): Promise<TokenDto> {
+    // eslint-disable-next-line no-console
+    console.log('[AUTH][SERVICE][LOGIN][STEP] Find user by email', {
+      email: loginUserDto?.email,
+      time: new Date().toISOString(),
+    });
+
     // Find the user
     const user = await this.userRepository.findByEmail(loginUserDto.email);
 
@@ -83,6 +89,12 @@ export class AuthService {
     }
 
     // Verify password
+    // eslint-disable-next-line no-console
+    console.log('[AUTH][SERVICE][LOGIN][STEP] Compare password', {
+      userId: user.id,
+      time: new Date().toISOString(),
+    });
+
     const isPasswordValid = await bcrypt.compare(
       loginUserDto.password,
       user.password
@@ -92,6 +104,13 @@ export class AuthService {
     }
 
     if (!user.active) {
+      // eslint-disable-next-line no-console
+      console.log('[AUTH][SERVICE][LOGIN][STEP] User inactive or email not confirmed', {
+        userId: user.id,
+        emailConfirmed: user.emailConfirmed,
+        emailConfirmationExpires: user.emailConfirmationExpires,
+        time: new Date().toISOString(),
+      });
       // If user is not active and not confirmed, check if confirmation expired
       if (!user.emailConfirmed) {
         const now = new Date();
@@ -107,6 +126,12 @@ export class AuthService {
           user.emailConfirmationToken = newToken;
           user.emailConfirmationExpires = newExpires;
           await this.userRepository.updateUser(user);
+          // eslint-disable-next-line no-console
+          console.log('[AUTH][SERVICE][LOGIN][STEP] Email confirmation re-issued', {
+            userId: user.id,
+            newExpires,
+            time: new Date().toISOString(),
+          });
           await this.emailService.sendEmailConfirmationEmail(
             user.email,
             user.name,
@@ -125,17 +150,38 @@ export class AuthService {
     }
 
     // Get member profile for name
+    // eslint-disable-next-line no-console
+    console.log('[AUTH][SERVICE][LOGIN][STEP] Load member profile', {
+      userId: user.id,
+      time: new Date().toISOString(),
+    });
+
     const profile = await this.memberProfileRepository.findByUserId(user.id);
     const displayName = profile?.nickName || user.name;
     // Generate tokens with name
+    // eslint-disable-next-line no-console
+    console.log('[AUTH][SERVICE][LOGIN][STEP] Generate tokens', {
+      userId: user.id,
+      time: new Date().toISOString(),
+    });
     const tokens = this.generateTokens(user, displayName);
 
     if (!profile) {
       // First login - create a new profile
       await this.memberProfileRepository.create({ id: user.id });
+      // eslint-disable-next-line no-console
+      console.log('[AUTH][SERVICE][LOGIN][STEP] Create member profile (first login)', {
+        userId: user.id,
+        time: new Date().toISOString(),
+      });
     } else {
       // Not first login - update last login timestamp
       await this.memberProfileRepository.updateLastLogin(user.id);
+      // eslint-disable-next-line no-console
+      console.log('[AUTH][SERVICE][LOGIN][STEP] Update last login timestamp', {
+        userId: user.id,
+        time: new Date().toISOString(),
+      });
     }
 
     // Store refresh token in Redis with 7 days expiry (matching refresh token expiry)
@@ -144,6 +190,12 @@ export class AuthService {
       tokens.refreshToken,
       7 * 24 * 60 * 60
     );
+
+    // eslint-disable-next-line no-console
+    console.log('[AUTH][SERVICE][LOGIN][SUCCESS]', {
+      userId: user.id,
+      time: new Date().toISOString(),
+    });
 
     return tokens;
   }

@@ -396,6 +396,16 @@ export class AuthController extends BaseController {
   private async login(req: Request, res: Response): Promise<void> {
     try {
       const loginUserDto: LoginUserDto = req.body;
+      const requestIp = (req.headers['x-forwarded-for'] as string) || req.ip;
+      const userAgent = req.get('user-agent');
+      // eslint-disable-next-line no-console
+      console.log('[AUTH][LOGIN][START]', {
+        email: loginUserDto?.email,
+        ip: requestIp,
+        userAgent,
+        time: new Date().toISOString(),
+      });
+
       const tokens = await this.authService.login(loginUserDto);
       // Set cookies for accessToken and refreshToken
       const cookieOptions = {
@@ -417,9 +427,23 @@ export class AuthController extends BaseController {
       }
       res.cookie('accessToken', tokens.accessToken, cookieOptions);
       res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
+      // eslint-disable-next-line no-console
+      console.log('[AUTH][LOGIN][SUCCESS]', {
+        email: loginUserDto?.email,
+        ip: requestIp,
+        time: new Date().toISOString(),
+      });
       // Return only firstLogin indicator
       res.status(200).json({});
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[AUTH][LOGIN][ERROR]', {
+        error:
+          error instanceof Error
+            ? { message: error.message, stack: error.stack }
+            : error,
+        time: new Date().toISOString(),
+      });
       if (
         error instanceof Error &&
         (error.message === 'Email ou senha incorretos' ||
