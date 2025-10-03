@@ -17,7 +17,7 @@ export const dbConfig: DataSourceOptions = {
   migrations: [join(__dirname, '../migrations/**/*{.ts,.js}')],
   // In development mode, retry connecting to database in case it's not ready yet
   // This is useful when starting with Docker Compose
-  connectTimeoutMS: 10000,
+  connectTimeoutMS: 60000,
   // Only use synchronize in development, never in production
   synchronize: false,
   logging: false,
